@@ -61,13 +61,12 @@ builder.Logging.AddSerilog(logger);
 
 var app = builder.Build();
 
-// //Appy migrations on app start
-//TODO  Uncomment the following lines to apply migrations on application startup
-// using (var scope = app.Services.CreateScope())
-// {
-//     var db = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-//     db.Database.Migrate();
-// }
+ //Appy migrations on app start
+ using (var scope = app.Services.CreateScope())
+ {
+     var db = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+     db.Database.Migrate();
+ }
 
 // // For Identity
 // builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
