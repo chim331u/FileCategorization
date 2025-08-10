@@ -29,10 +29,12 @@ public static class ServiceExtensions
         if (builder == null) throw new ArgumentNullException(nameof(builder));
         if (builder.Configuration == null) throw new ArgumentNullException(nameof(builder.Configuration));
 
-        // Adding the database context
+        // Adding the database context with memory optimizations
         builder.Services.AddDbContext<ApplicationContext>(configure =>
         {
             configure.UseSqlite(builder.Configuration.GetConnectionString("sqliteConnection"));
+            configure.EnableSensitiveDataLogging(false);
+            configure.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.AmbientTransactionWarning));
         });
 
         // Register services

@@ -58,22 +58,21 @@ namespace FileCategorization_Api.Services
         {
             try
             {
-                var fileDetailList = await _context.FilesDetail.AsNoTracking().OrderBy(x => x.Name)
+                return await _context.FilesDetail.AsNoTracking()
                     .Where(x => x.IsActive)
+                    .OrderBy(x => x.Name)
+                    .Select(f => new FilesDetailResponse
+                    {
+                        Id = f.Id,
+                        Name = f.Name,
+                        Path = f.Path,
+                        FileCategory = f.FileCategory,
+                        IsToCategorize = f.IsToCategorize,
+                        IsNew = f.IsNew,
+                        FileSize = f.FileSize,
+                        IsNotToMove = f.IsNotToMove
+                    })
                     .ToListAsync();
-
-                // Return the details of all files
-                return fileDetailList.Select(fileDetailResposne => new FilesDetailResponse
-                {
-                    Id = fileDetailResposne.Id,
-                    Name = fileDetailResposne.Name,
-                    Path = fileDetailResposne.Path,
-                    FileCategory = fileDetailResposne.FileCategory,
-                    IsToCategorize = fileDetailResposne.IsToCategorize,
-                    IsNew = fileDetailResposne.IsNew,
-                    FileSize = fileDetailResposne.FileSize,
-                    IsNotToMove = fileDetailResposne.IsNotToMove
-                });
             }
             catch (Exception ex)
             {
@@ -90,23 +89,21 @@ namespace FileCategorization_Api.Services
         {
             try
             {
-                var fileList = await _context.FilesDetail
+                return await _context.FilesDetail.AsNoTracking()
                     .Where(x => x.IsNotToMove == false && x.FileCategory == fileCategory)
                     .OrderByDescending(x => x.Name)
+                    .Select(f => new FilesDetailResponse
+                    {
+                        Id = f.Id,
+                        Name = f.Name,
+                        Path = f.Path,
+                        FileCategory = f.FileCategory,
+                        IsToCategorize = f.IsToCategorize,
+                        IsNew = f.IsNew,
+                        FileSize = f.FileSize,
+                        IsNotToMove = f.IsNotToMove
+                    })
                     .ToListAsync();
-                
-                // Return the details of all files
-                return fileList.Select(fileDetailResposne => new FilesDetailResponse
-                {
-                    Id = fileDetailResposne.Id,
-                    Name = fileDetailResposne.Name,
-                    Path = fileDetailResposne.Path,
-                    FileCategory = fileDetailResposne.FileCategory,
-                    IsToCategorize = fileDetailResposne.IsToCategorize,
-                    IsNew = fileDetailResposne.IsNew,
-                    FileSize = fileDetailResposne.FileSize,
-                    IsNotToMove = fileDetailResposne.IsNotToMove
-                });
             }
             catch (Exception ex)
             {
@@ -152,27 +149,25 @@ namespace FileCategorization_Api.Services
         {
             try
             {
-                var filesDetail =await _context.FilesDetail.OrderBy(x => x.Name).Where(x => x.IsActive && x.IsToCategorize)
+                return await _context.FilesDetail.AsNoTracking()
+                    .Where(x => x.IsActive && x.IsToCategorize)
+                    .OrderBy(x => x.Name)
+                    .Select(f => new FilesDetailResponse
+                    {
+                        Id = f.Id,
+                        Name = f.Name,
+                        Path = f.Path,
+                        FileCategory = f.FileCategory,
+                        IsToCategorize = f.IsToCategorize,
+                        IsNew = f.IsNew,
+                        FileSize = f.FileSize,
+                        IsNotToMove = f.IsNotToMove
+                    })
                     .ToListAsync();
-
-                // Return the details of the filesDetail
-                // Return the details of all files
-                return filesDetail.Select(fileDetailResponse => new FilesDetailResponse
-                {
-                    Id = fileDetailResponse.Id,
-                    Name = fileDetailResponse.Name,
-                    Path = fileDetailResponse.Path,
-                    FileCategory = fileDetailResponse.FileCategory,
-                    IsToCategorize = fileDetailResponse.IsToCategorize,
-                    IsNew = fileDetailResponse.IsNew,
-                    FileSize = fileDetailResponse.FileSize,
-                    IsNotToMove = fileDetailResponse.IsNotToMove
-                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex.Message);
-
                 return null;
             }
         }
@@ -418,28 +413,23 @@ namespace FileCategorization_Api.Services
         {
             try
             {
-                var fileList = await _context.FilesDetail.Where(x => x.IsNotToMove == false).OrderBy(x => x.FileCategory).ThenByDescending(x => x.Name)
-                    .ToListAsync();
-
-                var query = fileList.OrderByDescending(x => x.Name)
+                return await _context.FilesDetail.AsNoTracking()
+                    .Where(x => x.IsNotToMove == false)
                     .GroupBy(x => x.FileCategory)
-                    .Select(x => x.FirstOrDefault())
-                    .OrderBy(x => x.FileCategory);
-
-
-                // Return the last view list of all files
-                return query.Select(fileDetailResposne => new FilesDetailResponse
-                {
-                    Id = fileDetailResposne.Id,
-                    Name = fileDetailResposne.Name,
-                    Path = fileDetailResposne.Path,
-                    FileCategory = fileDetailResposne.FileCategory,
-                    IsToCategorize = fileDetailResposne.IsToCategorize,
-                    IsNew = fileDetailResposne.IsNew,
-                    FileSize = fileDetailResposne.FileSize,
-                    IsNotToMove = fileDetailResposne.IsNotToMove
-                });
-
+                    .Select(g => g.OrderByDescending(x => x.Name).First())
+                    .OrderBy(x => x.FileCategory)
+                    .Select(f => new FilesDetailResponse
+                    {
+                        Id = f.Id,
+                        Name = f.Name,
+                        Path = f.Path,
+                        FileCategory = f.FileCategory,
+                        IsToCategorize = f.IsToCategorize,
+                        IsNew = f.IsNew,
+                        FileSize = f.FileSize,
+                        IsNotToMove = f.IsNotToMove
+                    })
+                    .ToListAsync();
             }
             catch (Exception ex)
             {

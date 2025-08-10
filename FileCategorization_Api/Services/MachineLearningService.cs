@@ -54,14 +54,15 @@ namespace FileCategorization_Api.Services
 
             ITransformer loadedModel = _mlContext.Model.Load(_modelPath, out var modelInputSchema);
 
+            // Create prediction engine only once and reuse it
+            PredictionEngine<MlFileName, MlFileNamePrediction> _predEngine = _mlContext.Model.CreatePredictionEngine<MlFileName, MlFileNamePrediction>(loadedModel);
+
             foreach (var item in fileList)
             {
                 MlFileName trx = new MlFileName()
                 {
                     FileName = item.Name
                 };
-
-                PredictionEngine<MlFileName, MlFileNamePrediction> _predEngine = _mlContext.Model.CreatePredictionEngine<MlFileName, MlFileNamePrediction>(loadedModel);
 
                 var prediction = _predEngine.Predict(trx);
                 //_serviceData.WriteLog(LogType.Info, $"{fileNameToPredict} ===> Category Predicted: {prediction.Area} <=== ");

@@ -147,48 +147,58 @@ namespace FileCategorization_Api.Services
 
             try
             {
+                const int batchSize = 100;
                 var filesToAddToDb = new List<FilesDetail>();
-                //adding new files
-                foreach (FileInfo file in filesInOrigDir)
+                var fileInfoList = filesInOrigDir.Cast<FileInfo>().ToList();
+                
+                // Process files in batches to reduce memory usage
+                for (int i = 0; i < fileInfoList.Count; i += batchSize)
                 {
-                    //TODO manage folder
-
-                    totalFilesInFolder += 1;
-
-                    if (!_serviceData.FileNameIsPresent(file.Name).Result)
+                    var batch = fileInfoList.Skip(i).Take(batchSize);
+                    var batchFilesToAdd = new List<FilesDetail>();
+                    
+                    foreach (FileInfo file in batch)
                     {
-                        //file in orig folder is not present in DB
-                        _logger.LogInformation($"file {file.Name} not present in db");
+                        totalFilesInFolder += 1;
 
-                        filesToAddToDb.Add(new FilesDetail
+                        if (!_serviceData.FileNameIsPresent(file.Name).Result)
                         {
-                            Name = file.Name,
-                            FileSize = file.Length,
-                            LastUpdateFile = file.LastWriteTime,
-                            Path = file.Directory.FullName,
-                            IsToCategorize = true,
-                            IsNew = true
-                        });
+                            _logger.LogInformation($"file {file.Name} not present in db");
+
+                            batchFilesToAdd.Add(new FilesDetail
+                            {
+                                Name = file.Name,
+                                FileSize = file.Length,
+                                LastUpdateFile = file.LastWriteTime,
+                                Path = file.Directory.FullName,
+                                IsToCategorize = true,
+                                IsNew = true
+                            });
+                        }
                     }
-                }
 
+                    if (batchFilesToAdd.Count > 0)
+                    {
+                        //calculate category for this batch
+                        _logger.LogInformation($"Start Prediction process for batch {i/batchSize + 1}");
+                        var _categorizationStartTime = DateTime.Now;
+                        var _categorizedFiles = _machineLearningService.PredictFileCategorization(batchFilesToAdd);
 
-                if (filesToAddToDb != null && filesToAddToDb.Count > 0)
-                {
-                    //calculate category
-                    _logger.LogInformation("Start Prediction process");
-                    var _categorizationStartTime = DateTime.Now;
-                    var _categorizedFiles = _machineLearningService.PredictFileCategorization(filesToAddToDb);
+                        _logger.LogInformation(
+                            $"End Prediction process for batch: [{await _utility.TimeDiff(_categorizationStartTime, DateTime.Now)}]");
 
-                    _logger.LogInformation(
-                        $"End Prediction process: [{await _utility.TimeDiff(_categorizationStartTime, DateTime.Now)}]");
+                        //add batch to db
+                        _logger.LogInformation("Start add process for batch");
+                        var _addStartTime = DateTime.Now;
+                        var batchAdded = await _serviceData.AddFileDetailList(_categorizedFiles);
+                        fileAdded += batchAdded;
 
-                    //add to db
-                    _logger.LogInformation("Start add process");
-                    var _addStartTime = DateTime.Now;
-                    fileAdded = await _serviceData.AddFileDetailList(_categorizedFiles);
-
-                    _logger.LogInformation($"End adding process: [{await _utility.TimeDiff(_addStartTime, DateTime.Now)}]");
+                        _logger.LogInformation($"End adding process for batch: [{await _utility.TimeDiff(_addStartTime, DateTime.Now)}]");
+                        
+                        // Send progress notification
+                        await _notificationHub.Clients.All.SendAsync("refreshFilesNotifications", 
+                            $"Processed batch {i/batchSize + 1}, added {batchAdded} files", 0);
+                    }
                 }
             }
 
