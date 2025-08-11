@@ -1,0 +1,231 @@
+@page "/WebScrum"
+
+<RadzenRow AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+
+    <RadzenButton Icon="home" ButtonStyle="ButtonStyle.Dark" Size="ButtonSize.Large" Click="GoHome"/>
+    <RadzenButton Icon="add" ButtonStyle="ButtonStyle.Dark" Size="ButtonSize.Large" Click="ShowAddLink"/>
+    <RadzenButton Icon="autorenew" ButtonStyle="ButtonStyle.Dark" Size="ButtonSize.Large" Click="GetActiveThreads"/>
+
+</RadzenRow>
+<hr/>
+<RadzenLabel>@_consoleLog</RadzenLabel>
+<hr/>
+
+@if (_showAddLink)
+{
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                 JustifyContent="JustifyContent.SpaceBetween" Wrap="FlexWrap.Wrap" Gap="0.5rem">
+        <RadzenButton ButtonStyle="ButtonStyle.Dark" Size="ButtonSize.Medium" Click="PasteUrl"
+                      Icon="content_paste_go"></RadzenButton>
+        <RadzenTextBox Placeholder="Url to check..." @bind-Value="_urlToCheck" Name="threadUrl" Style="width: 70%"/>
+        <RadzenButton ButtonStyle="ButtonStyle.Dark" Size="ButtonSize.Medium" Click="CheckUrl" Icon="add_link"
+                      Disabled="@(_urlValid != true)"></RadzenButton>
+    </RadzenStack>
+}
+
+@if (threadList != null && selectedThread == null)
+{
+    <RadzenDataList AllowVirtualization="false" WrapItems="true"
+                    Data="@threadList" TItem="ThreadsDto" PagerHorizontalAlign="HorizontalAlign.Left">
+        <Template Context="_thread">
+            <RadzenCard Variant="Variant.Outlined" class="rz-p-0" Style="width: 100%; overflow: hidden;">
+                <RadzenRow Gap="0">
+                    <RadzenColumn @onclick="(args => GetEd2kLinks(_thread.Id))" size="2" class="rz-p-2">
+                        <RadzenRow Gap="0.5rm">
+                            <RadzenBadge BadgeStyle="BadgeStyle.Success" IsPill="true"
+                                         Text="@_thread.LinksNumber.ToString()"/>
+                        </RadzenRow>
+                        <RadzenRow>
+                            <RadzenBadge BadgeStyle="BadgeStyle.Warning" IsPill="true" Text="NEW"
+                                         Visible="@_thread.NewLinks"/>
+                        </RadzenRow>
+                    </RadzenColumn>
+                    <RadzenColumn @onclick="(args => GetEd2kLinks(_thread.Id))" Size="8" class="rz-p-2">
+                        <RadzenText TextStyle="TextStyle.H5" TagName="TagName.H4"
+                                    class="rz-color-on-secondary-lighter">@(_thread.MainTitle)</RadzenText>
+                    </RadzenColumn>
+                    <RadzenColumn size="2" class="rz-p-2">
+                        <RadzenButton Icon="autorenew" ButtonStyle="ButtonStyle.Dark" Size="ButtonSize.Large"
+                                      Click="@(args => RenewThread(_thread.Id))"/>
+                    </RadzenColumn>
+                </RadzenRow>
+            </RadzenCard>
+        </Template>
+    </RadzenDataList>
+}
+
+@if (linksList != null && selectedThread != null)
+{
+    <h2>@selectedThread.MainTitle</h2>
+    <RadzenDataList AllowVirtualization="false" WrapItems="true" AllowPaging="false"
+                    Data="@linksList" TItem="Ed2kLinkDto" PagerHorizontalAlign="HorizontalAlign.Left"
+                    ShowPagingSummary="false">
+        <Template Context="_link">
+            <RadzenCard Variant="Variant.Outlined" class="rz-p-0" Style="width: 100%; overflow: hidden;">
+                <RadzenRow AlignItems="AlignItems.Center" Gap="0">
+                    @if(_link.IsNew)
+                    {                    <RadzenColumn size="2" class="rz-p-4">
+                            <RadzenBadge BadgeStyle="BadgeStyle.Success" IsPill="true" Text="NEW" Visible="@_link.IsNew"/>
+                        </RadzenColumn>
+                        <RadzenColumn Size="8" class="rz-p-2">
+                            <RadzenText TextStyle="TextStyle.H6"
+                                        class="@(_link.IsUsed ? "rz-color-on-primary-lighter" : "rz-color-on-secondary-lighter")">@(_link.Title)</RadzenText>
+                        </RadzenColumn>
+                        
+                    }
+                    else
+                    {
+                        <RadzenColumn Size="10" class="rz-p-2">
+                            <RadzenText TextStyle="TextStyle.H6"
+                                        class="@(_link.IsUsed ? "rz-color-on-primary-lighter" : "rz-color-on-secondary-lighter")">@(_link.Title)</RadzenText>
+                        </RadzenColumn>
+                    }
+
+
+                    @* <RadzenColumn size="4" class="rz-p-4"> *@
+                    @*     <RadzenBadge BadgeStyle="BadgeStyle.Success" IsPill="true" Text="NOT USED" *@
+                    @*                  Visible="@(_link.IsUsed != true)"/> *@
+                    @* </RadzenColumn> *@
+                    <RadzenColumn Size="2" class="rz-p-4">
+                        <RadzenButton Icon="file_copy" ButtonStyle="ButtonStyle.Dark" Size="ButtonSize.Large"
+                                      Click="@(args => UseLink(_link.Id))"/>
+                    </RadzenColumn>
+
+                </RadzenRow>
+            </RadzenCard>
+        </Template>
+    </RadzenDataList>
+}
+
+@code {
+    [Inject] public IWebScrumServices _service { get; set; }
+
+    IList<ThreadsDto>? threadList;
+    IList<Ed2kLinkDto>? linksList;
+    ThreadsDto? selectedThread;
+    string _urlToCheck = string.Empty;
+    string _consoleLog = string.Empty;
+    bool _urlValid = false;
+    bool _showAddLink = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetActiveThreads();
+    }
+
+    private async Task GetActiveThreads()
+    {
+        linksList = null;
+        selectedThread = null;
+        threadList = await _service.GetActiveThreads();
+        _consoleLog = "Threads loaded";
+    }
+
+    private void GoHome()
+    {
+        linksList = null;
+        selectedThread = null;
+        _showAddLink = false;
+        _urlValid = false;
+    }
+
+    private async Task GetEd2kLinks(int threadId)
+    {
+        if (threadList != null) selectedThread = threadList.Where(x => x.Id == threadId).FirstOrDefault();
+        linksList = await _service.GetEd2kLinks(threadId);
+        _consoleLog = "Links loaded";
+    }
+
+    private async Task UseLink(int linkId)
+    {
+        if (linkId > 0)
+        {
+            
+            _consoleLog = "Request using link ...";
+            var ed2kLink = await _service.UseLink(linkId);
+
+            if (!string.IsNullOrEmpty(ed2kLink))
+            {
+                _consoleLog = "Link used";
+                await CopyLink(ed2kLink);
+                var currentLink = linksList.Where(x => x.Id == linkId).FirstOrDefault();
+                currentLink.IsUsed = true;
+            }
+        }
+    }
+
+    private async Task RenewThread(int threadId)
+    {
+        _consoleLog = $"Checking url for thread id {threadId} ...";
+        var response = await _service.RenewThread(threadId);
+        if (response)
+        {
+            //url checked
+            _consoleLog = "Url checked";
+            _showAddLink = false;
+            _urlValid = false;
+            _urlToCheck = string.Empty;
+            await GetActiveThreads();
+        }
+    }
+
+    private async Task CheckUrl(MouseEventArgs arg)
+    {
+        _consoleLog = "Checking url...";
+        var response = await _service.CheckUrl(_urlToCheck);
+        if (response)
+        {
+            //url checked
+            _consoleLog = "Url checked";
+            _showAddLink = false;
+            _urlValid = false;
+            _urlToCheck = string.Empty;
+
+            await GetActiveThreads();
+        }
+    }
+
+    private async Task PasteUrl()
+    {
+        //TODO
+        //_urlToCheck = await Clipboard.Default.GetTextAsync();
+
+        if (ValidateUrlWithRegex(_urlToCheck))
+        {
+            _urlValid = true;
+            _consoleLog = "Url copied: Ready to check";
+        }
+        else
+        {
+            _consoleLog = "Url not valid";
+        }
+    }
+
+    private async Task CopyLink(string link)
+    {
+        //TODO
+       // await Clipboard.Default.SetTextAsync(link);
+        _consoleLog = "Link copied to clipboard";
+    }
+
+    public bool ValidateUrlWithRegex(string url)
+    {
+        var urlRegex = new Regex(
+            @"^(https?):\/\/(?:[a-zA-Z0-9]" +
+            @"(?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}" +
+            @"(?::(?:0|[1-9]\d{0,3}|[1-5]\d{4}|6[0-4]\d{3}" +
+            @"|65[0-4]\d{2}|655[0-2]\d|6553[0-5]))?" +
+            @"(?:\/(?:[-a-zA-Z0-9@%_\+.~#?&=]+\/?)*)?$",
+            RegexOptions.IgnoreCase);
+
+        urlRegex.Matches(url);
+
+        return urlRegex.IsMatch(url);
+    }
+
+    private void ShowAddLink()
+    {
+        _showAddLink = !_showAddLink;
+    }
+
+}

@@ -1,0 +1,446 @@
+﻿@page "/filecategorizationindex"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject TooltipService tooltipService
+
+<RadzenLayout class="rz-shadow-3" Style="grid-template-columns: auto 1fr auto; grid-template-areas: 'rz-header rz-header rz-header' 'rz-sidebar rz-body rz-right-sidebar'">
+<div class="p-2">
+    
+    <RadzenRow JustifyContent="JustifyContent.SpaceBetween">
+
+        <RadzenButton Click="refreshFiles" Icon="autorenew" ButtonStyle="ButtonStyle.Dark" Size="ButtonSize.Large"
+        IsBusy=@busyRefresh Text="Refresh"
+        BusyText="Wait ..." />
+
+        <RadzenSelectBar @bind-Value=@searchCatParam TValue="int" Change=@(args => OnChangeCatParam(args))>
+            <Items>
+                <RadzenSelectBarItem Text="All" Value="1" />
+                <RadzenSelectBarItem Text="Categorized" Value="2" />
+                <RadzenSelectBarItem Text="To Categorize" Value="3" />
+            </Items>
+        </RadzenSelectBar>
+
+        <RadzenButton Text="Train Model" Icon="psychology" Click="TrainModel" ButtonStyle="ButtonStyle.Dark"
+        Size="ButtonSize.Large"
+        IsBusy=@busyTrain
+        BusyText="Training ..." />
+
+
+        <RadzenButton Text="Force Categories" Icon="category" Click="ForceCategory" ButtonStyle="ButtonStyle.Dark"
+        Size="ButtonSize.Large" />
+
+
+        <RadzenButton ButtonStyle="ButtonStyle.Primary" Icon="drive_file_move" Variant="Variant.Flat" Text="Move"
+        Shade="Shade.Default" Size="ButtonSize.Medium" Class="my-1 ms-1" Click="MoveFiles">
+        </RadzenButton>
+    </RadzenRow>
+    @if (fileList == null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <RadzenRow class="row p-2">
+            <RadzenTextArea @bind-Value="@consoleText" ReadOnly="true" Rows="3"></RadzenTextArea>
+        </RadzenRow>
+        @*  @if (_progressIsVisible)
+        {
+            <RadzenRow class="mb-2">
+                <RadzenProgressBar Style="width: 500px" ProgressBarStyle="ProgressBarStyle.Success" @bind-Value="@_progressPercentage" />
+            </RadzenRow>
+        } *@
+
+        <RadzenDataGrid AllowFiltering="true" AllowColumnResize="true" AllowAlternatingRows="true" Density="Density.Compact"
+        FilterMode="FilterMode.Advanced" AllowSorting="true" PageSize="9" AllowPaging="true"
+        PagerHorizontalAlign="HorizontalAlign.Left" ShowPagingSummary="true" ColumnWidth="250px"
+        Data="@fileList" TItem="FilesDetailDto" LogicalFilterOperator="LogicalFilterOperator.Or">
+
+            <Columns>
+
+                <RadzenDataGridColumn TItem="FilesDetailDto" Property="Name" Title="Name" Frozen="true" Width="80%" />
+
+                <RadzenDataGridColumn TItem="FilesDetailDto" Property="FileSize" Title="Size" Width="10%" Filterable="false">
+                    <Template Context="detail">
+                        @FileSizeFormatted(detail.FileSize)
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn Context="category" TItem="FilesDetailDto" Property="FileCategory" Title="Category" Width="30%">
+
+                    <Template Context="category">
+                        @if (!category.IsNotToMove && category.IsToCategorize)
+                        {
+                            @if (addCategory == category.Id)
+                            {
+
+                                <RadzenButton ButtonStyle="ButtonStyle.Success" Icon="done"                                              
+                                Shade="Shade.Lighter" Size="ButtonSize.Medium" Class="my-1 ms-1"
+                                Click="@(args => SaveNewCat(category))" @onclick:stopPropagation="true">
+                                </RadzenButton>
+                                <RadzenTextBox @bind-Value="newCategory" Placeholder=" New Category" />
+                                <RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="undo"                                             
+                                Shade="Shade.Lighter" Size="ButtonSize.Medium" Class="my-1 ms-1"
+                                Click="@(args => BackCat())" @onclick:stopPropagation="true">
+                                </RadzenButton>
+
+                            }
+                            else
+                            {
+                                <RadzenButton ButtonStyle="ButtonStyle.Info" Icon="add" Variant="Variant.Flat"
+                                Shade="Shade.Lighter" Size="ButtonSize.Medium" Class="my-1 ms-1"
+                                Click="@(args => ShowAddCat(category.Id))" @onclick:stopPropagation="true">
+                                </RadzenButton>
+                                <RadzenDropDown AllowClear="true"
+                                TValue="string" Class="w-99" Placeholder="Select a Category"
+                                FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                AllowFiltering="true"
+                                Data=@categories @bind-Value="@category.FileCategory" />
+                            }
+                        }
+                        else
+                        {
+                            <RadzenRow JustifyContent="JustifyContent.Stretch">
+                                @category.FileCategory
+                                @if (category.IsToCategorize)
+                                {
+                                    <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="To Move" IsPill="true" />
+                                }
+                            </RadzenRow>
+                        }
+                    </Template>
+
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="FilesDetailDto" Context="detail" Title="Actions" Filterable="false" Sortable="false"
+                TextAlign="TextAlign.Center" Width="10%">
+                    <Template Context="detail">
+                        @if (detail.IsNotToMove)
+                        {
+                            <RadzenButton ButtonStyle="ButtonStyle.Secondary" Icon="settings_backup_restore" Variant="Variant.Flat"
+                            Shade="Shade.Lighter" Size="ButtonSize.Medium" Class="my-1 ms-1"
+                            Click="@(args => Revert(detail))" @onclick:stopPropagation="true">
+                            </RadzenButton>
+                        }
+                        else
+                        {
+                            <RadzenButton ButtonStyle="ButtonStyle.Success" Icon="schedule" Variant="Variant.Flat"
+                            Shade="Shade.Lighter" Size="ButtonSize.Medium" Class="my-1 ms-1"
+                            Click="@(args => Schedule(detail))" @onclick:stopPropagation="true">
+                            </RadzenButton>
+                        }
+
+                        @if (detail.IsToCategorize && !detail.IsNotToMove)
+                        {
+                            <RadzenButton ButtonStyle="ButtonStyle.Primary" Icon="visibility_off" Variant="Variant.Flat"
+                            Shade="Shade.Lighter" Size="ButtonSize.Medium" Class="my-1 ms-1"
+                            Click="@(args => NotShowAgain(detail))" @onclick:stopPropagation="true">
+                            </RadzenButton>
+                        }
+                    </Template>
+                </RadzenDataGridColumn>
+
+            </Columns>
+        </RadzenDataGrid>
+
+
+    }
+</div>
+</RadzenLayout>
+
+
+@code {
+
+    [Inject]
+    public IFileCategorizationService _service { get; set; }
+
+    bool busyRefresh;
+    bool busyTrain;
+    protected bool _categorization = false;
+    protected IEnumerable<FilesDetailDto>? fileList;
+    protected IEnumerable<string>? categories;
+    protected string newCategory = string.Empty;
+    protected string consoleText = string.Empty;
+    protected int addCategory = 0;
+    protected int searchCatParam = 3;
+    // private bool _progressIsVisible = false;
+    // private double _progressPercentage = 0;
+    // private double totalSize;
+
+    private HubConnection? _hubConnection;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var url = _service.GetRestUrl();
+
+            _hubConnection = new HubConnectionBuilder()
+            .WithUrl(_service.GetRestUrl() + "notifications")
+            .WithAutomaticReconnect()
+            .ConfigureLogging(logging =>
+                {
+                    logging.SetMinimumLevel(LogLevel.Debug);
+                })
+            .Build();
+
+            _hubConnection.On<string, decimal>("notifications", (stockName, stockPrice) =>
+               {
+                   Console.WriteLine($"Message received--> Stock Name: {stockName} Stock Price: {stockPrice}");
+
+                   WriteConsole($"Message received--> Stock Name: {stockName} Stock Price: {stockPrice}");
+                   StateHasChanged();
+               });
+
+            _hubConnection.On<int, string, MoveFilesResults>("moveFilesNotifications", (fileId, resultText, result) =>
+               {
+                   Console.WriteLine($"SignalR Message received ==> File with id: {fileId} - Result: {result} - Text: {resultText}");
+                   WriteConsole($"File {resultText}: {result}");
+                   if (result == MoveFilesResults.Completed)
+                   {
+                       fileList = fileList.Where(u => u.Id != fileId).ToList();
+                   }
+
+                   StateHasChanged();
+               });
+
+            _hubConnection.On<string, MoveFilesResults>("jobNotifications", (resultText, result) =>
+               {
+                   Console.WriteLine($"SignalR Message received ==> {resultText}");
+                   WriteConsole($"{resultText}");
+                   if (result == MoveFilesResults.Completed)
+                   {
+                       //job completed
+                       //TODO something
+                       //refreshFiles();
+                   }
+
+                   StateHasChanged();
+               });
+
+            if (_hubConnection.State == HubConnectionState.Disconnected)
+            {
+                await _hubConnection.StartAsync();
+                Console.WriteLine($"SignalR connection started: id {_hubConnection.ConnectionId}");
+                WriteConsole($"SignalR - Connection established. Connection ID: {_hubConnection.ConnectionId}");
+            }
+            else
+            {
+                WriteConsole($"SignalR - Already Connected. Connection ID: {_hubConnection.ConnectionId}");
+                Console.WriteLine($"SignalR - Already Connected. Connection ID: {_hubConnection.ConnectionId}");
+            }
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SignlaR Error connection: {ex.Message}");
+            WriteConsole($"SignlaR Error connection: {ex.Message}");
+        }
+
+
+        _categorization = false;
+        await refreshFiles();
+
+    }
+
+
+    protected void WriteConsole(string message)
+    {
+        consoleText = $"{DateTime.Now.ToString("G")} - {message}" + Environment.NewLine + consoleText;
+
+    }
+
+    private async Task refreshFiles()
+    {
+        busyRefresh = true;
+        WriteConsole("Refresh data: loading...");
+
+        var refreshFileResult = await _service.RefreshCategory();
+
+        WriteConsole(refreshFileResult);
+
+        if (refreshFileResult != null)
+        {
+
+            await RefreshCategoryList();
+
+            await RefreshFileList();
+            WriteConsole("All Data updated");
+        }
+        else
+        {
+            WriteConsole($"Update Fail");
+        }
+
+        busyRefresh = false;
+    }
+
+
+    protected async Task OnChangeCatParam(object value)
+    {
+        await RefreshFileList();
+    }
+
+    protected async Task RefreshFileList()
+    {
+
+        fileList = await _service.GetFileListDto(searchCatParam);
+
+        WriteConsole($"File List updated");
+        StateHasChanged();
+
+    }
+
+    private string FileSizeFormatted(double len)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len = len / 1024;
+        }
+
+        // Adjust the format string to your preferences. For example "{0:0.#}{1}" would
+        // show a single decimal place, and no space.
+        string result = String.Format("{0:0.##} {1}", len, sizes[order]);
+        return result;
+    }
+
+
+    private void Schedule(FilesDetailDto item)
+    {
+        item.IsNotToMove = true;
+    }
+
+    private void Revert(FilesDetailDto item)
+    {
+        item.IsNotToMove = false;
+
+    }
+
+    protected async Task TrainModel()
+    {
+        busyTrain = true;
+        await Task.Run(() => WriteConsole($"Start Model Train... "));
+        StateHasChanged();
+        WriteConsole(await _service.TrainModel());
+        busyTrain = false;
+    }
+
+    protected async Task NotShowAgain(FilesDetailDto item)
+    {
+        item.IsToCategorize = false;
+        item.IsNew = false;
+        item.IsNotToMove = true;
+
+        if (await _service.UpdateFileDetail(item) != null)
+        {
+            WriteConsole($"File {item.Name} will not show again");
+        }
+        else
+        {
+            WriteConsole("ERROR: file exclusion failed");
+
+        }
+        await RefreshFileList();
+    }
+
+
+    protected async Task ForceCategory()
+    {
+        await Task.Run(() => WriteConsole($"Starting Categorization... "));
+        StateHasChanged();
+        WriteConsole(await _service.ForceCategory());
+        StateHasChanged();
+        await RefreshFileList();
+
+    }
+
+    // protected async Task MoveFile()
+    // {
+    //     _progressIsVisible = true;
+    //     var filesToMove = await _service.GetFileToMove();
+    //     _progressPercentage = 0;
+    //     totalSize = (from x in filesToMove select x.FileSize).Sum(); // totSize : 100 = movedSize : x
+
+    //     await Task.Run(() => WriteConsole($"{DateTime.Now} - Start moving {filesToMove.Count()} file"));
+
+    //     foreach (var fileToMove in filesToMove)
+    //     {
+    //         await Task.Run(async () => WriteConsole(await _service.MoveFile(fileToMove.Id, fileToMove.FileCategory))); // Here will be api call
+
+    //         _progressPercentage += Convert.ToDouble(fileToMove.FileSize * 100 / totalSize);
+    //         StateHasChanged();
+    //     }
+
+    //     totalSize = 0;
+
+    //     await Task.Run(() => WriteConsole($"All file moved{System.Environment.NewLine}"));
+    //     StateHasChanged();
+    //     await Task.Delay(5000);
+    //     _progressIsVisible = false;
+    //     _progressPercentage = 0;
+    //     await RefreshFileList();
+    // }
+
+    protected async Task MoveFiles()
+    {
+        // _progressIsVisible = true;
+
+        var filesToMove = fileList.Where(f => f.IsNotToMove).ToList();
+
+        // _progressPercentage = 0;
+        // totalSize = (from x in filesToMove select x.FileSize).Sum(); // totSize : 100 = movedSize : x
+
+        var jobId = await _service.MoveFiles(filesToMove);
+
+        if (!string.IsNullOrEmpty(jobId))
+        {
+            WriteConsole($"Scheduled job n {jobId}");
+        }
+        // totalSize = 0;
+
+        // _progressIsVisible = false;
+        // _progressPercentage = 0;
+        await RefreshFileList();
+    }
+
+    #region Categories
+
+    protected async Task RefreshCategoryList()
+    {
+        categories = await _service.GetCategoryList();
+        StateHasChanged();
+    }
+
+    private void ShowAddCat(int detailId)
+    {
+        addCategory = detailId;
+    }
+
+    private async Task SaveNewCat(FilesDetailDto item)
+    {
+
+        categories = categories.Append(newCategory);
+
+        item.FileCategory = newCategory;
+
+        await Task.Run(() => WriteConsole($"Added new category: {newCategory}"));
+
+        newCategory = string.Empty;
+
+        addCategory = 0;
+
+
+    }
+
+    private void BackCat()
+    {
+        newCategory = string.Empty;
+        addCategory = 0;
+    }
+
+    #endregion
+
+}
