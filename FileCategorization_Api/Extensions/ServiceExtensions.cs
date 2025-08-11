@@ -42,9 +42,11 @@ public static class ServiceExtensions
         builder.Services.AddScoped(typeof(IRepository<>), typeof(Infrastructure.Data.Repositories.Repository<>));
         builder.Services.AddScoped<IFilesDetailRepository, Infrastructure.Data.Repositories.FilesDetailRepository>();
         builder.Services.AddScoped<IUtilityRepository, Infrastructure.Repositories.UtilityRepository>();
+        builder.Services.AddScoped<IConfigRepository, Infrastructure.Data.Repositories.ConfigRepository>();
 
         // Register new services
         builder.Services.AddScoped<Application.Services.IFilesQueryService, Application.Services.FilesQueryService>();
+        builder.Services.AddScoped<Application.Services.IConfigQueryService, Application.Services.ConfigQueryService>();
 
         // Register existing services
         builder.Services.AddScoped<IFilesDetailService, FilesDetailService>();
@@ -60,7 +62,7 @@ public static class ServiceExtensions
         builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
         // Add AutoMapper with profiles from the current assembly
-        builder.Services.AddAutoMapper(typeof(Application.Mappings.FilesDetailProfile));
+        builder.Services.AddAutoMapper(typeof(Application.Mappings.FilesDetailProfile), typeof(Application.Mappings.ConfigProfile));
 
         // For Identity
         builder.Services.AddIdentity<ApplicationUser, IdentityRole>()

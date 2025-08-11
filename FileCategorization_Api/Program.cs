@@ -126,4 +126,8 @@ app.MapGroup("/api/v2/")
     .WithTags("Utilities v2 (Repository Pattern)")
     .MapUtilityEndPoints();
 
+app.MapGroup("/api/v2/")
+    .WithTags("Configuration v2 (Repository Pattern)")
+    .MapConfigEndPoints();
+
 app.Run();

@@ -1,5 +1,6 @@
 using FileCategorization_Api.Contracts.Configs;
 using FileCategorization_Api.Interfaces;
+using System.ComponentModel;
 
 namespace FileCategorization_Api.Endpoints;
 
@@ -24,7 +25,8 @@ public static class ConfigsEndpoint
         {
             var result = await configsService.GetConfigList();
             return Results.Ok(result);
-        });
+        })
+        .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use GET /api/v2/configs instead.", false));
         
         /// <summary>
         /// Endpoint to get a configuration by its ID.
@@ -34,7 +36,8 @@ public static class ConfigsEndpoint
         {
             var result = await configsService.GetConfig(id);
             return result != null ? Results.Ok(result) : Results.NotFound();
-        });
+        })
+        .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use GET /api/v2/configs/{id} instead.", false));
         
         /// <summary>
         /// Endpoint to add a new configuration.
@@ -44,7 +47,8 @@ public static class ConfigsEndpoint
         {
             var result = await configsService.AddConfig(configsDto);
             return Results.Created($"/GetConfig/{result.Id}", result); 
-        });
+        })
+        .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use POST /api/v2/configs instead.", false));
         
         /// <summary>
         /// Endpoint to update an existing configuration.
@@ -55,7 +59,8 @@ public static class ConfigsEndpoint
         {
             var result = await configsService.UpdateConfig(id, configsDto);
             return result != null ? Results.Ok(result) : Results.NotFound();
-        });
+        })
+        .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use PUT /api/v2/configs/{id} instead.", false));
         
         /// <summary>
         /// Endpoint to delete a configuration by its ID.
@@ -65,7 +70,8 @@ public static class ConfigsEndpoint
         {
             var result = await configsService.DeleteConfig(id);
             return result ? Results.NoContent() : Results.NotFound();
-        });
+        })
+        .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use DELETE /api/v2/configs/{id} instead.", false));
 
         return app;
     }
