@@ -416,3 +416,8 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# IDE and temporary folders
+.idea/
+Temp/
+.DS_Store
