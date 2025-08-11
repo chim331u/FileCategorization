@@ -413,23 +413,29 @@ namespace FileCategorization_Api.Services
         {
             try
             {
-                return await _context.FilesDetail.AsNoTracking()
-                    .Where(x => x.IsNotToMove == false)
+                // Load all eligible files into memory first, then group and process
+                var allFiles = await _context.FilesDetail.AsNoTracking()
+                    .Where(x => x.IsNotToMove == false && x.FileCategory != null)
+                    .ToListAsync();
+
+                // Group by category and get the latest file for each category (in memory)
+                var latestFiles = allFiles
                     .GroupBy(x => x.FileCategory)
                     .Select(g => g.OrderByDescending(x => x.Name).First())
-                    .OrderBy(x => x.FileCategory)
-                    .Select(f => new FilesDetailResponse
-                    {
-                        Id = f.Id,
-                        Name = f.Name,
-                        Path = f.Path,
-                        FileCategory = f.FileCategory,
-                        IsToCategorize = f.IsToCategorize,
-                        IsNew = f.IsNew,
-                        FileSize = f.FileSize,
-                        IsNotToMove = f.IsNotToMove
-                    })
-                    .ToListAsync();
+                    .OrderBy(x => x.FileCategory);
+
+                // Map to response DTO
+                return latestFiles.Select(f => new FilesDetailResponse
+                {
+                    Id = f.Id,
+                    Name = f.Name,
+                    Path = f.Path,
+                    FileCategory = f.FileCategory,
+                    IsToCategorize = f.IsToCategorize,
+                    IsNew = f.IsNew,
+                    FileSize = f.FileSize,
+                    IsNotToMove = f.IsNotToMove
+                });
             }
             catch (Exception ex)
             {

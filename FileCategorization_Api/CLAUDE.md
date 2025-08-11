@@ -76,3 +76,25 @@ All endpoints are mapped under `/api/v1/` with the following groups:
 - DownloadDaemon integration for ed2k links
 - JWT-based authentication
 - Comprehensive API documentation via Swagger
+
+### Development Environment Details
+
+#### Key NuGet Packages
+- **ML.NET (4.0.2)**: Machine learning framework for file categorization
+- **Hangfire (1.8.18)**: Background job processing with in-memory storage
+- **Entity Framework Core (8.0.15)**: ORM with SQLite provider
+- **FluentValidation (11.11.0)**: Request validation
+- **Serilog**: Structured logging with file and console outputs
+- **SignalR**: Real-time web functionality
+- **HtmlAgilityPack (1.12.1)**: HTML parsing capabilities
+- **SSH.NET (2024.2.0)**: SSH operations support
+
+#### Configuration Differences
+- **Development**: Database stored in `Temp/FileCat.db`, logs in `Temp/FC/`, JWT secret from appsettings
+- **Production**: Database in `/data/FileCat.db`, logs in `/data/Log/`, JWT secret from environment variable `JWT_SECRET`
+
+#### Service Registration Pattern
+All services follow the interface/implementation pattern and are registered as Scoped in `Extensions/ServiceExtensions.cs`. Key services include file management, ML categorization, background jobs, and external integrations.
+
+#### Endpoint Architecture
+Uses minimal API pattern with endpoint groups mapped via extension methods in the `Endpoints/` folder. Each endpoint group handles a specific domain area (Files, Configs, Actions, DD, Utilities, Identity).
