@@ -1,0 +1,252 @@
+﻿@page "/config"
+@inject TooltipService tooltipService
+@inherits LayoutComponentBase
+@inject NotificationService NotificationService
+
+<RadzenLayout class="rz-shadow-3" Style="grid-template-columns: auto 1fr auto; grid-template-areas: 'rz-header rz-header rz-header' 'rz-sidebar rz-body rz-right-sidebar'">
+<div class="p-2">
+
+    @if (configurations == null)
+    {
+        <p><em>Loading configurations...</em></p>
+    }
+    else
+    {
+        <RadzenButton ButtonStyle="ButtonStyle.Success" Icon="add_circle_outline" class="mt-2 mb-4" Text="Add New Config" Click="@InsertRow" Disabled=@(configToInsert != null || configToUpdate != null) />
+
+        <RadzenDataGrid AllowFiltering="true" AllowColumnResize="true" AllowAlternatingRows="true" @ref="configGrid"
+                    FilterMode="FilterMode.Advanced" AllowSorting="true" PageSize="15" AllowPaging="true"
+                    PagerHorizontalAlign="HorizontalAlign.Left" ShowPagingSummary="true" ColumnWidth="250px"
+                    Data="@configurations" TItem="ConfigsDto" LogicalFilterOperator="LogicalFilterOperator.Or"
+                    EditMode="DataGridEditMode.Single" RowUpdate="@OnUpdateRow" RowCreate="@OnCreateRow"
+                    Sort="@Reset" Page="@Reset" Filter="@Reset">
+            <Columns>
+                <RadzenDataGridColumn TItem="ConfigsDto" Property="Id" Filterable="false" Title="ID"
+                                  Frozen="true" Width="10px" TextAlign="TextAlign.Center" />
+
+                <RadzenDataGridColumn TItem="ConfigsDto" Property="Key" Title="Name" Frozen="true" Width="50px">
+                    <EditTemplate Context="config">
+                        <RadzenTextBox @bind-Value="config.Key" Style="width:100%; display: block" Name="Key" />
+                        <RadzenRequiredValidator Text="Key is required" Component="Key" Popup="true" />
+                    </EditTemplate>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="ConfigsDto" Property="Value" Title="Value" Frozen="true" Width="50px">
+                    <EditTemplate Context="config">
+                        <RadzenTextBox @bind-Value="config.Value" Style="width:100%; display: block" Name="Value" />
+                        <RadzenRequiredValidator Text="Value is required" Component="Value" Popup="true" />
+                    </EditTemplate>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="ConfigsDto" Context="config" Filterable="false" Sortable="false" TextAlign="TextAlign.Right" Width="10%">
+                    <Template Context="config">
+                        <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Info" Variant="Variant.Flat" Size="ButtonSize.Medium"
+                                  Click="@(args => EditRow(config))" @onclick:stopPropagation="true">
+                        </RadzenButton>
+                        <RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="delete" Variant="Variant.Flat" Shade="Shade.Lighter"
+                                  Size="ButtonSize.Medium" class="my-1 ms-1" Click="@(args => DeleteRow(config))" @onclick:stopPropagation="true">
+                        </RadzenButton>
+                    </Template>
+                    <EditTemplate Context="config">
+                        <RadzenButton Icon="check" ButtonStyle="ButtonStyle.Success" Variant="Variant.Flat" Size="ButtonSize.Medium" Click="@((args) => SaveRow(config))">
+                        </RadzenButton>
+                        <RadzenButton Icon="undo" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Size="ButtonSize.Medium" class="my-1 ms-1" Click="@((args) => CancelEdit(config))">
+                        </RadzenButton>
+                    </EditTemplate>
+                </RadzenDataGridColumn>
+
+            </Columns>
+        </RadzenDataGrid>
+
+    }
+</div>
+
+</RadzenLayout>
+@code {
+    [Inject]
+    public IFileCategorizationService _service { get; set; }
+
+    protected IEnumerable<ConfigsDto>? configurations;
+
+    protected override async Task OnInitializedAsync()
+
+    {
+        await RefreshConfigList();
+
+    }
+
+    protected async Task RefreshConfigList()
+    {
+        configurations = await _service.GetConfigList();
+        StateHasChanged();
+
+    }
+
+    ConfigsDto? configToUpdate;
+    ConfigsDto? configToInsert;
+    RadzenDataGrid<ConfigsDto>? configGrid;
+
+    async Task EditRow(ConfigsDto config)
+    {
+        configToUpdate = config;
+
+        await configGrid.EditRow(config);
+    }
+
+    async void OnUpdateRow(ConfigsDto config)
+    {
+        if (config == configToInsert)
+        {
+            configToInsert = null;
+        }
+
+        configToUpdate = null;
+
+        var result = await _service.UpdateConfig(config);
+
+        if (result != null)
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Info,
+                    Summary = "Config Update",
+                    Detail = $"{result.Key} updated",
+                    Duration = 4000
+
+                });
+        }
+        else
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error Update",
+                    Detail = $"config NOT updated",
+                    Duration = 4000
+
+                });
+        }
+    }
+
+    async void OnCreateRow(ConfigsDto config)
+    {
+        var result = await _service.AddConfig(config);
+
+        configToInsert = null;
+        
+        if (result != null)
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Info,
+                    Summary = "New Config Created",
+                    Detail = $"{result.Key} created",
+                    Duration = 4000
+
+                });
+        }
+        else
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "Error adding New Config",
+                    Duration = 4000
+
+                });
+        }
+
+        await RefreshConfigList();
+    }
+    async Task SaveRow(ConfigsDto config)
+    {
+        await configGrid.UpdateRow(config);
+    }
+
+    async void CancelEdit(ConfigsDto config)
+    {
+        if (config == configToInsert)
+        {
+            configToInsert = null;
+        }
+
+        configToUpdate = null;
+
+        config = await _service.GetConfig(config.Id);
+
+        configGrid.CancelEditRow(config);
+
+    }
+
+    protected async Task InsertRow()
+    {
+        configToInsert = new ConfigsDto();
+
+        await configGrid.InsertRow(configToInsert);
+
+    }
+
+    async Task DeleteRow(ConfigsDto config)
+    {
+        if (config == configToInsert)
+        {
+            configToInsert = null;
+        }
+
+        if (config == configToUpdate)
+        {
+            configToUpdate = null;
+        }
+
+        var result = await _service.DeleteConfig(config);
+
+
+        if (result != null)
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Info,
+                    Summary = "Config Deleted",
+                    Detail = $"{result.Key} deleted",
+                    Duration = 4000
+
+                });
+        }
+        else
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "Error deleting Config",
+                    Duration = 4000
+
+                });
+        }
+        await configGrid.Reload();
+        await RefreshConfigList();
+
+    }
+
+    void Reset()
+    {
+        configToInsert = null;
+        configToUpdate = null;
+    }
+
+
+    #region Tooltips
+
+    void ShowTooltipDeleteConfig(ElementReference elementReference, TooltipOptions options = null) => tooltipService.Open(elementReference, "Delete", options);
+
+    void ShowTooltipUpdateConfig(ElementReference elementReference, TooltipOptions options = null) => tooltipService.Open(elementReference, "Update", options);
+
+    //void ShowTooltipAddCategory(ElementReference elementReference, TooltipOptions options = null) => tooltipService.Open(elementReference, "Add new Category", options);
+
+    //void ShowTooltipSaveCategory(ElementReference elementReference, TooltipOptions options = null) => tooltipService.Open(elementReference, "Save new Category", options);
+
+    //void ShowTooltipBackCategory(ElementReference elementReference, TooltipOptions options = null) => tooltipService.Open(elementReference, "Back", options);
+
+    #endregion
+}
