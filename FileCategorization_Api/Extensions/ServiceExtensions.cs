@@ -41,6 +41,7 @@ public static class ServiceExtensions
         // Register repositories
         builder.Services.AddScoped(typeof(IRepository<>), typeof(Infrastructure.Data.Repositories.Repository<>));
         builder.Services.AddScoped<IFilesDetailRepository, Infrastructure.Data.Repositories.FilesDetailRepository>();
+        builder.Services.AddScoped<IUtilityRepository, Infrastructure.Repositories.UtilityRepository>();
 
         // Register new services
         builder.Services.AddScoped<Application.Services.IFilesQueryService, Application.Services.FilesQueryService>();

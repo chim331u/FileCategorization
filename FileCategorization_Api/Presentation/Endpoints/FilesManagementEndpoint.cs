@@ -21,9 +21,9 @@ public static class FilesManagementEndpoint
     {
         // Create new file
         group.MapPost("/files", CreateFileAsync)
-            .WithName("CreateFile")
-            .WithSummary("Creates a new file record")
-            .WithDescription("Creates a new file record in the system with validation")
+            .WithName("CreateFile_v2")
+            .WithSummary("[v2] Creates a new file record")
+            .WithDescription("[v2 - Repository Pattern] Creates a new file record in the system with validation")
             .Produces<FilesDetailResponse>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status500InternalServerError)
@@ -31,9 +31,9 @@ public static class FilesManagementEndpoint
 
         // Update existing file
         group.MapPut("/files/{id:int}", UpdateFileAsync)
-            .WithName("UpdateFile")
-            .WithSummary("Updates an existing file record")
-            .WithDescription("Updates an existing file record with validation")
+            .WithName("UpdateFile_v2")
+            .WithSummary("[v2] Updates an existing file record")
+            .WithDescription("[v2 - Repository Pattern] Updates an existing file record with validation")
             .Produces<FilesDetailResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound)
@@ -42,9 +42,9 @@ public static class FilesManagementEndpoint
 
         // Move file to category
         group.MapPatch("/files/move", MoveFileAsync)
-            .WithName("MoveFile")
-            .WithSummary("Moves a file to a different category")
-            .WithDescription("Updates the file category with validation")
+            .WithName("MoveFile_v2")
+            .WithSummary("[v2] Moves a file to a different category")
+            .WithDescription("[v2 - Repository Pattern] Updates the file category with validation")
             .Produces(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound)
@@ -53,9 +53,9 @@ public static class FilesManagementEndpoint
 
         // Delete file (soft delete)
         group.MapDelete("/files/{id:int}", DeleteFileAsync)
-            .WithName("DeleteFile")
-            .WithSummary("Soft deletes a file record")
-            .WithDescription("Marks a file as deleted (soft delete)")
+            .WithName("DeleteFile_v2")
+            .WithSummary("[v2] Soft deletes a file record")
+            .WithDescription("[v2 - Repository Pattern] Marks a file as deleted (soft delete)")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound)
             .Produces(StatusCodes.Status500InternalServerError);

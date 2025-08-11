@@ -1,5 +1,6 @@
 using FileCategorization_Api.Contracts.FilesDetail;
 using FileCategorization_Api.Interfaces;
+using System.ComponentModel;
 
 namespace FileCategorization_Api.Endpoints;
 
@@ -25,7 +26,8 @@ public static class FilesDetailEndPoint
         {
             var result = await filesDetailService.GetDbCategoryList();
             return Results.Ok(result);
-        });
+        })
+        .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use GET /api/v2/categories instead.", false));
 
         /// <summary>
         /// Endpoint to get all file details.
@@ -35,7 +37,8 @@ public static class FilesDetailEndPoint
         {
             var result = await filesDetailService.GetFileList();
             return Results.Ok(result);
-        });
+        })
+        .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use GET /api/v2/files/filtered/1 instead.", false));
 
         /// <summary>
         /// Endpoint to get a filtered list of file details.
@@ -61,7 +64,8 @@ public static class FilesDetailEndPoint
             }
 
             return Results.Ok(fileList);
-        });
+        })
+        .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use GET /api/v2/files/filtered/{filterType} or GET /api/v2/files/search instead.", false));
 
         /// <summary>
         /// Endpoint to get file details by ID.
@@ -93,7 +97,8 @@ public static class FilesDetailEndPoint
         {
             var result = await filesDetailService.AddFileDetailAsync(filesDetailRequest);
             return Results.Created($"/GetFilesDetail/{result.Id}", result);
-        });
+        })
+        .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use POST /api/v2/files instead.", false));
 
         /// <summary>
         /// Endpoint to update an existing file detail.
@@ -105,7 +110,8 @@ public static class FilesDetailEndPoint
         {
             var result = await filesDetailService.UpdateFilesDetailAsync(id, filesDetailUpdateRequest);
             return result != null ? Results.Ok(result) : Results.NotFound();
-        });
+        })
+        .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use PUT /api/v2/files/{id} instead.", false));
 
         /// <summary>
         /// Endpoint to delete a file detail by its ID.
@@ -116,7 +122,8 @@ public static class FilesDetailEndPoint
         {
             var result = await filesDetailService.DeleteFilesDetailAsync(id);
             return result ? Results.NoContent() : Results.NotFound();
-        });
+        })
+        .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use DELETE /api/v2/files/{id} instead.", false));
 
         /// <summary>
         /// Endpoint to get the last viewed file details.
@@ -126,7 +133,8 @@ public static class FilesDetailEndPoint
         {
             var result = await filesDetailService.GetLastViewList();
             return Results.Ok(result);
-        });
+        })
+        .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use GET /api/v2/files/lastview instead.", false));
 
         /// <summary>
         /// Endpoint to get all files by category.

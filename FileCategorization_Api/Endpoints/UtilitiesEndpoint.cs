@@ -1,4 +1,5 @@
 using FileCategorization_Api.Interfaces;
+using System.ComponentModel;
 
 namespace FileCategorization_Api.Endpoints;
 
@@ -25,7 +26,8 @@ public static class UtilitiesEndpoint
         {
             string cryptedtext = await utilityServices.EncryptString(plainText);
             return Results.Ok(cryptedtext);
-        });
+        })
+        .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use POST /api/v2/crypto/encrypt instead.", false));
         
         /// <summary>
         /// Endpoint to decrypt a string.
@@ -36,7 +38,8 @@ public static class UtilitiesEndpoint
         {
             string decryptedtext = await utilityServices.DecryptString(cryptedText);
             return Results.Ok(decryptedtext);
-        });
+        })
+        .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use POST /api/v2/crypto/decrypt instead.", false));
         
         /// <summary>
         /// Endpoint to compute the SHA-256 hash of a string.
@@ -47,7 +50,8 @@ public static class UtilitiesEndpoint
         {
             string hashedtext = await utilityServices.HashString_SHA256(text);
             return Results.Ok(hashedtext);
-        });
+        })
+        .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use POST /api/v2/crypto/hash instead.", false));
         
         /// <summary>
         /// Endpoint to verify a string against an existing SHA-256 hash.
@@ -59,7 +63,8 @@ public static class UtilitiesEndpoint
         {
             bool areEquals = await utilityServices.VerifyHash_SHA256(text, hashedText);
             return Results.Ok(areEquals);
-        });
+        })
+        .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use POST /api/v2/crypto/verify instead.", false));
         
         return app;
     }

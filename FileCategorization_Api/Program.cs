@@ -113,12 +113,17 @@ app.MapGroup("/api/v1/")
     .WithTags(" Identity endpoints")
     .MapIdentityEndPoint();
 
-app.MapGroup("/api/v1/")
-    .WithTags(" Files Query endpoints")
+// Modern v2 endpoints with Repository Pattern and Result Pattern
+app.MapGroup("/api/v2/")
+    .WithTags("Files Query v2 (Repository Pattern)")
     .MapFilesQueryEndPoints();
 
-app.MapGroup("/api/v1/")
-    .WithTags(" Files Management endpoints")
+app.MapGroup("/api/v2/")
+    .WithTags("Files Management v2 (Repository Pattern)")
     .MapFilesManagementEndPoints();
+
+app.MapGroup("/api/v2/")
+    .WithTags("Utilities v2 (Repository Pattern)")
+    .MapUtilityEndPoints();
 
 app.Run();
