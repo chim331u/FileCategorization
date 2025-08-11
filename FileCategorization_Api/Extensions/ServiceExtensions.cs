@@ -64,6 +64,9 @@ public static class ServiceExtensions
         // Add AutoMapper with profiles from the current assembly
         builder.Services.AddAutoMapper(typeof(Application.Mappings.FilesDetailProfile), typeof(Application.Mappings.ConfigProfile));
 
+        // Register ILogger for endpoint injection
+        builder.Services.AddSingleton<ILogger>(provider => provider.GetRequiredService<ILoggerFactory>().CreateLogger("EndpointLogger"));
+
         // For Identity
         builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
             .AddEntityFrameworkStores<ApplicationContext>()
