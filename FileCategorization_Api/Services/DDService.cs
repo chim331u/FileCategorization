@@ -18,6 +18,7 @@ public class DDService : IDDService
     private readonly ILogger<DDService> _logger; // Logger for logging information and errors
     private readonly IConfiguration _config; // Configuration settings
     private readonly IUtilityServices _utility; // Utility class for common operations
+    private readonly IHostEnvironment _environment;
    
     /// <summary>
     /// Initializes a new instance of the <see cref="DDService"/> class.
@@ -26,12 +27,14 @@ public class DDService : IDDService
     /// <param name="logger">The logger for logging information and errors.</param>
     /// <param name="config">The configuration settings.</param>
     /// <param name="utility">The utility service for common operations.</param>
-    public DDService(ApplicationContext context, ILogger<DDService> logger, IConfiguration config, IUtilityServices utility)
+    /// <param name="environment">The host environment.</param>
+    public DDService(ApplicationContext context, ILogger<DDService> logger, IConfiguration config, IUtilityServices utility, IHostEnvironment environment)
     {
         _utility = utility;
         _context = context;
         _logger = logger;
         _config = config;
+        _environment = environment;
     }
 
     /// <summary>
@@ -332,7 +335,7 @@ public class DDService : IDDService
         var _ddUserName = String.Empty;
         var _ddPassword = string.Empty;
         
-        if (_config.GetSection("IsDev").Value != null)
+        if (_environment.IsDevelopment())
         {
             //for debug only
             _ddUserName = _config["DD_USERNAME"];
@@ -342,7 +345,7 @@ public class DDService : IDDService
         {
             _ddUserName = Environment.GetEnvironmentVariable("DD_USERNAME");
         }
-        if (_config.GetSection("IsDev").Value != null)
+        if (_environment.IsDevelopment())
         {
             //for debug only
             _ddPassword = _config["DD_PSW"];

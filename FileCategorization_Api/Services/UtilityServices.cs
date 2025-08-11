@@ -8,15 +8,13 @@ namespace FileCategorization_Api.Services
     {
         private readonly IConfiguration _configuration;
         private readonly ILogger<IUtilityServices> _logger;
-       
+        private readonly IHostEnvironment _environment;
         
-        public UtilityServices(IConfiguration configuration, ILogger<IUtilityServices> logger)
+        public UtilityServices(IConfiguration configuration, ILogger<IUtilityServices> logger, IHostEnvironment environment)
         {
             _logger = logger;
-           
-            // Initialize the configuration
             _configuration = configuration;
-          
+            _environment = environment;
         }
 
         /// <summary>
@@ -46,7 +44,7 @@ namespace FileCategorization_Api.Services
 // key using the secret key from the configuration.
             string key =string.Empty;
 
-            if (_configuration.GetSection("IsDev").Value != null)
+            if (_environment.IsDevelopment())
             {
                 //for debug only
                 key = _configuration["CRYPTO:MASTERKEY"];
@@ -119,7 +117,7 @@ namespace FileCategorization_Api.Services
             // key using the secret key from the configuration.
             string key =string.Empty;
 
-             if (_configuration.GetSection("IsDev").Value != null)
+             if (_environment.IsDevelopment())
              {
                  //for debug only
                  key = _configuration["CRYPTO:MASTERKEY"];

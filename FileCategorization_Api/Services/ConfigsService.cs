@@ -15,6 +15,7 @@ public class ConfigsService : IConfigsService
     private readonly ILogger<ConfigsService> _logger; // Logger for logging information and errors
     private readonly IConfiguration _config;
     private readonly IUtilityServices _utilityServices;
+    private readonly IHostEnvironment _environment;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ConfigsService"/> class.
@@ -22,12 +23,15 @@ public class ConfigsService : IConfigsService
     /// <param name="context">The database context.</param>
     /// <param name="logger">The logger for logging information and errors.</param>
     /// <param name="config">The application configuration.</param>
+    /// <param name="utilityServices">The utility services.</param>
+    /// <param name="environment">The host environment.</param>
     public ConfigsService(ApplicationContext context, ILogger<ConfigsService> logger, IConfiguration config,
-        IUtilityServices utilityServices)
+        IUtilityServices utilityServices, IHostEnvironment environment)
     {
         _context = context;
         _logger = logger;
         _config = config;
+        _environment = environment;
         _utilityServices = utilityServices;
     }
 
@@ -41,7 +45,7 @@ public class ConfigsService : IConfigsService
         {
             var configsList = await _context.Configuration.AsNoTracking()
                 .OrderBy(x => x.Id)
-                .Where(x => x.IsActive && x.IsDev == _config.GetValue("IsDev", false))
+                .Where(x => x.IsActive && x.IsDev == _environment.IsDevelopment())
                 .ToListAsync();
 
             return configsList.Select(configsDto => new ConfigsDto
@@ -68,7 +72,7 @@ public class ConfigsService : IConfigsService
         try
         {
             var configValue = _context.Configuration
-                .Single(x => x.IsActive && x.IsDev == _config.GetValue("IsDev", false) && x.Key == key).Value!
+                .Single(x => x.IsActive && x.IsDev == _environment.IsDevelopment() && x.Key == key).Value!
                 .ToString();
 
             return Task.FromResult(configValue);
@@ -123,7 +127,7 @@ public class ConfigsService : IConfigsService
                 IsActive = true,
                 Key = config.Key,
                 Value = config.Value,
-                IsDev = _config.GetValue("IsDev", false)
+                IsDev = _environment.IsDevelopment()
             };
 
             _context.Configuration.Add(newConfig);

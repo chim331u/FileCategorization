@@ -11,13 +11,14 @@ public class TokenService : ITokenService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<ITokenService> _logger;
+    private readonly IHostEnvironment _environment;
     private const string JWTSecretName = "JWT:SECRET";
 
-    public TokenService(IConfiguration configuration, ILogger<ITokenService> logger)
+    public TokenService(IConfiguration configuration, ILogger<ITokenService> logger, IHostEnvironment environment)
     {
         _logger = logger;
         _configuration = configuration;
-        
+        _environment = environment;
     }
 
     public string GenerateAccessToken(IEnumerable<Claim> claims)
@@ -27,7 +28,7 @@ public class TokenService : ITokenService
         // key using the secret key from the configuration.
         string key =string.Empty;
 
-        if (_configuration.GetSection("IsDev").Value != null)
+        if (_environment.IsDevelopment())
         {
             //for debug only
             key = _configuration["CRYPTO_TOKENKEY"];
