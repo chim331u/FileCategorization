@@ -2,6 +2,7 @@ using System.Reflection;
 using FileCategorization_Api.AppContext;
 using FileCategorization_Api.Contracts.Identity;
 using FileCategorization_Api.Endpoints;
+using FileCategorization_Api.Presentation.Endpoints;
 using FileCategorization_Api.Extensions;
 using FileCategorization_Api.Services;
 using Hangfire;
@@ -111,5 +112,13 @@ app.MapGroup("/api/v1/")
 app.MapGroup("/api/v1/")
     .WithTags(" Identity endpoints")
     .MapIdentityEndPoint();
+
+app.MapGroup("/api/v1/")
+    .WithTags(" Files Query endpoints")
+    .MapFilesQueryEndPoints();
+
+app.MapGroup("/api/v1/")
+    .WithTags(" Files Management endpoints")
+    .MapFilesManagementEndPoints();
 
 app.Run();

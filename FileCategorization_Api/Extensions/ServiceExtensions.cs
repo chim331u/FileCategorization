@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text;
 using FileCategorization_Api.AppContext;
+using FileCategorization_Api.Core.Interfaces;
 using FileCategorization_Api.Exceptions;
 using FileCategorization_Api.Interfaces;
 using FileCategorization_Api.Models.Identity;
@@ -37,7 +38,14 @@ public static class ServiceExtensions
             configure.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.AmbientTransactionWarning));
         });
 
-        // Register services
+        // Register repositories
+        builder.Services.AddScoped(typeof(IRepository<>), typeof(Infrastructure.Data.Repositories.Repository<>));
+        builder.Services.AddScoped<IFilesDetailRepository, Infrastructure.Data.Repositories.FilesDetailRepository>();
+
+        // Register new services
+        builder.Services.AddScoped<Application.Services.IFilesQueryService, Application.Services.FilesQueryService>();
+
+        // Register existing services
         builder.Services.AddScoped<IFilesDetailService, FilesDetailService>();
         builder.Services.AddScoped<IConfigsService, ConfigsService>();
         builder.Services.AddScoped<IUtilityServices, UtilityServices>();
@@ -49,6 +57,9 @@ public static class ServiceExtensions
             
         // Adding validators from the current assembly
         builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
+        // Add AutoMapper with profiles from the current assembly
+        builder.Services.AddAutoMapper(typeof(Application.Mappings.FilesDetailProfile));
 
         // For Identity
         builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
