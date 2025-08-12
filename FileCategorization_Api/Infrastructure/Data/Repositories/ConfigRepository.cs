@@ -1,7 +1,7 @@
-using FileCategorization_Api.AppContext;
-using FileCategorization_Api.Core.Common;
-using FileCategorization_Api.Core.Interfaces;
-using FileCategorization_Api.Models.FileCategorization;
+using FileCategorization_Api.Infrastructure.Data;
+using FileCategorization_Api.Common;
+using FileCategorization_Api.Interfaces;
+using FileCategorization_Api.Domain.Entities.FileCategorization;
 using Microsoft.EntityFrameworkCore;
 
 namespace FileCategorization_Api.Infrastructure.Data.Repositories;
@@ -11,14 +11,18 @@ namespace FileCategorization_Api.Infrastructure.Data.Repositories;
 /// </summary>
 public class ConfigRepository : Repository<Configs>, IConfigRepository
 {
+    private readonly IHostEnvironment _environment;
+
     /// <summary>
     /// Initializes a new instance of the ConfigRepository class.
     /// </summary>
     /// <param name="context">The database context.</param>
     /// <param name="logger">The logger instance.</param>
-    public ConfigRepository(ApplicationContext context, ILogger<ConfigRepository> logger)
+    /// <param name="environment">The host environment.</param>
+    public ConfigRepository(ApplicationContext context, ILogger<ConfigRepository> logger, IHostEnvironment environment)
         : base(context, logger)
     {
+        _environment = environment;
     }
 
     /// <inheritdoc/>
@@ -44,7 +48,7 @@ public class ConfigRepository : Repository<Configs>, IConfigRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving configuration by key: {Key}", key);
-            return Result<Configs?>.Exception(ex);
+            return Result<Configs?>.FromException(ex);
         }
     }
 
@@ -68,7 +72,7 @@ public class ConfigRepository : Repository<Configs>, IConfigRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving configuration value by key: {Key}", key);
-            return Result<string?>.Exception(ex);
+            return Result<string>.FromException(ex);
         }
     }
 
@@ -100,7 +104,7 @@ public class ConfigRepository : Repository<Configs>, IConfigRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error checking configuration key existence: {Key}", key);
-            return Result<bool>.Exception(ex);
+            return Result<bool>.FromException(ex);
         }
     }
 
@@ -122,7 +126,7 @@ public class ConfigRepository : Repository<Configs>, IConfigRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving configurations by environment. IsDev: {IsDev}", isDev);
-            return Result<IEnumerable<Configs>>.Exception(ex);
+            return Result<IEnumerable<Configs>>.FromException(ex);
         }
     }
 
@@ -154,7 +158,7 @@ public class ConfigRepository : Repository<Configs>, IConfigRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating configuration environment. Id: {Id}", id);
-            return Result<bool>.Exception(ex);
+            return Result<bool>.FromException(ex);
         }
     }
 
@@ -166,7 +170,7 @@ public class ConfigRepository : Repository<Configs>, IConfigRepository
             _logger.LogInformation("Retrieving all active configurations");
 
             var configs = await _dbSet.AsNoTracking()
-                .Where(c => c.IsActive)
+                .Where(c => c.IsActive && c.IsDev == _environment.IsDevelopment())
                 .OrderBy(c => c.Key)
                 .ToListAsync(cancellationToken);
 
@@ -176,7 +180,7 @@ public class ConfigRepository : Repository<Configs>, IConfigRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving all configurations");
-            return Result<IEnumerable<Configs>>.Exception(ex);
+            return Result<IEnumerable<Configs>>.FromException(ex);
         }
     }
 
@@ -210,7 +214,7 @@ public class ConfigRepository : Repository<Configs>, IConfigRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error adding configuration with key: {Key}", entity.Key);
-            return Result<Configs>.Exception(ex);
+            return Result<Configs>.FromException(ex);
         }
     }
 
@@ -245,7 +249,7 @@ public class ConfigRepository : Repository<Configs>, IConfigRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating configuration with ID: {Id}", entity.Id);
-            return Result<Configs>.Exception(ex);
+            return Result<Configs>.FromException(ex);
         }
     }
 }

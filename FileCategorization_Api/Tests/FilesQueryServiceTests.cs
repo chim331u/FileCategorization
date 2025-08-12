@@ -1,10 +1,10 @@
 using AutoMapper;
-using FileCategorization_Api.Application.Services;
-using FileCategorization_Api.Contracts.FilesDetail;
-using FileCategorization_Api.Core.Common;
-using FileCategorization_Api.Core.Domain.Enums;
-using FileCategorization_Api.Core.Interfaces;
-using FileCategorization_Api.Models.FileCategorization;
+using FileCategorization_Api.Services;
+using FileCategorization_Api.Domain.Entities.FilesDetail;
+using FileCategorization_Api.Common;
+using FileCategorization_Api.Domain.Enums;
+using FileCategorization_Api.Interfaces;
+using FileCategorization_Api.Domain.Entities.FileCategorization;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;

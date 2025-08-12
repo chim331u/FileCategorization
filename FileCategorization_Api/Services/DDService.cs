@@ -1,9 +1,9 @@
 using System.Net;
 using System.Text.RegularExpressions;
-using FileCategorization_Api.AppContext;
-using FileCategorization_Api.Contracts.DD;
+using FileCategorization_Api.Infrastructure.Data;
+using FileCategorization_Api.Domain.Entities.DD;
 using FileCategorization_Api.Interfaces;
-using FileCategorization_Api.Models.DD_Web;
+using FileCategorization_Api.Domain.Entities.DD_Web;
 using HtmlAgilityPack;
 using Microsoft.EntityFrameworkCore;
 

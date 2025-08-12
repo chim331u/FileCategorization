@@ -1,6 +1,6 @@
 ﻿using FileCategorization_Api.Interfaces;
-using FileCategorization_Api.Models.FileCategorization;
-using FileCategorization_Api.Models.MachineLearning;
+using FileCategorization_Api.Domain.Entities.FileCategorization;
+using FileCategorization_Api.Domain.Entities.MachineLearning;
 using Microsoft.ML;
 
 namespace FileCategorization_Api.Services

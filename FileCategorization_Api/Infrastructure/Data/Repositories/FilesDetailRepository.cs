@@ -1,7 +1,7 @@
-using FileCategorization_Api.AppContext;
-using FileCategorization_Api.Core.Common;
-using FileCategorization_Api.Core.Interfaces;
-using FileCategorization_Api.Models.FileCategorization;
+using FileCategorization_Api.Infrastructure.Data;
+using FileCategorization_Api.Common;
+using FileCategorization_Api.Interfaces;
+using FileCategorization_Api.Domain.Entities.FileCategorization;
 using Microsoft.EntityFrameworkCore;
 
 namespace FileCategorization_Api.Infrastructure.Data.Repositories;
@@ -42,7 +42,7 @@ public class FilesDetailRepository : Repository<FilesDetail>, IFilesDetailReposi
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving files by category: {Category}", category);
-            return Result<IEnumerable<FilesDetail>>.Exception(ex);
+            return Result<IEnumerable<FilesDetail>>.FromException(ex);
         }
     }
 
@@ -64,7 +64,7 @@ public class FilesDetailRepository : Repository<FilesDetail>, IFilesDetailReposi
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving files to categorize");
-            return Result<IEnumerable<FilesDetail>>.Exception(ex);
+            return Result<IEnumerable<FilesDetail>>.FromException(ex);
         }
     }
 
@@ -88,7 +88,7 @@ public class FilesDetailRepository : Repository<FilesDetail>, IFilesDetailReposi
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving file categories");
-            return Result<IEnumerable<string>>.Exception(ex);
+            return Result<IEnumerable<string>>.FromException(ex);
         }
     }
 
@@ -110,7 +110,7 @@ public class FilesDetailRepository : Repository<FilesDetail>, IFilesDetailReposi
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving new files");
-            return Result<IEnumerable<FilesDetail>>.Exception(ex);
+            return Result<IEnumerable<FilesDetail>>.FromException(ex);
         }
     }
 
@@ -141,7 +141,7 @@ public class FilesDetailRepository : Repository<FilesDetail>, IFilesDetailReposi
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving filtered files with filter type: {FilterType}", filterType);
-            return Result<IEnumerable<FilesDetail>>.Exception(ex);
+            return Result<IEnumerable<FilesDetail>>.FromException(ex);
         }
     }
 
@@ -163,7 +163,7 @@ public class FilesDetailRepository : Repository<FilesDetail>, IFilesDetailReposi
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving files that should not be moved");
-            return Result<IEnumerable<FilesDetail>>.Exception(ex);
+            return Result<IEnumerable<FilesDetail>>.FromException(ex);
         }
     }
 
@@ -192,7 +192,7 @@ public class FilesDetailRepository : Repository<FilesDetail>, IFilesDetailReposi
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving latest files by category");
-            return Result<IEnumerable<FilesDetail>>.Exception(ex);
+            return Result<IEnumerable<FilesDetail>>.FromException(ex);
         }
     }
 
@@ -221,7 +221,7 @@ public class FilesDetailRepository : Repository<FilesDetail>, IFilesDetailReposi
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating categorization for file {FileId}", fileId);
-            return Result<bool>.Exception(ex);
+            return Result<bool>.FromException(ex);
         }
     }
 
@@ -246,7 +246,7 @@ public class FilesDetailRepository : Repository<FilesDetail>, IFilesDetailReposi
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error searching files by name pattern: {Pattern}", namePattern);
-            return Result<IEnumerable<FilesDetail>>.Exception(ex);
+            return Result<IEnumerable<FilesDetail>>.FromException(ex);
         }
     }
 }

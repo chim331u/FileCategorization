@@ -1,11 +1,10 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text.Json;
-using FileCategorization_Api.AppContext;
-using FileCategorization_Api.Contracts;
-using FileCategorization_Api.Contracts.Identity;
+using FileCategorization_Api.Infrastructure.Data;
+using FileCategorization_Api.Domain.Entities;
+using FileCategorization_Api.Domain.Entities.Identity;
 using FileCategorization_Api.Interfaces;
-using FileCategorization_Api.Models.Identity;
 using Microsoft.AspNetCore.Identity;
 
 namespace FileCategorization_Api.Services;

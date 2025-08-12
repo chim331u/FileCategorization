@@ -1,9 +1,8 @@
 using System.Reflection;
-using FileCategorization_Api.AppContext;
-using FileCategorization_Api.Contracts.Identity;
+using FileCategorization_Api.Infrastructure.Data;
+using FileCategorization_Api.Domain.Entities.Identity;
 using FileCategorization_Api.Endpoints;
-using FileCategorization_Api.Presentation.Endpoints;
-using FileCategorization_Api.Extensions;
+using FileCategorization_Api.Common;
 using FileCategorization_Api.Services;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;

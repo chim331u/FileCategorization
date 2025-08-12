@@ -1,5 +1,5 @@
 using System.Text.Json;
-using FileCategorization_Api.Contracts.Identity;
+using FileCategorization_Api.Domain.Entities.Identity;
 using FileCategorization_Api.Interfaces;
 
 namespace FileCategorization_Api.Endpoints;

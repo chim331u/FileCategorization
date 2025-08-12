@@ -1,7 +1,7 @@
-using FileCategorization_Api.AppContext;
-using FileCategorization_Api.Core.Common;
-using FileCategorization_Api.Core.Interfaces;
-using FileCategorization_Api.Models;
+using FileCategorization_Api.Infrastructure.Data;
+using FileCategorization_Api.Common;
+using FileCategorization_Api.Interfaces;
+using FileCategorization_Api.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace FileCategorization_Api.Infrastructure.Data.Repositories;
@@ -44,7 +44,7 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving entity of type {EntityType} with ID {Id}", typeof(T).Name, id);
-            return Result<T?>.Exception(ex);
+            return Result<T?>.FromException(ex);
         }
     }
 
@@ -66,7 +66,7 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving all entities of type {EntityType}", typeof(T).Name);
-            return Result<IEnumerable<T>>.Exception(ex);
+            return Result<IEnumerable<T>>.FromException(ex);
         }
     }
 
@@ -94,7 +94,7 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error adding entity of type {EntityType}", typeof(T).Name);
-            return Result<T>.Exception(ex);
+            return Result<T>.FromException(ex);
         }
     }
 
@@ -124,7 +124,7 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating entity of type {EntityType} with ID {Id}", typeof(T).Name, entity.Id);
-            return Result<T>.Exception(ex);
+            return Result<T>.FromException(ex);
         }
     }
 
@@ -151,7 +151,7 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting entity of type {EntityType} with ID {Id}", typeof(T).Name, id);
-            return Result<bool>.Exception(ex);
+            return Result<bool>.FromException(ex);
         }
     }
 
@@ -171,7 +171,7 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error checking existence of entity of type {EntityType} with ID {Id}", typeof(T).Name, id);
-            return Result<bool>.Exception(ex);
+            return Result<bool>.FromException(ex);
         }
     }
 
@@ -192,7 +192,7 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error counting entities of type {EntityType}", typeof(T).Name);
-            return Result<int>.Exception(ex);
+            return Result<int>.FromException(ex);
         }
     }
 }

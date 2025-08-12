@@ -11,6 +11,15 @@ dotnet run                      # Run in development mode (launches Swagger at h
 dotnet run --launch-profile https  # Run with HTTPS (https://localhost:7128)
 ```
 
+### Testing
+```bash
+dotnet test                     # Run all unit tests
+dotnet test --verbosity normal  # Run tests with detailed output
+dotnet test --filter "ClassName" # Run tests for specific class
+```
+
+Tests are located in the `Tests/` folder and use xUnit with in-memory database for repository testing.
+
 ### Database Operations
 ```bash
 dotnet ef migrations add <MigrationName>  # Add new migration
@@ -25,39 +34,51 @@ This is a .NET 8 Web API project implementing a file categorization system with 
 
 ### Core Architecture Pattern
 - **Minimal API Endpoints**: Uses endpoint mapping pattern instead of controllers
-- **Dependency Injection**: Services registered in `Extensions/ServiceExtensions.cs`
-- **Repository Pattern**: Modern v2 endpoints use Repository Pattern with Result Pattern
-- **Clean Architecture**: Separation of concerns with Application, Core, Infrastructure, and Presentation layers
+- **Dependency Injection**: Services registered in `Common/ServiceExtensions.cs`
+- **Repository Pattern**: All modern endpoints use Repository Pattern with Result Pattern
+- **Clean Architecture**: Separation of concerns following repository pattern best practices
 - **Entity Framework**: SQLite database with Code First approach
+- **Result Pattern**: Structured error handling using `Result<T>` wrapper for all operations
 
 ### Key Components
 
-#### Domain Models
-- **FilesDetail**: Core entity for file metadata and categorization status
-- **Configs**: Application configuration settings
-- **DD_LinkEd2k/DD_Threads**: DownloadDaemon integration models
-- **ApplicationUser**: Identity management with JWT authentication
+#### Domain Layer (`Domain/`)
+- **Entities/**: All domain models, DTOs, and entity classes
+  - **FilesDetail**: Core entity for file metadata and categorization status
+  - **Configs**: Application configuration settings
+  - **DD_LinkEd2k/DD_Threads**: DownloadDaemon integration models
+  - **ApplicationUser**: Identity management with JWT authentication
+  - **Identity DTOs**: LoginModelDto, SignupModelDto, TokenModelDto, Roles
+- **Enums/**: All enumeration types (FileFilterType, MoveFilesResults)
 
-#### Service Layer
-- **IFilesDetailService**: File management and categorization operations (v1)
-- **IFilesQueryService** & **IFilesDetailRepository**: Modern v2 file management with Repository Pattern
-- **IConfigQueryService** & **IConfigRepository**: Modern v2 configuration management with Repository Pattern
-- **IUtilityRepository**: Modern v2 utility services with Repository Pattern
+#### Service Layer (`Services/`)
+- **IFilesDetailService**: Legacy file management and categorization operations
+- **IFilesQueryService**: Modern file querying with Repository Pattern
+- **IConfigQueryService**: Modern configuration management with Repository Pattern  
 - **IMachineLearningService**: ML-based file categorization using ML.NET
 - **IDDService**: DownloadDaemon integration for link processing
 - **IHangFireJobService**: Background job processing
 - **IIdentityService**: User authentication and authorization
+- **IUtilityServices**: Encryption, hashing, and utility operations
+
+#### Repository Layer (`Infrastructure/`)
+- **IFilesDetailRepository**: File data access with Repository Pattern
+- **IConfigRepository**: Configuration data access with Repository Pattern
+- **IUtilityRepository**: Utility operations repository
+- **IRepository<T>**: Generic repository interface with common CRUD operations
 
 #### External Integrations
 - **Hangfire**: Background job processing with in-memory storage
 - **SignalR**: Real-time notifications via `/notifications` hub
 - **Serilog**: Structured logging to console and file
 
-### API Structure
+### API Structure (`Endpoints/`)
+
+All endpoints are now consolidated in the `Endpoints/` folder following modern architecture patterns:
 
 #### Legacy v1 Endpoints (`/api/v1/`)
 - **Files Detail endpoints**: File CRUD operations and categorization (marked obsolete)
-- **Configs endpoints**: Application configuration management (marked obsolete)
+- **Configs endpoints**: Application configuration management (marked obsolete)  
 - **Actions endpoints**: File movement and processing actions
 - **DD endpoints**: DownloadDaemon integration
 - **Utility endpoints**: Various utility functions (marked obsolete)
@@ -72,7 +93,7 @@ This is a .NET 8 Web API project implementing a file categorization system with 
 All v2 endpoints implement:
 - Repository Pattern for data access
 - Result Pattern for structured error handling
-- FluentValidation for input validation
+- FluentValidation for input validation with ValidationFilter<T>
 - AutoMapper for DTO/Entity mapping
 - Comprehensive error handling and logging
 
@@ -102,41 +123,46 @@ All v2 endpoints implement:
 - **Hangfire (1.8.18)**: Background job processing with in-memory storage
 - **Entity Framework Core (8.0.15)**: ORM with SQLite provider
 - **FluentValidation (11.11.0)**: Request validation for v2 endpoints
-- **AutoMapper (13.0.2)**: DTO/Entity mapping for v2 endpoints
+- **AutoMapper (12.0.1)**: DTO/Entity mapping for v2 endpoints
 - **Serilog**: Structured logging with file and console outputs
 - **SignalR**: Real-time web functionality
 - **HtmlAgilityPack (1.12.1)**: HTML parsing capabilities
 - **SSH.NET (2024.2.0)**: SSH operations support
+- **xUnit (2.9.3)**: Testing framework with Moq for mocking
 
 #### Configuration Differences
 - **Development**: Database stored in `Temp/FileCat.db`, logs in `Temp/FC/`, JWT secret from appsettings
 - **Production**: Database in `/data/FileCat.db`, logs in `/data/Log/`, JWT secret from environment variable `JWT_SECRET`
 
 #### Service Registration Pattern
-Services are registered in `Extensions/ServiceExtensions.cs`:
+Services are registered in `Common/ServiceExtensions.cs`:
 - **Legacy services**: Interface/implementation pattern registered as Scoped
-- **v2 Repository services**: Repository Pattern implementations registered as Scoped
-- **v2 Query services**: Application services with business logic registered as Scoped
+- **Repository services**: Repository Pattern implementations registered as Scoped
+- **Query services**: Application services with business logic registered as Scoped
 - **Validators**: FluentValidation validators registered via `AddValidatorsFromAssembly`
 - **AutoMapper**: Profiles registered for DTO/Entity mapping
 - **ILogger**: Generic logger registered as Singleton for endpoint injection
+- **IHostEnvironment**: Environment detection for configuration filtering
 
 #### Endpoint Architecture
-- **Legacy endpoints (`Endpoints/` folder)**: Minimal API pattern with extension methods
-- **v2 endpoints (`Presentation/Endpoints/` folder)**: Modern architecture with:
+All endpoints are consolidated in the `Endpoints/` folder:
+- **Minimal API pattern**: Extension methods for clean endpoint registration
+- **Modern architecture features**:
   - Repository Pattern for data access
   - Result Pattern for error handling
-  - Validation filters using FluentValidation
+  - ValidationFilter<T> for automatic request validation
   - AutoMapper for DTO conversion
   - Comprehensive Swagger documentation with versioning
+  - Environment-aware configuration filtering
 
-#### Modern Architecture Features (v2)
-- **Result Pattern**: Structured error handling with `Result<T>` wrapper
-- **Repository Pattern**: Generic repository with specialized implementations
-- **Clean Architecture**: Organized in layers (Application, Core, Infrastructure, Presentation)
-- **Validation Filters**: Automatic request validation using FluentValidation
+#### Modern Architecture Features
+- **Result Pattern**: Structured error handling with `Result<T>` wrapper and `FromException` method
+- **Repository Pattern**: Generic `IRepository<T>` with specialized implementations
+- **Clean Architecture**: Organized by responsibility rather than technical layers
+- **Validation Filters**: Automatic request validation using `ValidationFilter<T>`
 - **DTO Mapping**: Automatic entity/DTO conversion using AutoMapper profiles
-- **Comprehensive Testing**: Unit tests for repositories with in-memory database
+- **Environment Filtering**: Configuration filtering based on `IsDev` property
+- **Comprehensive Testing**: Unit tests with xUnit, Moq, and in-memory database
 
 ## Development Guidelines
 
@@ -147,33 +173,75 @@ Services are registered in `Extensions/ServiceExtensions.cs`:
 
 ### Code Organization
 ```
-Application/
-├── Mappings/           # AutoMapper profiles for DTO/Entity mapping
-├── Services/           # Application services with business logic
-└── Validators/         # FluentValidation validators
-
-Core/
-├── Common/            # Result Pattern and common utilities
-└── Interfaces/        # Repository and service interfaces
-
-Infrastructure/
-├── Data/
-│   └── Repositories/  # Repository Pattern implementations
-└── Repositories/      # Utility repositories
-
-Presentation/
-├── Endpoints/         # Modern v2 endpoint implementations
-└── Filters/          # Validation and other filters
-
-Contracts/            # DTOs organized by domain
-├── Config/
-├── FilesDetail/
-└── Utility/
+FileCategorization_Api/
+├── Common/                     # Shared components and utilities
+│   ├── ServiceExtensions.cs   # Dependency injection configuration
+│   ├── ValidationFilter.cs    # Generic validation filter for endpoints
+│   ├── Result.cs              # Result pattern implementation
+│   └── [Mappings, Validators, Exceptions, Configurations]
+│
+├── Domain/                     # Domain layer
+│   ├── Entities/              # All models, DTOs, and entity classes
+│   │   ├── FileCategorization/ # Core domain entities
+│   │   ├── Identity/          # Authentication DTOs and models
+│   │   ├── DD/                # DownloadDaemon integration DTOs
+│   │   └── [Other domain areas]
+│   └── Enums/                 # Enumeration types
+│
+├── Endpoints/                  # API endpoint implementations
+│   ├── [Legacy v1 endpoints]
+│   └── [Modern v2 endpoints]
+│
+├── Infrastructure/             # Data access layer
+│   └── Data/                  # Entity Framework and repositories
+│       ├── ApplicationContext.cs
+│       └── Repositories/      # Repository implementations
+│
+├── Interfaces/                 # All service and repository interfaces
+│   ├── IRepository.cs         # Generic repository interface
+│   └── [Specific interfaces]
+│
+├── Services/                   # Business logic services
+│   ├── [Legacy services]
+│   └── [Modern services]
+│
+├── Tests/                      # Unit tests
+│   └── ConfigRepositoryTests.cs # xUnit tests with in-memory database
+│
+└── [Migrations, Properties, wwwroot]
 ```
 
 ### Best Practices
-- **Error Handling**: Always use Result Pattern for v2 endpoints
-- **Validation**: Use FluentValidation for all input validation
+- **Error Handling**: Always use Result Pattern with `Result<T>.Success()`, `Result<T>.Failure()`, and `Result<T>.FromException()`
+- **Validation**: Use FluentValidation with `ValidationFilter<T>` for automatic request validation
 - **Logging**: Inject ILogger and log operations, errors, and performance metrics
-- **Testing**: Write unit tests for repositories using in-memory database
+- **Testing**: Write unit tests for repositories using in-memory database with xUnit and Moq
 - **Documentation**: Include comprehensive XML comments and Swagger metadata
+- **Environment Filtering**: Use `IHostEnvironment.IsDevelopment()` for environment-aware configuration
+
+## Testing Strategy
+- **Unit Tests**: Located in `Tests/` folder using xUnit framework
+- **Repository Testing**: Uses in-memory Entity Framework database for isolated testing
+- **Mocking**: Moq library for mocking dependencies like ILogger and IHostEnvironment
+- **Test Naming**: Tests follow pattern `{MethodName}_{Scenario}_{ExpectedResult}`
+- **Environment Mocking**: Use `EnvironmentName` property instead of extension methods for Moq compatibility
+
+## Recent Architecture Improvements (2024)
+
+### Repository Pattern Reorganization
+The project structure has been completely reorganized following modern repository pattern best practices:
+
+- **Consolidated Structure**: All endpoints moved to `Endpoints/`, all interfaces to `Interfaces/`, all services to `Services/`
+- **Domain-Driven Organization**: Domain models and DTOs organized in `Domain/Entities/` by business area
+- **Clean Separation**: Clear separation between domain, infrastructure, and application layers
+- **Namespace Consistency**: All namespaces updated to reflect new structure (`FileCategorization_Api.Domain.Entities.*`)
+- **Result Pattern Enhancement**: Improved error handling with `Result<T>.FromException()` method
+- **Environment-Aware Config**: Configuration filtering based on development/production environment
+- **Testing Improvements**: Enhanced test setup with proper mocking for environment-dependent code
+
+### Benefits of New Structure
+- **Improved Maintainability**: Easier to locate and modify related code
+- **Better Testability**: Clean separation enables better unit testing
+- **Scalability**: Structure supports future growth and new features
+- **Developer Experience**: Consistent patterns and clear organization
+- **Performance**: Optimized service registration and dependency injection

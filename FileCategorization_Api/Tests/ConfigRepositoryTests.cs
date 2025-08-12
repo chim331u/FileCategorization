@@ -1,7 +1,8 @@
-using FileCategorization_Api.AppContext;
+using FileCategorization_Api.Infrastructure.Data;
 using FileCategorization_Api.Infrastructure.Data.Repositories;
-using FileCategorization_Api.Models.FileCategorization;
+using FileCategorization_Api.Domain.Entities.FileCategorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -15,6 +16,7 @@ public class ConfigRepositoryTests : IDisposable
 {
     private readonly ApplicationContext _context;
     private readonly Mock<ILogger<ConfigRepository>> _mockLogger;
+    private readonly Mock<IHostEnvironment> _mockEnvironment;
     private readonly ConfigRepository _repository;
 
     /// <summary>
@@ -28,7 +30,9 @@ public class ConfigRepositoryTests : IDisposable
 
         _context = new ApplicationContext(options);
         _mockLogger = new Mock<ILogger<ConfigRepository>>();
-        _repository = new ConfigRepository(_context, _mockLogger.Object);
+        _mockEnvironment = new Mock<IHostEnvironment>();
+        _mockEnvironment.Setup(e => e.EnvironmentName).Returns("Development");
+        _repository = new ConfigRepository(_context, _mockLogger.Object, _mockEnvironment.Object);
     }
 
     [Fact]

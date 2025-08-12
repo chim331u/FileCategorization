@@ -1,5 +1,5 @@
-using FileCategorization_Api.Contracts;
-using FileCategorization_Api.Contracts.Identity;
+using FileCategorization_Api.Domain.Entities;
+using FileCategorization_Api.Domain.Entities.Identity;
 
 namespace FileCategorization_Api.Interfaces;
 

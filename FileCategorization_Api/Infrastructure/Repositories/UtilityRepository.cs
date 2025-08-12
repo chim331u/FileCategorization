@@ -1,5 +1,5 @@
-using FileCategorization_Api.Core.Common;
-using FileCategorization_Api.Core.Interfaces;
+using FileCategorization_Api.Common;
+using FileCategorization_Api.Interfaces;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -62,7 +62,7 @@ public class UtilityRepository : IUtilityRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred during string encryption");
-            return Result<string>.Exception(ex);
+            return Result<string>.FromException(ex);
         }
     }
 
@@ -114,7 +114,7 @@ public class UtilityRepository : IUtilityRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred during string decryption");
-            return Result<string>.Exception(ex);
+            return Result<string>.FromException(ex);
         }
     }
 
@@ -142,7 +142,7 @@ public class UtilityRepository : IUtilityRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred during string hashing");
-            return Result<string>.Exception(ex);
+            return Result<string>.FromException(ex);
         }
     }
 
@@ -179,7 +179,7 @@ public class UtilityRepository : IUtilityRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred during hash verification");
-            return Result<bool>.Exception(ex);
+            return Result<bool>.FromException(ex);
         }
     }
 }

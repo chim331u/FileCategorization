@@ -1,4 +1,4 @@
-using FileCategorization_Api.Contracts.Configs;
+using FileCategorization_Api.Domain.Entities.Configs;
 
 namespace FileCategorization_Api.Interfaces;
 

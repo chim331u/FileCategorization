@@ -1,7 +1,7 @@
-using FileCategorization_Api.AppContext;
-using FileCategorization_Api.Contracts.Configs;
+using FileCategorization_Api.Infrastructure.Data;
+using FileCategorization_Api.Domain.Entities.Configs;
 using FileCategorization_Api.Interfaces;
-using FileCategorization_Api.Models.FileCategorization;
+using FileCategorization_Api.Domain.Entities.FileCategorization;
 using Microsoft.EntityFrameworkCore;
 
 namespace FileCategorization_Api.Services;
