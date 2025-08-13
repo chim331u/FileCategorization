@@ -182,8 +182,16 @@ namespace FileCategorization_Api.Services
                         //calculate category for this batch
                         _logger.LogInformation($"Start Prediction process for batch {i/batchSize + 1}");
                         var _categorizationStartTime = DateTime.Now;
-                        var _categorizedFiles = _machineLearningService.PredictFileCategorization(batchFilesToAdd);
+                        var categorizedFilesResult = await _machineLearningService.PredictFileCategoriesAsync(batchFilesToAdd);
 
+                        if (categorizedFilesResult.IsFailure)
+                        {
+                            _logger.LogError("Failed to categorize files in batch {BatchNumber}: {ErrorMessage}", 
+                                i/batchSize + 1, categorizedFilesResult.ErrorMessage);
+                            continue; // Skip this batch and continue with next
+                        }
+                        
+                        var _categorizedFiles = categorizedFilesResult.Data!;
                         _logger.LogInformation(
                             $"End Prediction process for batch: [{await _utility.TimeDiff(_categorizationStartTime, DateTime.Now)}]");
 

@@ -51,7 +51,7 @@ public static class ServiceExtensions
         builder.Services.AddScoped<IConfigsService, ConfigsService>();
         builder.Services.AddScoped<IUtilityServices, UtilityServices>();
         builder.Services.AddScoped<IHangFireJobService, HangFireJobService>();
-        builder.Services.AddScoped<IMachineLearningService, MachineLearningService>();
+        builder.Services.AddSingleton<IMachineLearningService, MachineLearningService>();
         builder.Services.AddScoped<IDDService, DDService>();
         builder.Services.AddScoped<ITokenService, TokenService>();
         builder.Services.AddScoped<IIdentityService, IdentityService>();

@@ -457,8 +457,15 @@ namespace FileCategorization_Api.Services
                     //calculate category
                     _logger.LogInformation("Start Prediction process");
                     var _categorizationStartTime = DateTime.Now;
-                    var _categorizedFiles = _machineLearningService.PredictFileCategorization(_filesToCategorize);
+                    var categorizedFilesResult = await _machineLearningService.PredictFileCategoriesAsync(_filesToCategorize);
 
+                    if (categorizedFilesResult.IsFailure)
+                    {
+                        _logger.LogError("Failed to categorize files: {ErrorMessage}", categorizedFilesResult.ErrorMessage);
+                        return null;
+                    }
+                    
+                    var _categorizedFiles = categorizedFilesResult.Data!;
                     _logger.LogInformation($"End Prediction process: [{_utilityServices.TimeDiff(_categorizationStartTime, DateTime.Now)}]");
 
                     //add to db

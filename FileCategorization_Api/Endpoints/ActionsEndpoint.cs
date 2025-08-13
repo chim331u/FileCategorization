@@ -60,8 +60,14 @@ public static class ActionsEndpoint
         /// </summary>
         app.MapGet("/TrainModel", async (IMachineLearningService machineLearningService) =>
         {
-            string trainModelResult = machineLearningService.TrainAndSaveModel();
-            return Results.Ok(trainModelResult);
+            var trainModelResult = await machineLearningService.TrainAndSaveModelAsync();
+            
+            if (trainModelResult.IsFailure)
+            {
+                return Results.BadRequest(trainModelResult.ErrorMessage);
+            }
+            
+            return Results.Ok(trainModelResult.Data);
         });
         
         return app;
