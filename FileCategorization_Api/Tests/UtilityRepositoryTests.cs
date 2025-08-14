@@ -1,4 +1,4 @@
-using FileCategorization_Api.Infrastructure.Repositories;
+using FileCategorization_Api.Infrastructure.Data.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;

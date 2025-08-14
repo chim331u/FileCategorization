@@ -26,6 +26,8 @@ public static class ConfigsEndpoint
             var result = await configsService.GetConfigList();
             return Results.Ok(result);
         })
+        .WithSummary("[OBSOLETE] Get configuration list")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `GET /api/v2/configs` instead for paginated results, filtering, and improved performance.")
         .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use GET /api/v2/configs instead.", false));
         
         /// <summary>
@@ -37,6 +39,8 @@ public static class ConfigsEndpoint
             var result = await configsService.GetConfig(id);
             return result != null ? Results.Ok(result) : Results.NotFound();
         })
+        .WithSummary("[OBSOLETE] Get configuration by ID")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `GET /api/v2/configs/{id}` instead for structured responses and better error handling.")
         .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use GET /api/v2/configs/{id} instead.", false));
         
         /// <summary>
@@ -48,6 +52,8 @@ public static class ConfigsEndpoint
             var result = await configsService.AddConfig(configsDto);
             return Results.Created($"/GetConfig/{result.Id}", result); 
         })
+        .WithSummary("[OBSOLETE] Add new configuration")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `POST /api/v2/configs` instead for improved validation, Result Pattern responses, and better error handling.")
         .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use POST /api/v2/configs instead.", false));
         
         /// <summary>
@@ -60,6 +66,8 @@ public static class ConfigsEndpoint
             var result = await configsService.UpdateConfig(id, configsDto);
             return result != null ? Results.Ok(result) : Results.NotFound();
         })
+        .WithSummary("[OBSOLETE] Update configuration")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `PUT /api/v2/configs/{id}` instead for FluentValidation, AutoMapper support, and structured error responses.")
         .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use PUT /api/v2/configs/{id} instead.", false));
         
         /// <summary>
@@ -71,6 +79,8 @@ public static class ConfigsEndpoint
             var result = await configsService.DeleteConfig(id);
             return result ? Results.NoContent() : Results.NotFound();
         })
+        .WithSummary("[OBSOLETE] Delete configuration")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `DELETE /api/v2/configs/{id}` instead for consistent API design and structured error responses.")
         .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use DELETE /api/v2/configs/{id} instead.", false));
 
         return app;

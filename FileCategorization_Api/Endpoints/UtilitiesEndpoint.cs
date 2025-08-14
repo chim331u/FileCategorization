@@ -27,6 +27,8 @@ public static class UtilitiesEndpoint
             string cryptedtext = await utilityServices.EncryptString(plainText);
             return Results.Ok(cryptedtext);
         })
+        .WithSummary("[OBSOLETE] Encrypt string")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `POST /api/v2/utilities/encrypt` instead for improved validation, structured requests, and better error handling.")
         .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use POST /api/v2/crypto/encrypt instead.", false));
         
         /// <summary>
@@ -39,6 +41,8 @@ public static class UtilitiesEndpoint
             string decryptedtext = await utilityServices.DecryptString(cryptedText);
             return Results.Ok(decryptedtext);
         })
+        .WithSummary("[OBSOLETE] Decrypt string")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `POST /api/v2/utilities/decrypt` instead for improved validation, structured requests, and better error handling.")
         .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use POST /api/v2/crypto/decrypt instead.", false));
         
         /// <summary>
@@ -51,6 +55,8 @@ public static class UtilitiesEndpoint
             string hashedtext = await utilityServices.HashString_SHA256(text);
             return Results.Ok(hashedtext);
         })
+        .WithSummary("[OBSOLETE] Hash string with SHA-256")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `POST /api/v2/utilities/hash` instead for multiple hash algorithms, validation, and structured responses.")
         .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use POST /api/v2/crypto/hash instead.", false));
         
         /// <summary>
@@ -64,6 +70,8 @@ public static class UtilitiesEndpoint
             bool areEquals = await utilityServices.VerifyHash_SHA256(text, hashedText);
             return Results.Ok(areEquals);
         })
+        .WithSummary("[OBSOLETE] Verify hash against SHA-256")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `POST /api/v2/utilities/verify` instead for multiple hash algorithms, validation, and structured responses.")
         .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use POST /api/v2/crypto/verify instead.", false));
         
         return app;

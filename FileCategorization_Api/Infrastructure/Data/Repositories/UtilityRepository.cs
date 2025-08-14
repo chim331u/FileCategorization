@@ -1,9 +1,9 @@
-using FileCategorization_Api.Common;
-using FileCategorization_Api.Interfaces;
 using System.Security.Cryptography;
 using System.Text;
+using FileCategorization_Api.Common;
+using FileCategorization_Api.Interfaces;
 
-namespace FileCategorization_Api.Infrastructure.Repositories;
+namespace FileCategorization_Api.Infrastructure.Data.Repositories;
 
 /// <summary>
 /// Implementation of utility repository for cryptographic operations.

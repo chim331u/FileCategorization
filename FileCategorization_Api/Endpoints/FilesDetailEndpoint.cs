@@ -27,6 +27,8 @@ public static class FilesDetailEndPoint
             var result = await filesDetailService.GetDbCategoryList();
             return Results.Ok(result);
         })
+        .WithSummary("[OBSOLETE] Get list of categories")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `GET /api/v2/files/categories` instead for improved performance and structured responses.")
         .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use GET /api/v2/categories instead.", false));
 
         /// <summary>
@@ -38,6 +40,8 @@ public static class FilesDetailEndPoint
             var result = await filesDetailService.GetFileList();
             return Results.Ok(result);
         })
+        .WithSummary("[OBSOLETE] Get all file details")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `GET /api/v2/files/list` instead for paginated results and better performance.")
         .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use GET /api/v2/files/filtered/1 instead.", false));
 
         /// <summary>
@@ -65,6 +69,8 @@ public static class FilesDetailEndPoint
 
             return Results.Ok(fileList);
         })
+        .WithSummary("[OBSOLETE] Get filtered file list")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `GET /api/v2/files/filtered/{filterType}` instead for structured filtering with better performance.")
         .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use GET /api/v2/files/filtered/{filterType} or GET /api/v2/files/search instead.", false));
 
         /// <summary>
@@ -76,7 +82,9 @@ public static class FilesDetailEndPoint
         {
             var result = await filesDetailService.GetFilesDetailById(id);
             return result != null ? Results.Ok(result) : Results.NotFound();
-        });
+        })
+        .WithSummary("[OBSOLETE] Get file details by ID")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `GET /api/v2/files/{id}` instead for consistent API design and better error handling.");
 
         /// <summary>
         /// Endpoint to get files to move.
@@ -86,7 +94,9 @@ public static class FilesDetailEndPoint
         {
             var result = await filesDetailService.GetFileListToCategorize();
             return result != null ? Results.Ok(result) : Results.NotFound();
-        });
+        })
+        .WithSummary("[OBSOLETE] Get files to move")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `GET /api/v2/files/filtered/uncategorized` instead for better filtering and performance.");
 
         /// <summary>
         /// Endpoint to add a new file detail.
@@ -98,6 +108,8 @@ public static class FilesDetailEndPoint
             var result = await filesDetailService.AddFileDetailAsync(filesDetailRequest);
             return Results.Created($"/GetFilesDetail/{result.Id}", result);
         })
+        .WithSummary("[OBSOLETE] Add new file detail")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `POST /api/v2/files` instead for improved validation and structured responses.")
         .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use POST /api/v2/files instead.", false));
 
         /// <summary>
@@ -111,6 +123,8 @@ public static class FilesDetailEndPoint
             var result = await filesDetailService.UpdateFilesDetailAsync(id, filesDetailUpdateRequest);
             return result != null ? Results.Ok(result) : Results.NotFound();
         })
+        .WithSummary("[OBSOLETE] Update file details")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `PUT /api/v2/files/{id}` instead for improved validation and structured error responses.")
         .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use PUT /api/v2/files/{id} instead.", false));
 
         /// <summary>
@@ -123,6 +137,8 @@ public static class FilesDetailEndPoint
             var result = await filesDetailService.DeleteFilesDetailAsync(id);
             return result ? Results.NoContent() : Results.NotFound();
         })
+        .WithSummary("[OBSOLETE] Delete file detail")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `DELETE /api/v2/files/{id}` instead for consistent API design and better error handling.")
         .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use DELETE /api/v2/files/{id} instead.", false));
 
         /// <summary>
@@ -134,6 +150,8 @@ public static class FilesDetailEndPoint
             var result = await filesDetailService.GetLastViewList();
             return Results.Ok(result);
         })
+        .WithSummary("[OBSOLETE] Get last viewed files")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `GET /api/v2/files/recent` instead for paginated results and better performance.")
         .WithMetadata(new ObsoleteAttribute("This endpoint is deprecated. Use GET /api/v2/files/lastview instead.", false));
 
         /// <summary>
@@ -145,7 +163,9 @@ public static class FilesDetailEndPoint
         {
             var result = await filesDetailService.GetAllFiles(cat);
             return Results.Ok(result);
-        });
+        })
+        .WithSummary("[OBSOLETE] Get all files by category")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `GET /api/v2/files/category/{category}` instead for paginated results and better performance.");
 
         return app;
     }

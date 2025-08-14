@@ -131,4 +131,10 @@ app.MapGroup("/api/v2/")
 
 app.MapActionsV2Endpoints();
 
+// DD v2 endpoints
+app.MapDDEndpointsV2();
+
 app.Run();
+
+// Make Program class public for testing
+public partial class Program { }

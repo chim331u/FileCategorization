@@ -39,14 +39,23 @@ public static class ServiceExtensions
         // Register repositories
         builder.Services.AddScoped(typeof(IRepository<>), typeof(FileCategorization_Api.Infrastructure.Data.Repositories.Repository<>));
         builder.Services.AddScoped<IFilesDetailRepository, FileCategorization_Api.Infrastructure.Data.Repositories.FilesDetailRepository>();
-        builder.Services.AddScoped<IUtilityRepository, FileCategorization_Api.Infrastructure.Repositories.UtilityRepository>();
+        builder.Services.AddScoped<IUtilityRepository, FileCategorization_Api.Infrastructure.Data.Repositories.UtilityRepository>();
         builder.Services.AddScoped<IConfigRepository, FileCategorization_Api.Infrastructure.Data.Repositories.ConfigRepository>();
         builder.Services.AddScoped<IActionsRepository, FileCategorization_Api.Infrastructure.Data.Repositories.ActionsRepository>();
+        builder.Services.AddScoped<IDDRepository, FileCategorization_Api.Infrastructure.Data.Repositories.DDRepository>();
 
         // Register new services
         builder.Services.AddScoped<IFilesQueryService, FilesQueryService>();
         builder.Services.AddScoped<IConfigQueryService, ConfigQueryService>();
         builder.Services.AddScoped<IActionsService, ActionsService>();
+        builder.Services.AddScoped<IDDQueryService, DDQueryService>();
+        builder.Services.AddScoped<IDDWebScrapingService, DDWebScrapingService>();
+        
+        // Register HttpClient for DD web scraping service with connection pooling
+        builder.Services.AddHttpClient<IDDWebScrapingService, DDWebScrapingService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
 
         // Register existing services
         builder.Services.AddScoped<IFilesDetailService, FilesDetailService>();
@@ -62,7 +71,7 @@ public static class ServiceExtensions
         builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
         // Add AutoMapper with profiles from the current assembly
-        builder.Services.AddAutoMapper(typeof(FilesDetailProfile), typeof(ConfigProfile));
+        builder.Services.AddAutoMapper(typeof(FilesDetailProfile), typeof(ConfigProfile), typeof(DDMappingProfile));
 
         // Register ILogger for endpoint injection
         builder.Services.AddSingleton<ILogger>(provider => provider.GetRequiredService<ILoggerFactory>().CreateLogger("EndpointLogger"));

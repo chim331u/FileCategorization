@@ -37,7 +37,9 @@ public static class DDEndpoint
             }
 
             return Results.Ok(result);
-        });
+        })
+        .WithSummary("[OBSOLETE] Check and process encoded thread link")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `POST /api/v2/dd/threads/process` instead for improved validation, structured responses, and better error handling.");
 
         /// <summary>
         /// Endpoint to check links associated with a thread ID.
@@ -54,7 +56,9 @@ public static class DDEndpoint
             }
 
             return Results.Ok(result);
-        });
+        })
+        .WithSummary("[OBSOLETE] Refresh thread links by ID")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `POST /api/v2/dd/threads/{threadId}/refresh` instead for better async patterns and structured responses.");
 
         /// <summary>
         /// Endpoint to get active links by ID.
@@ -65,7 +69,9 @@ public static class DDEndpoint
         {
             var result = await _service.GetActiveLinks(id);
             return Results.Ok(result);
-        });
+        })
+        .WithSummary("[OBSOLETE] Get active links for thread")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `GET /api/v2/dd/threads/{threadId}/links` instead for paginated results and better performance.");
 
         /// <summary>
         /// Endpoint to mark a link as used by its ID.
@@ -82,7 +88,9 @@ public static class DDEndpoint
             }
 
             return Results.Ok(result);
-        });
+        })
+        .WithSummary("[OBSOLETE] Mark link as used by ID")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `POST /api/v2/dd/links/{linkId}/use` instead for improved validation, structured responses, and better error handling.");
 
         /// <summary>
         /// Endpoint to get a list of active threads.
@@ -92,7 +100,9 @@ public static class DDEndpoint
         {
             var result = await _service.GetActiveThreads();
             return Results.Ok(result);
-        });
+        })
+        .WithSummary("[OBSOLETE] Get list of active threads")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use `GET /api/v2/dd/threads` instead for paginated results, filtering options, and better performance.");
 
         // /// <summary>
         // /// Endpoint to add a new DD setting.
