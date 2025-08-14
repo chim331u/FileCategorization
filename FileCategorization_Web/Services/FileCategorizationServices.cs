@@ -8,7 +8,7 @@ using FileCategorization_Web.Interfaces;
 
 namespace FileCategorization_Web.Services;
 
-public class FileCategorizationServices : IFileCategorizationService
+public class FileCategorizationServices : ILegacyFileCategorizationService
 {
     HttpClient _httpClient;
     JsonSerializerOptions _serializerOptions;
