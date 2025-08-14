@@ -4,6 +4,7 @@ using FileCategorization_Web;
 using FileCategorization_Web.Extensions;
 using FileCategorization_Web.Interfaces;
 using FileCategorization_Web.Services;
+using Fluxor;
 using Radzen;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -26,5 +27,17 @@ builder.Services.AddFileCategorizationServices(builder.Configuration);
 
 // Keep legacy service for WebScrum (will be modernized later)
 builder.Services.AddScoped<IWebScrumServices, WebScrumServices>();
+
+// Add SignalR notification service
+builder.Services.AddSignalRNotifications();
+
+// Add Fluxor state management
+builder.Services.AddFluxor(options =>
+{
+    options.ScanAssemblies(typeof(Program).Assembly);
+#if DEBUG
+    // Redux DevTools available in browser developer tools
+#endif
+});
 
 await builder.Build().RunAsync();
