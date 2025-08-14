@@ -129,4 +129,6 @@ app.MapGroup("/api/v2/")
     .WithTags("Configuration v2 (Repository Pattern)")
     .MapConfigEndPoints();
 
+app.MapActionsV2Endpoints();
+
 app.Run();

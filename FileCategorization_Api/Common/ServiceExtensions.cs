@@ -41,17 +41,19 @@ public static class ServiceExtensions
         builder.Services.AddScoped<IFilesDetailRepository, FileCategorization_Api.Infrastructure.Data.Repositories.FilesDetailRepository>();
         builder.Services.AddScoped<IUtilityRepository, FileCategorization_Api.Infrastructure.Repositories.UtilityRepository>();
         builder.Services.AddScoped<IConfigRepository, FileCategorization_Api.Infrastructure.Data.Repositories.ConfigRepository>();
+        builder.Services.AddScoped<IActionsRepository, FileCategorization_Api.Infrastructure.Data.Repositories.ActionsRepository>();
 
         // Register new services
         builder.Services.AddScoped<IFilesQueryService, FilesQueryService>();
         builder.Services.AddScoped<IConfigQueryService, ConfigQueryService>();
+        builder.Services.AddScoped<IActionsService, ActionsService>();
 
         // Register existing services
         builder.Services.AddScoped<IFilesDetailService, FilesDetailService>();
         builder.Services.AddScoped<IConfigsService, ConfigsService>();
         builder.Services.AddScoped<IUtilityServices, UtilityServices>();
         builder.Services.AddScoped<IHangFireJobService, HangFireJobService>();
-        builder.Services.AddSingleton<IMachineLearningService, MachineLearningService>();
+        builder.Services.AddScoped<IMachineLearningService, MachineLearningService>();
         builder.Services.AddScoped<IDDService, DDService>();
         builder.Services.AddScoped<ITokenService, TokenService>();
         builder.Services.AddScoped<IIdentityService, IdentityService>();

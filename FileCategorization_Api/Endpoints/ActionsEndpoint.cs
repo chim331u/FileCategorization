@@ -28,7 +28,9 @@ public static class ActionsEndpoint
                     job.RefreshFiles(CancellationToken.None));
             
             return Results.Ok(jobId);
-        });
+        })
+        .WithSummary("[OBSOLETE] Refresh files from directory")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use '/api/v2/actions/refresh-files' instead for improved performance, validation, and structured responses.");
         
         /// <summary>
         /// Endpoint to move files from the original directory to the destination directory.
@@ -44,7 +46,9 @@ public static class ActionsEndpoint
                     job.MoveFilesJob(filetToMoveList, CancellationToken.None));
             
             return Results.Ok(jobId);
-        });
+        })
+        .WithSummary("[OBSOLETE] Move files to categorized directories")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use '/api/v2/actions/move-files' instead for improved validation, batch operations, and comprehensive error handling.");
         
         /// <summary>
         /// Endpoint to force categorization of files.
@@ -53,7 +57,9 @@ public static class ActionsEndpoint
         {
             string forceCategoryResult = await filesDetailService.ForceCategory();
             return Results.Ok(forceCategoryResult);
-        });
+        })
+        .WithSummary("[OBSOLETE] Force categorization of files")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use '/api/v2/actions/force-categorize' instead for better async patterns and structured error handling.");
         
         /// <summary>
         /// Endpoint to train and save a machine learning model.
@@ -68,7 +74,9 @@ public static class ActionsEndpoint
             }
             
             return Results.Ok(trainModelResult.Data);
-        });
+        })
+        .WithSummary("[OBSOLETE] Train machine learning model")
+        .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use '/api/v2/actions/train-model' instead for detailed training metrics, model information, and better error handling.");
         
         return app;
     }

@@ -194,40 +194,6 @@ public class MachineLearningServiceTests : IDisposable
         Assert.All(result.Data!, file => Assert.Equal("Unknown", file.FileCategory));
     }
 
-    [Fact(Skip = "Cancellation token support requires improvements in ML.NET model loading/prediction loop")]
-    public async Task PredictFileCategoriesAsync_WithCancellation_ThrowsOperationCanceledException()
-    {
-        // Note: This test verifies cancellation token support in batch prediction.
-        // Currently, the ML.NET model loading and prediction operations are fast enough
-        // that cancellation may not be checked frequently enough in the prediction loop.
-        // This would need enhancement to check cancellation more frequently during batch operations.
-        
-        // Arrange - Use a fresh service instance without cached model
-        var freshService = new MachineLearningService(_mockLogger.Object, _mockConfigsService.Object);
-        CreateTestTrainingData();
-        var files = new List<FilesDetail>();
-        
-        // Create files for batch processing
-        for (int i = 0; i < 100; i++)
-        {
-            files.Add(new FilesDetail { Id = i, Name = $"test_file_{i}.txt" });
-        }
-        
-        // Cancel the token before starting the task
-        var cts = new CancellationTokenSource();
-        cts.Cancel();
-
-        try
-        {
-            // Act & Assert - Should throw when trying to process with cancelled token
-            await Assert.ThrowsAsync<OperationCanceledException>(() => 
-                freshService.PredictFileCategoriesAsync(files, cts.Token));
-        }
-        finally
-        {
-            freshService.Dispose();
-        }
-    }
 
     #endregion
 

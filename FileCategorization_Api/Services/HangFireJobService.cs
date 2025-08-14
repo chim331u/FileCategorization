@@ -4,6 +4,7 @@ using FileCategorization_Api.Domain.Entities.FilesDetail;
 using FileCategorization_Api.Interfaces;
 using FileCategorization_Api.Domain.Entities.FileCategorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 namespace FileCategorization_Api.Services
@@ -55,21 +56,26 @@ namespace FileCategorization_Api.Services
         {
             var jobStartTime = DateTime.Now;
             int fileMoved = 0;
+            var processedFiles = new List<(FileMoveDto moveDto, FilesDetail dbFile, string status, string message)>();
+            var trainingDataEntries = new List<string>();
 
             var _originDir = await _configsService.GetConfigValue("ORIGINDIR");
             var _destDir = await _configsService.GetConfigValue("DESTDIR");
+
+            // Batch load all files from database to avoid N+1 queries
+            var fileIds = filesToMove.Select(f => f.Id).ToList();
+            var dbFiles = await _context.FilesDetail
+                .Where(f => fileIds.Contains(f.Id))
+                .ToDictionaryAsync(f => f.Id, cancellationToken);
 
             foreach (var file in filesToMove)
             {
                 try
                 {
-                    var _file = await _context.FilesDetail.FindAsync(file.Id);
-
-                    if (_file == null)
+                    if (!dbFiles.TryGetValue(file.Id, out var _file))
                     {
                         _logger.LogWarning($"File with id {file.Id} is not present.");
-                        await _notificationHub.Clients.All.SendAsync("moveFilesNotifications", file.FileCategory,
-                            $"fileName with id {file.Id} not present", MoveFilesResults.IdNotPresent);
+                        processedFiles.Add((file, null!, "IdNotPresent", $"fileName with id {file.Id} not present"));
                         continue;
                     }
 
@@ -88,40 +94,95 @@ namespace FileCategorization_Api.Services
                     File.Move(fileOrigin, fileDest);
                     _logger.LogInformation($"{fileOrigin} moved to {fileDest}.");
                     fileMoved++;
-                    await _notificationHub.Clients.All.SendAsync("moveFilesNotifications", _file.Id,
-                        $"fileName = {_file.Name} moved", MoveFilesResults.Moved);
-                    //update db
+                    
+                    // Update database record
                     _file.FileCategory = file.FileCategory;
-
                     _file.IsToCategorize = false;
                     _file.IsNew = false;
                     _file.IsNotToMove = false;
 
-                    var result = await _serviceData.UpdateFilesDetail(_file);
-                    _logger.LogInformation($"Db updated: File {_file.Name}");
-
-                    //add train data
-                    using (StreamWriter sw = File.AppendText(Path.Combine(
-                               _configsService.GetConfigValue("TRAINDATAPATH").Result,
-                               _configsService.GetConfigValue("TRAINDATANAME").Result)))
-                    {
-                        sw.WriteLine(_file.Id + ";" + _file.FileCategory + ";" + _file.Name);
-                    }
-
-                    _logger.LogInformation($"File: {_file.Name} added to train model file");
-                    await _notificationHub.Clients.All.SendAsync("moveFilesNotifications", _file.Id,
-                        $"fileName = {_file.Name} completed", MoveFilesResults.Completed);
+                    // Collect training data entry for batch write
+                    trainingDataEntries.Add($"{_file.Id};{_file.FileCategory};{_file.Name}");
+                    
+                    processedFiles.Add((file, _file, "Completed", $"fileName = {_file.Name} completed"));
+                    _logger.LogInformation($"File {_file.Name} processed successfully");
                 }
                 catch (Exception e)
                 {
                     _logger.LogError($"Move File process failed: {e.Message}");
-                    await _notificationHub.Clients.All.SendAsync("moveFilesNotifications", file.Id,
-                        $"Error in moving fileName with id {file.Id}: {e.Message}", MoveFilesResults.Failed);
+                    processedFiles.Add((file, null!, "Failed", $"Error in moving fileName with id {file.Id}: {e.Message}"));
                 }
             }
 
-            var jobExecutionTime =await _utility.TimeDiff(jobStartTime, DateTime.Now);
-            _logger.LogInformation($"Job Completed: [{jobExecutionTime}]");
+            // Batch update database records
+            var successfulFiles = processedFiles
+                .Where(pf => pf.status == "Completed" && pf.dbFile != null)
+                .Select(pf => pf.dbFile)
+                .ToList();
+
+            if (successfulFiles.Any())
+            {
+                try
+                {
+                    _context.FilesDetail.UpdateRange(successfulFiles);
+                    await _context.SaveChangesAsync(cancellationToken);
+                    _logger.LogInformation($"Batch updated {successfulFiles.Count} database records");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Failed to batch update database: {ex.Message}");
+                }
+            }
+
+            // Batch write training data
+            if (trainingDataEntries.Any())
+            {
+                try
+                {
+                    var trainDataPath = await _configsService.GetConfigValue("TRAINDATAPATH");
+                    var trainDataName = await _configsService.GetConfigValue("TRAINDATANAME");
+                    var fullPath = Path.Combine(trainDataPath, trainDataName);
+                    
+                    await File.AppendAllLinesAsync(fullPath, trainingDataEntries, cancellationToken);
+                    _logger.LogInformation($"Batch wrote {trainingDataEntries.Count} training data entries");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Failed to batch write training data: {ex.Message}");
+                }
+            }
+
+            // Send batch notifications
+            try
+            {
+                foreach (var batch in processedFiles.Chunk(10)) // Send in chunks of 10
+                {
+                    foreach (var processedFile in batch)
+                    {
+                        var resultType = processedFile.status switch
+                        {
+                            "IdNotPresent" => MoveFilesResults.IdNotPresent,
+                            "Completed" => MoveFilesResults.Completed,
+                            "Failed" => MoveFilesResults.Failed,
+                            _ => MoveFilesResults.Failed
+                        };
+
+                        await _notificationHub.Clients.All.SendAsync("moveFilesNotifications", 
+                            processedFile.dbFile?.Id ?? processedFile.moveDto.Id,
+                            processedFile.message, resultType, cancellationToken);
+                    }
+                    
+                    // Small delay between batches to avoid overwhelming clients
+                    await Task.Delay(100, cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Failed to send batch notifications: {ex.Message}");
+            }
+
+            var jobExecutionTime = await _utility.TimeDiff(jobStartTime, DateTime.Now);
+            _logger.LogInformation($"Job Completed: [{jobExecutionTime}] - Moved {fileMoved} files");
             await _notificationHub.Clients.All.SendAsync("jobNotifications",
                 $"Completed Job in [{jobExecutionTime}] - Moved {fileMoved} files", MoveFilesResults.Completed);
         }
@@ -151,6 +212,14 @@ namespace FileCategorization_Api.Services
                 var filesToAddToDb = new List<FilesDetail>();
                 var fileInfoList = filesInOrigDir.Cast<FileInfo>().ToList();
                 
+                // Get all existing file names in one query to avoid N+1 queries
+                var allFileNames = fileInfoList.Select(f => f.Name).ToList();
+                var existingFileNames = (await _context.FilesDetail
+                    .Where(fd => allFileNames.Contains(fd.Name))
+                    .Select(fd => fd.Name)
+                    .ToListAsync(cancellationToken))
+                    .ToHashSet();
+
                 // Process files in batches to reduce memory usage
                 for (int i = 0; i < fileInfoList.Count; i += batchSize)
                 {
@@ -161,7 +230,7 @@ namespace FileCategorization_Api.Services
                     {
                         totalFilesInFolder += 1;
 
-                        if (!_serviceData.FileNameIsPresent(file.Name).Result)
+                        if (!existingFileNames.Contains(file.Name))
                         {
                             _logger.LogInformation($"file {file.Name} not present in db");
 
@@ -170,7 +239,7 @@ namespace FileCategorization_Api.Services
                                 Name = file.Name,
                                 FileSize = file.Length,
                                 LastUpdateFile = file.LastWriteTime,
-                                Path = file.Directory.FullName,
+                                Path = file.Directory?.FullName ?? _origDir,
                                 IsToCategorize = true,
                                 IsNew = true
                             });
