@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
 using FileCategorization_Web.Features.FileManagement.Actions;
 using FileCategorization_Web.Interfaces;
+using FileCategorization_Web.Services.Caching;
+using FileCategorization_Web.Data.Caching;
 using Fluxor;
 
 namespace FileCategorization_Web.Features.FileManagement.Effects;
@@ -8,11 +10,13 @@ namespace FileCategorization_Web.Features.FileManagement.Effects;
 public class FileEffects
 {
     private readonly IFileCategorizationService _fileService;
+    private readonly ICacheService _cacheService;
     private readonly ILogger<FileEffects> _logger;
 
-    public FileEffects(IFileCategorizationService fileService, ILogger<FileEffects> logger)
+    public FileEffects(IFileCategorizationService fileService, ICacheService cacheService, ILogger<FileEffects> logger)
     {
         _fileService = fileService;
+        _cacheService = cacheService;
         _logger = logger;
     }
 
@@ -22,13 +26,35 @@ public class FileEffects
     {
         try
         {
+            var cacheKey = $"files_{action.SearchParameter}";
             _logger.LogInformation("Loading files with search parameter: {SearchParameter}", action.SearchParameter);
+            
+            // Try to get from cache first
+            var cachedFiles = await _cacheService.GetAsync<IEnumerable<Data.DTOs.FileCategorizationDTOs.FilesDetailDto>>(cacheKey);
+            if (cachedFiles != null)
+            {
+                dispatcher.Dispatch(new CacheHitAction(cacheKey, "FilesDetailDto[]"));
+                dispatcher.Dispatch(new LoadFilesSuccessAction(cachedFiles.ToImmutableList()));
+                dispatcher.Dispatch(new AddConsoleMessageAction("File List loaded from cache"));
+                return;
+            }
+
+            dispatcher.Dispatch(new CacheMissAction(cacheKey, "FilesDetailDto[]"));
             
             var result = await _fileService.GetFileListAsync(action.SearchParameter);
             
             if (result.IsSuccess)
             {
-                dispatcher.Dispatch(new LoadFilesSuccessAction(result.Value?.ToImmutableList() ?? ImmutableList<Data.DTOs.FileCategorizationDTOs.FilesDetailDto>.Empty));
+                var files = result.Value?.ToImmutableList() ?? ImmutableList<Data.DTOs.FileCategorizationDTOs.FilesDetailDto>.Empty;
+                
+                // Cache the result using predefined policy
+                if (result.Value != null)
+                {
+                    await _cacheService.SetAsync(cacheKey, result.Value, CachePolicy.FileList);
+                }
+                dispatcher.Dispatch(new CacheSetAction(cacheKey, "FilesDetailDto[]", TimeSpan.FromMinutes(5)));
+                
+                dispatcher.Dispatch(new LoadFilesSuccessAction(files));
                 dispatcher.Dispatch(new AddConsoleMessageAction("File List updated"));
             }
             else
@@ -50,6 +76,10 @@ public class FileEffects
         try
         {
             _logger.LogInformation("Refreshing category data");
+            
+            // Invalidate related caches before refreshing
+            await _cacheService.InvalidateByTagAsync("categories");
+            await _cacheService.InvalidateByTagAsync("files");
             
             var refreshResult = await _fileService.RefreshCategoryAsync();
             
@@ -78,13 +108,34 @@ public class FileEffects
     {
         try
         {
+            var cacheKey = "categories";
             _logger.LogInformation("Loading categories");
+            
+            // Try to get from cache first
+            var cachedCategories = await _cacheService.GetAsync<IEnumerable<string>>(cacheKey);
+            if (cachedCategories != null)
+            {
+                dispatcher.Dispatch(new CacheHitAction(cacheKey, "string[]"));
+                dispatcher.Dispatch(new LoadCategoriesSuccessAction(cachedCategories.ToImmutableList()));
+                return;
+            }
+
+            dispatcher.Dispatch(new CacheMissAction(cacheKey, "string[]"));
             
             var result = await _fileService.GetCategoryListAsync();
             
             if (result.IsSuccess)
             {
-                dispatcher.Dispatch(new LoadCategoriesSuccessAction(result.Value?.ToImmutableList() ?? ImmutableList<string>.Empty));
+                var categories = result.Value?.ToImmutableList() ?? ImmutableList<string>.Empty;
+                
+                // Cache the result using predefined policy
+                if (result.Value != null)
+                {
+                    await _cacheService.SetAsync(cacheKey, result.Value, CachePolicy.Categories);
+                }
+                dispatcher.Dispatch(new CacheSetAction(cacheKey, "string[]", TimeSpan.FromMinutes(30)));
+                
+                dispatcher.Dispatch(new LoadCategoriesSuccessAction(categories));
             }
             else
             {
@@ -104,13 +155,34 @@ public class FileEffects
     {
         try
         {
+            var cacheKey = "configurations";
             _logger.LogInformation("Loading configurations");
+            
+            // Try to get from cache first
+            var cachedConfigurations = await _cacheService.GetAsync<IEnumerable<Data.DTOs.FileCategorizationDTOs.ConfigsDto>>(cacheKey);
+            if (cachedConfigurations != null)
+            {
+                dispatcher.Dispatch(new CacheHitAction(cacheKey, "ConfigsDto[]"));
+                dispatcher.Dispatch(new LoadConfigurationsSuccessAction(cachedConfigurations.ToImmutableList()));
+                return;
+            }
+
+            dispatcher.Dispatch(new CacheMissAction(cacheKey, "ConfigsDto[]"));
             
             var result = await _fileService.GetConfigListAsync();
             
             if (result.IsSuccess)
             {
-                dispatcher.Dispatch(new LoadConfigurationsSuccessAction(result.Value?.ToImmutableList() ?? ImmutableList<Data.DTOs.FileCategorizationDTOs.ConfigsDto>.Empty));
+                var configurations = result.Value?.ToImmutableList() ?? ImmutableList<Data.DTOs.FileCategorizationDTOs.ConfigsDto>.Empty;
+                
+                // Cache the result using predefined policy
+                if (result.Value != null)
+                {
+                    await _cacheService.SetAsync(cacheKey, result.Value, CachePolicy.Configurations);
+                }
+                dispatcher.Dispatch(new CacheSetAction(cacheKey, "ConfigsDto[]", TimeSpan.FromHours(1)));
+                
+                dispatcher.Dispatch(new LoadConfigurationsSuccessAction(configurations));
             }
             else
             {
@@ -136,6 +208,9 @@ public class FileEffects
             
             if (result.IsSuccess && result.Value != null)
             {
+                // Invalidate files cache after update
+                await _cacheService.InvalidateByTagAsync("files");
+                
                 dispatcher.Dispatch(new UpdateFileDetailSuccessAction(result.Value));
                 dispatcher.Dispatch(new AddConsoleMessageAction($"File {action.File.Name} updated successfully"));
             }
@@ -189,6 +264,9 @@ public class FileEffects
             
             if (result.IsSuccess)
             {
+                // Invalidate files cache after categorization
+                await _cacheService.InvalidateByTagAsync("files");
+                
                 dispatcher.Dispatch(new ForceCategorySuccessAction(result.Value ?? "Force categorization completed"));
                 // Reload files after categorization
                 dispatcher.Dispatch(new LoadFilesAction(3)); // Default to "To Categorize"
@@ -217,6 +295,9 @@ public class FileEffects
             
             if (result.IsSuccess)
             {
+                // Invalidate files cache after moving
+                await _cacheService.InvalidateByTagAsync("files");
+                
                 dispatcher.Dispatch(new MoveFilesSuccessAction(result.Value ?? "Files moved successfully"));
                 // Reload files after moving
                 dispatcher.Dispatch(new LoadFilesAction(3)); // Default to "To Categorize"
@@ -250,6 +331,80 @@ public class FileEffects
         {
             _logger.LogError(ex, "Error marking file as not to show again");
             dispatcher.Dispatch(new SetErrorAction($"Error updating file: {ex.Message}"));
+        }
+    }
+
+    // Cache Management Effects
+    [EffectMethod]
+    public async Task HandleCacheClearAction(CacheClearAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            _logger.LogInformation("Clearing all cache");
+            await _cacheService.ClearAllAsync();
+            dispatcher.Dispatch(new CacheClearSuccessAction());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error clearing cache");
+            dispatcher.Dispatch(new CacheClearFailureAction($"Failed to clear cache: {ex.Message}"));
+        }
+    }
+
+    [EffectMethod]
+    public async Task HandleCacheInvalidateAction(CacheInvalidateAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            _logger.LogInformation("Invalidating cache with strategy: {Strategy}", action.Strategy);
+            
+            switch (action.Strategy)
+            {
+                case CacheInvalidationStrategy.FileData:
+                    await _cacheService.InvalidateByTagAsync("files");
+                    break;
+                case CacheInvalidationStrategy.Categories:
+                    await _cacheService.InvalidateByTagAsync("categories");
+                    break;
+                case CacheInvalidationStrategy.Configurations:
+                    await _cacheService.InvalidateByTagAsync("configurations");
+                    break;
+                case CacheInvalidationStrategy.All:
+                    await _cacheService.ClearAllAsync();
+                    break;
+            }
+            
+            dispatcher.Dispatch(new CacheInvalidateSuccessAction(action.Strategy));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error invalidating cache");
+            dispatcher.Dispatch(new CacheInvalidateFailureAction($"Failed to invalidate cache: {ex.Message}"));
+        }
+    }
+
+    [EffectMethod]
+    public async Task HandleCacheWarmupAction(CacheWarmupAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            _logger.LogInformation("Starting cache warmup");
+            
+            // Warmup critical data
+            dispatcher.Dispatch(new LoadCategoriesAction());
+            dispatcher.Dispatch(new LoadConfigurationsAction());
+            dispatcher.Dispatch(new LoadFilesAction(3)); // Default "To Categorize"
+            
+            // Update statistics
+            var statistics = await _cacheService.GetStatisticsAsync();
+            dispatcher.Dispatch(new CacheStatsUpdateAction(statistics));
+            
+            dispatcher.Dispatch(new CacheWarmupSuccessAction());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during cache warmup");
+            dispatcher.Dispatch(new CacheWarmupFailureAction($"Cache warmup failed: {ex.Message}"));
         }
     }
 }

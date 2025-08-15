@@ -31,6 +31,10 @@ builder.Services.AddScoped<IWebScrumServices, WebScrumServices>();
 // Add SignalR notification service
 builder.Services.AddSignalRNotifications();
 
+// Add caching services
+builder.Services.AddCachingServices();
+builder.Services.AddCachingConfiguration(builder.Configuration);
+
 // Add Fluxor state management
 builder.Services.AddFluxor(options =>
 {

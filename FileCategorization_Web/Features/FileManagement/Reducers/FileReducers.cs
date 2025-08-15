@@ -179,4 +179,41 @@ public static class FileReducers
     [ReducerMethod]
     public static FileState ReduceSignalRJobCompletedAction(FileState state, SignalRJobCompletedAction action) =>
         state with { ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - {action.ResultText}") };
+
+    // Cache Reducers
+    [ReducerMethod]
+    public static FileState ReduceCacheWarmupAction(FileState state, CacheWarmupAction action) =>
+        state with { IsCacheWarming = true, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Starting cache warmup...") };
+
+    [ReducerMethod]
+    public static FileState ReduceCacheWarmupSuccessAction(FileState state, CacheWarmupSuccessAction action) =>
+        state with { IsCacheWarming = false, LastCacheUpdate = DateTime.UtcNow, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Cache warmup completed") };
+
+    [ReducerMethod]
+    public static FileState ReduceCacheWarmupFailureAction(FileState state, CacheWarmupFailureAction action) =>
+        state with { IsCacheWarming = false, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Cache warmup failed: {action.Error}") };
+
+    [ReducerMethod]
+    public static FileState ReduceCacheClearAction(FileState state, CacheClearAction action) =>
+        state with { ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Clearing cache...") };
+
+    [ReducerMethod]
+    public static FileState ReduceCacheClearSuccessAction(FileState state, CacheClearSuccessAction action) =>
+        state with { CacheStatistics = null, LastCacheUpdate = DateTime.UtcNow, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Cache cleared successfully") };
+
+    [ReducerMethod]
+    public static FileState ReduceCacheInvalidateSuccessAction(FileState state, CacheInvalidateSuccessAction action) =>
+        state with { LastCacheUpdate = DateTime.UtcNow, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Cache invalidated: {action.Strategy}") };
+
+    [ReducerMethod]
+    public static FileState ReduceCacheStatsUpdateAction(FileState state, CacheStatsUpdateAction action) =>
+        state with { CacheStatistics = action.Statistics, LastCacheUpdate = DateTime.UtcNow };
+
+    [ReducerMethod]
+    public static FileState ReduceCacheHitAction(FileState state, CacheHitAction action) =>
+        state with { ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Cache HIT: {action.Key} ({action.DataType})") };
+
+    [ReducerMethod]
+    public static FileState ReduceCacheMissAction(FileState state, CacheMissAction action) =>
+        state with { ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Cache MISS: {action.Key} ({action.DataType})") };
 }

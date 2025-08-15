@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using FileCategorization_Web.Data.Caching;
 using FileCategorization_Web.Data.DTOs.FileCategorizationDTOs;
 using Fluxor;
 
@@ -23,6 +24,11 @@ public record FileState
     
     // Console Output
     public ImmutableList<string> ConsoleMessages { get; init; } = ImmutableList<string>.Empty;
+    
+    // Cache State
+    public CacheStatistics? CacheStatistics { get; init; } = null;
+    public bool IsCacheWarming { get; init; } = false;
+    public DateTime? LastCacheUpdate { get; init; } = null;
     
     private FileState() { }
     
