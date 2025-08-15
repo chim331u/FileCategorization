@@ -27,6 +27,12 @@ dotnet build --configuration Release
 
 # Publish the application
 dotnet publish --configuration Release
+
+# Test infrastructure validation (Blazor WebAssembly limitation)
+./Tests/run-tests.sh
+
+# For actual test execution, use dedicated test project:
+# dotnet test (when separate test project is created)
 ```
 
 ## Architecture
@@ -330,6 +336,14 @@ dotnet test --collect:"XPlat Code Coverage"
 - ✅ **State Validation Testing**: Comprehensive coverage of all Fluxor state transitions
 - ✅ **Performance Scenarios**: Large data handling and cache expiration testing
 
+**⚠️ Current Limitation**: Blazor WebAssembly projects cannot execute tests directly due to WebAssembly compilation. Tests are validated through compilation but require a dedicated test project for execution.
+
+**🔧 Proposed Solution**: 
+- Create dedicated test solution `FileCategorization.Tests`
+- Migrate 90+ existing tests to proper test project structure
+- Enable full test execution with `dotnet test` command
+- Maintain comprehensive coverage reporting and CI/CD integration
+
 ## 📊 Implementation Priority Matrix
 
 ### **Immediate (Next Sprint)**
@@ -340,14 +354,16 @@ dotnet test --collect:"XPlat Code Coverage"
 5. **Complete Polly Integration** - Full resilience patterns for production scenarios
 
 ### **Short Term (1 Month)**
-6. **Component Migration** - Migrate existing pages to use Fluxor state management
-7. **Error Boundaries** - Enhanced UX with centralized error handling
-8. **Test Coverage Enhancement** - Add component-level tests and E2E testing
+6. **Dedicated Test Project Creation** - Create separate test solution for proper test execution
+7. **Test Migration** - Move existing 90+ tests to dedicated test project structure
+8. **Component Migration** - Migrate existing pages to use Fluxor state management
+9. **Error Boundaries** - Enhanced UX with centralized error handling
+10. **Test Coverage Enhancement** - Add component-level tests and E2E testing
 
 ### **Long Term (2-3 Months)**
-9. **Performance Monitoring** - Observability with telemetry and action tracking
-10. **Advanced Patterns** - CQRS, Event Sourcing with established Fluxor foundation
-11. **PWA Features** - Offline support, push notifications, and service workers
+11. **Performance Monitoring** - Observability with telemetry and action tracking
+12. **Advanced Patterns** - CQRS, Event Sourcing with established Fluxor foundation
+13. **PWA Features** - Offline support, push notifications, and service workers
 
 ## 🔧 Quick Implementation Guide
 
@@ -407,31 +423,40 @@ await _cacheService.InvalidateByTagAsync("files");
 
 ### **Using Testing Framework** ✅ READY:
 ```bash
-# 1. Run all tests
+# 1. Current: Validate test infrastructure (Blazor WebAssembly limitation)
+./Tests/run-tests.sh
+
+# 2. Future: Run all tests (when dedicated test project is created)
 dotnet test
 
-# 2. Run specific test categories
+# 3. Future: Run specific test categories
 dotnet test --filter "FullyQualifiedName~Unit"         # Unit tests
 dotnet test --filter "FullyQualifiedName~Integration"  # Integration tests
 
-# 3. Generate coverage reports
+# 4. Future: Generate coverage reports
 dotnet test --collect:"XPlat Code Coverage"
 reportgenerator -reports:Tests/TestResults/**/coverage.cobertura.xml -targetdir:Tests/CoverageReport
-
-# 4. Run comprehensive test suite
-./Tests/run-tests.sh
 ```
 
 ### **Next Phase Development**:
 ```bash
-# 1. Component Migration to Fluxor
+# 1. Create dedicated test project
+dotnet new sln -n FileCategorization.Tests
+dotnet new xunit -n FileCategorization.Web.Tests
+dotnet sln FileCategorization.Tests.sln add FileCategorization.Web.Tests
+
+# 2. Migrate existing tests
+# Move 90+ tests from FileCategorization_Web/Tests/ to dedicated test project
+# Update project references and namespaces
+
+# 3. Component Migration to Fluxor
 # Update FileCategorizationIndex.razor to use Fluxor state management
 
-# 2. Complete Polly integration
+# 4. Complete Polly integration
 # Add retry policies and circuit breakers for production
 
-# 3. Enhance test coverage
-# Add component-level tests and E2E scenarios
+# 5. Enhance test coverage
+# Add component-level tests and E2E scenarios with bUnit
 ```
 
 ## 💡 Architecture Benefits Achieved
