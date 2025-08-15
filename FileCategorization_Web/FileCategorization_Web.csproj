@@ -17,6 +17,13 @@
         <PackageReference Include="Polly.Extensions.Http" Version="3.0.0" />
         <PackageReference Include="Radzen.Blazor" Version="7.0.5" />
         <PackageReference Include="Fluxor.Blazor.Web" Version="6.0.0" />
+        
+        <!-- Testing Dependencies -->
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" Condition="'$(Configuration)' == 'Debug'" />
+        <PackageReference Include="xunit" Version="2.6.1" Condition="'$(Configuration)' == 'Debug'" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" Condition="'$(Configuration)' == 'Debug'" />
+        <PackageReference Include="Moq" Version="4.20.69" Condition="'$(Configuration)' == 'Debug'" />
+        <PackageReference Include="FluentAssertions" Version="6.12.0" Condition="'$(Configuration)' == 'Debug'" />
     </ItemGroup>
 
 </Project>
