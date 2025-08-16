@@ -1,3 +1,4 @@
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Domain.Entities;
 using FileCategorization_Api.Domain.Entities.Identity;
 

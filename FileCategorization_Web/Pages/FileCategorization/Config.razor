@@ -77,9 +77,26 @@
 
     protected async Task RefreshConfigList()
     {
-        configurations = await _service.GetConfigList();
+        var result = await _service.GetConfigListAsync();
+        
+        if (result.IsSuccess && result.Value != null)
+        {
+            configurations = result.Value;
+        }
+        else
+        {
+            configurations = new List<ConfigsDto>();
+            
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error Loading Configs",
+                Detail = result.Error ?? "Failed to load configurations",
+                Duration = 4000
+            });
+        }
+        
         StateHasChanged();
-
     }
 
     ConfigsDto? configToUpdate;
@@ -102,15 +119,15 @@
 
         configToUpdate = null;
 
-        var result = await _service.UpdateConfig(config);
+        var result = await _service.UpdateConfigAsync(config);
 
-        if (result != null)
+        if (result.IsSuccess && result.Value != null)
         {
             NotificationService.Notify(new NotificationMessage
                 {
                     Severity = NotificationSeverity.Info,
                     Summary = "Config Update",
-                    Detail = $"{result.Key} updated",
+                    Detail = $"{result.Value.Key} updated",
                     Duration = 4000
 
                 });
@@ -121,7 +138,7 @@
                 {
                     Severity = NotificationSeverity.Error,
                     Summary = "Error Update",
-                    Detail = $"config NOT updated",
+                    Detail = result.Error ?? "Config NOT updated",
                     Duration = 4000
 
                 });
@@ -130,17 +147,17 @@
 
     async void OnCreateRow(ConfigsDto config)
     {
-        var result = await _service.AddConfig(config);
+        var result = await _service.AddConfigAsync(config);
 
         configToInsert = null;
         
-        if (result != null)
+        if (result.IsSuccess && result.Value != null)
         {
             NotificationService.Notify(new NotificationMessage
                 {
                     Severity = NotificationSeverity.Info,
                     Summary = "New Config Created",
-                    Detail = $"{result.Key} created",
+                    Detail = $"{result.Value.Key} created",
                     Duration = 4000
 
                 });
@@ -151,7 +168,7 @@
                 {
                     Severity = NotificationSeverity.Error,
                     Summary = "Error",
-                    Detail = "Error adding New Config",
+                    Detail = result.Error ?? "Error adding New Config",
                     Duration = 4000
 
                 });
@@ -173,10 +190,14 @@
 
         configToUpdate = null;
 
-        config = await _service.GetConfig(config.Id);
+        var result = await _service.GetConfigAsync(config.Id);
+        
+        if (result.IsSuccess && result.Value != null)
+        {
+            config = result.Value;
+        }
 
         configGrid.CancelEditRow(config);
-
     }
 
     protected async Task InsertRow()
@@ -199,16 +220,15 @@
             configToUpdate = null;
         }
 
-        var result = await _service.DeleteConfig(config);
+        var result = await _service.DeleteConfigAsync(config);
 
-
-        if (result != null)
+        if (result.IsSuccess && result.Value != null)
         {
             NotificationService.Notify(new NotificationMessage
                 {
                     Severity = NotificationSeverity.Info,
                     Summary = "Config Deleted",
-                    Detail = $"{result.Key} deleted",
+                    Detail = $"{result.Value.Key} deleted",
                     Duration = 4000
 
                 });
@@ -219,14 +239,13 @@
                 {
                     Severity = NotificationSeverity.Error,
                     Summary = "Error",
-                    Detail = "Error deleting Config",
+                    Detail = result.Error ?? "Error deleting Config",
                     Duration = 4000
 
                 });
         }
         await configGrid.Reload();
         await RefreshConfigList();
-
     }
 
     void Reset()

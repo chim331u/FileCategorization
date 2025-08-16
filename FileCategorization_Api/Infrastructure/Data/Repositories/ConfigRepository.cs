@@ -1,5 +1,5 @@
 using FileCategorization_Api.Infrastructure.Data;
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Interfaces;
 using FileCategorization_Api.Domain.Entities.FileCategorization;
 using Microsoft.EntityFrameworkCore;
@@ -62,10 +62,10 @@ public class ConfigRepository : Repository<Configs>, IConfigRepository
             var configResult = await GetByKeyAsync(key, cancellationToken);
             if (configResult.IsFailure)
             {
-                return Result<string?>.Failure(configResult.ErrorMessage!);
+                return Result<string?>.Failure(configResult.Error!);
             }
 
-            var value = configResult.Data?.Value;
+            var value = configResult.Value?.Value;
             _logger.LogInformation("Configuration value retrieval completed. Has value: {HasValue}", !string.IsNullOrEmpty(value));
             return Result<string?>.Success(value);
         }
@@ -195,10 +195,10 @@ public class ConfigRepository : Repository<Configs>, IConfigRepository
             var keyExistsResult = await KeyExistsAsync(entity.Key!, cancellationToken: cancellationToken);
             if (keyExistsResult.IsFailure)
             {
-                return Result<Configs>.Failure($"Error checking key existence: {keyExistsResult.ErrorMessage}");
+                return Result<Configs>.Failure($"Error checking key existence: {keyExistsResult.Error}");
             }
 
-            if (keyExistsResult.Data)
+            if (keyExistsResult.Value)
             {
                 _logger.LogWarning("Configuration key already exists: {Key}", entity.Key);
                 return Result<Configs>.Failure($"Configuration key '{entity.Key}' already exists");
@@ -231,10 +231,10 @@ public class ConfigRepository : Repository<Configs>, IConfigRepository
                 var keyExistsResult = await KeyExistsAsync(entity.Key, entity.Id, cancellationToken);
                 if (keyExistsResult.IsFailure)
                 {
-                    return Result<Configs>.Failure($"Error checking key existence: {keyExistsResult.ErrorMessage}");
+                    return Result<Configs>.Failure($"Error checking key existence: {keyExistsResult.Error}");
                 }
 
-                if (keyExistsResult.Data)
+                if (keyExistsResult.Value)
                 {
                     _logger.LogWarning("Configuration key already exists: {Key}", entity.Key);
                     return Result<Configs>.Failure($"Configuration key '{entity.Key}' already exists");

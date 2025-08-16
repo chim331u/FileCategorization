@@ -169,7 +169,21 @@ public class WebScrumServices : IWebScrumServices
     }
     public string GetRestUrl()
     {
-        var uri = _config.GetSection("Uri").Value;
-        return uri;
+        // Try to get URL from modern configuration first
+        var apiOptions = _config.GetSection("FileCategorizationApi:BaseUrl").Value;
+        if (!string.IsNullOrEmpty(apiOptions))
+        {
+            return apiOptions.TrimEnd('/') + "/";
+        }
+
+        // Fallback to legacy Uri configuration
+        var legacyUri = _config.GetSection("Uri").Value;
+        if (!string.IsNullOrEmpty(legacyUri))
+        {
+            return legacyUri.TrimEnd('/') + "/";
+        }
+
+        // Final fallback to localhost for development
+        return "http://localhost:5089/";
     }
 }

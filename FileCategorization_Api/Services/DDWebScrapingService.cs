@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Interfaces;
 using FileCategorization_Api.Domain.Entities.DD_Web;
 
@@ -48,7 +48,7 @@ public class DDWebScrapingService : IDDWebScrapingService
 
             var credentials = GetCredentials();
             if (!credentials.IsSuccess)
-                return Result<string>.Failure($"Failed to get credentials: {credentials.ErrorMessage}");
+                return Result<string>.Failure($"Failed to get credentials: {credentials.Error}");
 
             _logger.LogInformation("Attempting to access thread: {Url}", threadUrl);
 
@@ -63,7 +63,7 @@ public class DDWebScrapingService : IDDWebScrapingService
             var checkContent = await checkResponse.Content.ReadAsStringAsync(cancellationToken);
             
             // Check if already logged in by looking for username in content
-            if (checkContent.Contains(credentials.Data.Username, StringComparison.OrdinalIgnoreCase))
+            if (checkContent.Contains(credentials.Value.Username, StringComparison.OrdinalIgnoreCase))
             {
                 _logger.LogInformation("Already logged in, accessing protected page");
                 return Result<string>.Success(checkContent);
@@ -72,9 +72,9 @@ public class DDWebScrapingService : IDDWebScrapingService
             _logger.LogInformation("Not logged in, performing login");
 
             // Perform login
-            var loginResult = await PerformLoginAsync(uri, credentials.Data, cancellationToken);
+            var loginResult = await PerformLoginAsync(uri, credentials.Value, cancellationToken);
             if (!loginResult.IsSuccess)
-                return Result<string>.Failure($"Login failed: {loginResult.ErrorMessage}");
+                return Result<string>.Failure($"Login failed: {loginResult.Error}");
 
             // Get the actual page content after login
             var pageResponse = await _httpClient.GetAsync(uri, cancellationToken);

@@ -215,4 +215,181 @@ public class FilesQueryServiceTests
         _mockRepository.Verify(r => r.GetLatestFilesByCategoryAsync(It.IsAny<CancellationToken>()), Times.Once);
         _mockMapper.Verify(m => m.Map<IEnumerable<FilesDetailResponse>>(latestFiles), Times.Once);
     }
+
+    [Fact]
+    public async Task GetFilesByCategoryAsync_ShouldReturnFailure_WhenCategoryIsNull()
+    {
+        // Arrange
+        string? nullCategory = null;
+
+        // Act
+        var result = await _service.GetFilesByCategoryAsync(nullCategory!);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal("Category cannot be null or empty", result.Error);
+        _mockRepository.Verify(r => r.GetByCategoryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockMapper.Verify(m => m.Map<IEnumerable<FilesDetailResponse>>(It.IsAny<IEnumerable<FilesDetail>>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetFilesByCategoryAsync_ShouldReturnFailure_WhenCategoryIsEmpty()
+    {
+        // Arrange
+        var emptyCategory = "";
+
+        // Act
+        var result = await _service.GetFilesByCategoryAsync(emptyCategory);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal("Category cannot be null or empty", result.Error);
+        _mockRepository.Verify(r => r.GetByCategoryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockMapper.Verify(m => m.Map<IEnumerable<FilesDetailResponse>>(It.IsAny<IEnumerable<FilesDetail>>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetFilesByCategoryAsync_ShouldReturnFailure_WhenCategoryIsWhitespace()
+    {
+        // Arrange
+        var whitespaceCategory = "   ";
+
+        // Act
+        var result = await _service.GetFilesByCategoryAsync(whitespaceCategory);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal("Category cannot be null or empty", result.Error);
+        _mockRepository.Verify(r => r.GetByCategoryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockMapper.Verify(m => m.Map<IEnumerable<FilesDetailResponse>>(It.IsAny<IEnumerable<FilesDetail>>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetFilesByCategoryAsync_ShouldReturnSuccess_WhenRepositoryReturnsFiles()
+    {
+        // Arrange
+        var category = "Movies";
+        var files = new List<FilesDetail>
+        {
+            new() { Id = 1, Name = "movie1.mkv", FileCategory = "Movies", FileSize = 1024 },
+            new() { Id = 2, Name = "movie2.mp4", FileCategory = "Movies", FileSize = 2048 },
+            new() { Id = 3, Name = "movie3.avi", FileCategory = "Movies", FileSize = 1536 }
+        };
+        var expectedResponses = new List<FilesDetailResponse>
+        {
+            new() { Id = 1, Name = "movie1.mkv", FileCategory = "Movies", FileSize = 1024 },
+            new() { Id = 2, Name = "movie2.mp4", FileCategory = "Movies", FileSize = 2048 },
+            new() { Id = 3, Name = "movie3.avi", FileCategory = "Movies", FileSize = 1536 }
+        };
+
+        var repositoryResult = Result<IEnumerable<FilesDetail>>.Success(files);
+
+        _mockRepository
+            .Setup(r => r.GetByCategoryAsync(category, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(repositoryResult);
+
+        _mockMapper
+            .Setup(m => m.Map<IEnumerable<FilesDetailResponse>>(files))
+            .Returns(expectedResponses);
+
+        // Act
+        var result = await _service.GetFilesByCategoryAsync(category);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        Assert.Equal(3, result.Value.Count());
+        Assert.Equal(expectedResponses, result.Value);
+        _mockRepository.Verify(r => r.GetByCategoryAsync(category, It.IsAny<CancellationToken>()), Times.Once);
+        _mockMapper.Verify(m => m.Map<IEnumerable<FilesDetailResponse>>(files), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetFilesByCategoryAsync_ShouldReturnEmptyList_WhenNoCategoryFilesExist()
+    {
+        // Arrange
+        var category = "EmptyCategory";
+        var emptyFiles = new List<FilesDetail>();
+        var emptyResponses = new List<FilesDetailResponse>();
+
+        var repositoryResult = Result<IEnumerable<FilesDetail>>.Success(emptyFiles);
+
+        _mockRepository
+            .Setup(r => r.GetByCategoryAsync(category, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(repositoryResult);
+
+        _mockMapper
+            .Setup(m => m.Map<IEnumerable<FilesDetailResponse>>(emptyFiles))
+            .Returns(emptyResponses);
+
+        // Act
+        var result = await _service.GetFilesByCategoryAsync(category);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        Assert.Empty(result.Value);
+        _mockRepository.Verify(r => r.GetByCategoryAsync(category, It.IsAny<CancellationToken>()), Times.Once);
+        _mockMapper.Verify(m => m.Map<IEnumerable<FilesDetailResponse>>(emptyFiles), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetFilesByCategoryAsync_ShouldReturnFailure_WhenRepositoryFails()
+    {
+        // Arrange
+        var category = "Movies";
+        var errorMessage = "Database connection timeout";
+        var repositoryResult = Result<IEnumerable<FilesDetail>>.Failure(errorMessage);
+
+        _mockRepository
+            .Setup(r => r.GetByCategoryAsync(category, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(repositoryResult);
+
+        // Act
+        var result = await _service.GetFilesByCategoryAsync(category);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal(errorMessage, result.Error);
+        _mockRepository.Verify(r => r.GetByCategoryAsync(category, It.IsAny<CancellationToken>()), Times.Once);
+        _mockMapper.Verify(m => m.Map<IEnumerable<FilesDetailResponse>>(It.IsAny<IEnumerable<FilesDetail>>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("Movies")]
+    [InlineData("Music")]
+    [InlineData("Documents")]
+    [InlineData("Software")]
+    [InlineData("Unknown")]
+    public async Task GetFilesByCategoryAsync_ShouldHandleDifferentCategories_Successfully(string category)
+    {
+        // Arrange
+        var files = new List<FilesDetail>
+        {
+            new() { Id = 1, Name = $"file1.{category.ToLower()}", FileCategory = category }
+        };
+        var expectedResponses = new List<FilesDetailResponse>
+        {
+            new() { Id = 1, Name = $"file1.{category.ToLower()}", FileCategory = category }
+        };
+
+        var repositoryResult = Result<IEnumerable<FilesDetail>>.Success(files);
+
+        _mockRepository
+            .Setup(r => r.GetByCategoryAsync(category, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(repositoryResult);
+
+        _mockMapper
+            .Setup(m => m.Map<IEnumerable<FilesDetailResponse>>(files))
+            .Returns(expectedResponses);
+
+        // Act
+        var result = await _service.GetFilesByCategoryAsync(category);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value!);
+        Assert.Equal(category, result.Value!.First().FileCategory);
+        _mockRepository.Verify(r => r.GetByCategoryAsync(category, It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

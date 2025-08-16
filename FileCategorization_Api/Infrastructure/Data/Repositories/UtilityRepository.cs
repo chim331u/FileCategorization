@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Interfaces;
 
 namespace FileCategorization_Api.Infrastructure.Data.Repositories;
@@ -168,10 +168,10 @@ public class UtilityRepository : IUtilityRepository
             var computedHashResult = await HashStringAsync(plainText, cancellationToken);
             if (computedHashResult.IsFailure)
             {
-                return Result<bool>.Failure($"Failed to compute hash for verification: {computedHashResult.ErrorMessage}");
+                return Result<bool>.Failure($"Failed to compute hash for verification: {computedHashResult.Error}");
             }
 
-            var result = string.Equals(computedHashResult.Data, hash.ToLowerInvariant(), StringComparison.OrdinalIgnoreCase);
+            var result = string.Equals(computedHashResult.Value, hash.ToLowerInvariant(), StringComparison.OrdinalIgnoreCase);
 
             _logger.LogInformation("Hash verification completed successfully. Result: {IsMatch}", result);
             return Result<bool>.Success(result);

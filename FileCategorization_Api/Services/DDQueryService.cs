@@ -1,5 +1,5 @@
 using AutoMapper;
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Interfaces;
 using FileCategorization_Api.Contracts.DD;
 using FileCategorization_Api.Domain.Entities.DD_Web;
@@ -37,37 +37,37 @@ public class DDQueryService : IDDQueryService
             // Get page content
             var pageContentResult = await _webScrapingService.GetPageContentAsync(threadUrl, cancellationToken);
             if (!pageContentResult.IsSuccess)
-                return Result<ThreadProcessingResultDto>.Failure($"Failed to fetch page content: {pageContentResult.ErrorMessage}");
+                return Result<ThreadProcessingResultDto>.Failure($"Failed to fetch page content: {pageContentResult.Error}");
 
             // Parse thread info
-            var threadInfoResult = await _webScrapingService.ParseThreadInfoAsync(pageContentResult.Data, cancellationToken);
+            var threadInfoResult = await _webScrapingService.ParseThreadInfoAsync(pageContentResult.Value, cancellationToken);
             if (!threadInfoResult.IsSuccess)
-                return Result<ThreadProcessingResultDto>.Failure($"Failed to parse thread info: {threadInfoResult.ErrorMessage}");
+                return Result<ThreadProcessingResultDto>.Failure($"Failed to parse thread info: {threadInfoResult.Error}");
 
-            var parsedThread = threadInfoResult.Data;
+            var parsedThread = threadInfoResult.Value;
             parsedThread.Url = threadUrl;
 
             // Check if thread already exists
             var existingThreadResult = await _repository.GetThreadByUrlAsync(threadUrl, cancellationToken);
             if (!existingThreadResult.IsSuccess)
-                return Result<ThreadProcessingResultDto>.Failure($"Failed to check existing thread: {existingThreadResult.ErrorMessage}");
+                return Result<ThreadProcessingResultDto>.Failure($"Failed to check existing thread: {existingThreadResult.Error}");
 
             DD_Threads thread;
             bool isNewThread;
 
-            if (existingThreadResult.Data != null)
+            if (existingThreadResult.Value != null)
             {
                 // Update existing thread
-                var existingThread = existingThreadResult.Data;
+                var existingThread = existingThreadResult.Value;
                 existingThread.MainTitle = parsedThread.MainTitle;
                 existingThread.Type = parsedThread.Type;
                 existingThread.Note = parsedThread.Note;
 
                 var updateResult = await _repository.UpdateThreadAsync(existingThread, cancellationToken);
                 if (!updateResult.IsSuccess)
-                    return Result<ThreadProcessingResultDto>.Failure($"Failed to update thread: {updateResult.ErrorMessage}");
+                    return Result<ThreadProcessingResultDto>.Failure($"Failed to update thread: {updateResult.Error}");
 
-                thread = updateResult.Data;
+                thread = updateResult.Value;
                 isNewThread = false;
                 _logger.LogInformation("Updated existing thread: {ThreadId}", thread.Id);
             }
@@ -76,23 +76,23 @@ public class DDQueryService : IDDQueryService
                 // Create new thread
                 var createResult = await _repository.CreateThreadAsync(parsedThread, cancellationToken);
                 if (!createResult.IsSuccess)
-                    return Result<ThreadProcessingResultDto>.Failure($"Failed to create thread: {createResult.ErrorMessage}");
+                    return Result<ThreadProcessingResultDto>.Failure($"Failed to create thread: {createResult.Error}");
 
-                thread = createResult.Data;
+                thread = createResult.Value;
                 isNewThread = true;
                 _logger.LogInformation("Created new thread: {ThreadId}", thread.Id);
             }
 
             // Parse and process links
-            var processLinksResult = await ProcessThreadLinks(pageContentResult.Data, thread, cancellationToken);
+            var processLinksResult = await ProcessThreadLinks(pageContentResult.Value, thread, cancellationToken);
             if (!processLinksResult.IsSuccess)
-                return Result<ThreadProcessingResultDto>.Failure($"Failed to process links: {processLinksResult.ErrorMessage}");
+                return Result<ThreadProcessingResultDto>.Failure($"Failed to process links: {processLinksResult.Error}");
 
-            var linkStats = processLinksResult.Data;
+            var linkStats = processLinksResult.Value;
 
             // Get total links count
             var totalLinksResult = await _repository.GetLinksByThreadIdAsync(thread.Id, cancellationToken);
-            var totalLinksCount = totalLinksResult.IsSuccess ? totalLinksResult.Data.Count : 0;
+            var totalLinksCount = totalLinksResult.IsSuccess ? totalLinksResult.Value.Count : 0;
 
             var result = new ThreadProcessingResultDto
             {
@@ -127,12 +127,12 @@ public class DDQueryService : IDDQueryService
             // Get existing thread
             var threadResult = await _repository.GetThreadByIdAsync(threadId, cancellationToken);
             if (!threadResult.IsSuccess)
-                return Result<ThreadProcessingResultDto>.Failure($"Failed to get thread: {threadResult.ErrorMessage}");
+                return Result<ThreadProcessingResultDto>.Failure($"Failed to get thread: {threadResult.Error}");
 
-            if (threadResult.Data == null)
+            if (threadResult.Value == null)
                 return Result<ThreadProcessingResultDto>.Failure("Thread not found");
 
-            var thread = threadResult.Data;
+            var thread = threadResult.Value;
             if (string.IsNullOrWhiteSpace(thread.Url))
                 return Result<ThreadProcessingResultDto>.Failure("Thread URL is not available");
 
@@ -152,16 +152,16 @@ public class DDQueryService : IDDQueryService
         {
             var threadsResult = await _repository.GetActiveThreadsAsync(cancellationToken);
             if (!threadsResult.IsSuccess)
-                return Result<List<ThreadSummaryDto>>.Failure($"Failed to get threads: {threadsResult.ErrorMessage}");
+                return Result<List<ThreadSummaryDto>>.Failure($"Failed to get threads: {threadsResult.Error}");
 
-            var threads = threadsResult.Data;
+            var threads = threadsResult.Value;
             if (!threads.Any())
                 return Result<List<ThreadSummaryDto>>.Success(new List<ThreadSummaryDto>());
 
             // Get link counts for all threads
             var threadIds = threads.Select(t => t.Id).ToList();
             var linkCountsResult = await _repository.GetThreadsLinkCountsAsync(threadIds, cancellationToken);
-            var linkCounts = linkCountsResult.IsSuccess ? linkCountsResult.Data : new Dictionary<int, int>();
+            var linkCounts = linkCountsResult.IsSuccess ? linkCountsResult.Value : new Dictionary<int, int>();
 
             // Map to DTOs with link statistics
             var threadSummaries = new List<ThreadSummaryDto>();
@@ -172,7 +172,7 @@ public class DDQueryService : IDDQueryService
 
                 // Get new links count
                 var newLinksCountResult = await _repository.GetNewLinksCountAsync(thread.Id, cancellationToken);
-                dto.NewLinksCount = newLinksCountResult.IsSuccess ? newLinksCountResult.Data : 0;
+                dto.NewLinksCount = newLinksCountResult.IsSuccess ? newLinksCountResult.Value : 0;
                 dto.HasNewLinks = dto.NewLinksCount > 0;
 
                 // Calculate used links count (approximate)
@@ -196,9 +196,9 @@ public class DDQueryService : IDDQueryService
         {
             var linksResult = await _repository.GetLinksByThreadIdAsync(threadId, cancellationToken);
             if (!linksResult.IsSuccess)
-                return Result<List<LinkDto>>.Failure($"Failed to get thread links: {linksResult.ErrorMessage}");
+                return Result<List<LinkDto>>.Failure($"Failed to get thread links: {linksResult.Error}");
 
-            var links = linksResult.Data;
+            var links = linksResult.Value;
             if (!includeUsed)
             {
                 links = links.Where(l => !l.IsUsed).ToList();
@@ -220,9 +220,9 @@ public class DDQueryService : IDDQueryService
         {
             var linkResult = await _repository.MarkLinkAsUsedAsync(linkId, cancellationToken);
             if (!linkResult.IsSuccess)
-                return Result<LinkUsageResultDto>.Failure($"Failed to mark link as used: {linkResult.ErrorMessage}");
+                return Result<LinkUsageResultDto>.Failure($"Failed to mark link as used: {linkResult.Error}");
 
-            var usageResult = _mapper.Map<LinkUsageResultDto>(linkResult.Data);
+            var usageResult = _mapper.Map<LinkUsageResultDto>(linkResult.Value);
             
             _logger.LogInformation("Link {LinkId} marked as used", linkId);
             return Result<LinkUsageResultDto>.Success(usageResult);
@@ -240,7 +240,7 @@ public class DDQueryService : IDDQueryService
         {
             var result = await _repository.DeactivateThreadAsync(threadId, cancellationToken);
             if (!result.IsSuccess)
-                return Result<bool>.Failure($"Failed to deactivate thread: {result.ErrorMessage}");
+                return Result<bool>.Failure($"Failed to deactivate thread: {result.Error}");
 
             _logger.LogInformation("Thread {ThreadId} deactivated", threadId);
             return Result<bool>.Success(true);
@@ -264,9 +264,9 @@ public class DDQueryService : IDDQueryService
             // Parse links from page content
             var parseLinksResult = await _webScrapingService.ParseEd2kLinksAsync(pageContent, thread, cancellationToken);
             if (!parseLinksResult.IsSuccess)
-                return Result<(int, int)>.Failure($"Failed to parse links: {parseLinksResult.ErrorMessage}");
+                return Result<(int, int)>.Failure($"Failed to parse links: {parseLinksResult.Error}");
 
-            var newLinks = parseLinksResult.Data;
+            var newLinks = parseLinksResult.Value;
             if (!newLinks.Any())
             {
                 _logger.LogInformation("No links found in page content for thread {ThreadId}", thread.Id);
@@ -277,9 +277,9 @@ public class DDQueryService : IDDQueryService
             var ed2kLinks = newLinks.Select(l => l.Ed2kLink).ToList();
             var existingLinksResult = await _repository.GetExistingLinksAsync(ed2kLinks, thread.Id, cancellationToken);
             if (!existingLinksResult.IsSuccess)
-                return Result<(int, int)>.Failure($"Failed to check existing links: {existingLinksResult.ErrorMessage}");
+                return Result<(int, int)>.Failure($"Failed to check existing links: {existingLinksResult.Error}");
 
-            var existingLinks = existingLinksResult.Data;
+            var existingLinks = existingLinksResult.Value;
             var existingLinkUrls = existingLinks.Select(l => l.Ed2kLink).ToHashSet();
 
             // Separate new and existing links
@@ -300,12 +300,12 @@ public class DDQueryService : IDDQueryService
                 var addResult = await _repository.CreateLinksAsync(linksToAdd, cancellationToken);
                 if (addResult.IsSuccess)
                 {
-                    newLinksCount = addResult.Data;
+                    newLinksCount = addResult.Value;
                     _logger.LogInformation("Added {Count} new links for thread {ThreadId}", newLinksCount, thread.Id);
                 }
                 else
                 {
-                    _logger.LogWarning("Failed to add new links: {Error}", addResult.ErrorMessage);
+                    _logger.LogWarning("Failed to add new links: {Error}", addResult.Error);
                 }
             }
 
@@ -320,12 +320,12 @@ public class DDQueryService : IDDQueryService
                 var updateResult = await _repository.UpdateLinksAsync(linksToUpdate, cancellationToken);
                 if (updateResult.IsSuccess)
                 {
-                    updatedLinksCount = updateResult.Data;
+                    updatedLinksCount = updateResult.Value;
                     _logger.LogInformation("Updated {Count} existing links for thread {ThreadId}", updatedLinksCount, thread.Id);
                 }
                 else
                 {
-                    _logger.LogWarning("Failed to update existing links: {Error}", updateResult.ErrorMessage);
+                    _logger.LogWarning("Failed to update existing links: {Error}", updateResult.Error);
                 }
             }
 

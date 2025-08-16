@@ -2,8 +2,8 @@ using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using FileCategorization_Web.Data.DTOs;
-using FileCategorization_Web.Data.DTOs.FileCategorizationDTOs;
+using FileCategorization_Web.Value.DTOs;
+using FileCategorization_Shared.DTOs.FileManagement;using FileCategorization_Shared.DTOs.Configuration;using FileCategorization_Shared.Enums;
 using FileCategorization_Web.Interfaces;
 
 namespace FileCategorization_Web.Services;
@@ -483,8 +483,22 @@ public class FileCategorizationServices : ILegacyFileCategorizationService
 
     public string GetRestUrl()
     {
-        var uri = _config.GetSection("Uri").Value;
-        return uri;
+        // Try to get URL from modern configuration first
+        var apiOptions = _config.GetSection("FileCategorizationApi:BaseUrl").Value;
+        if (!string.IsNullOrEmpty(apiOptions))
+        {
+            return apiOptions.TrimEnd('/') + "/";
+        }
+
+        // Fallback to legacy Uri configuration
+        var legacyUri = _config.GetSection("Uri").Value;
+        if (!string.IsNullOrEmpty(legacyUri))
+        {
+            return legacyUri.TrimEnd('/') + "/";
+        }
+
+        // Final fallback to localhost for development
+        return "http://localhost:5089/";
     }
 
     #endregion

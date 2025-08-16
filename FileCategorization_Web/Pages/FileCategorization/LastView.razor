@@ -82,9 +82,26 @@
 
     private async Task RefreshList()
     {
-        filesFromApi = await _service.GetLastFilesList();
-
-        files = filesFromApi;
+        var result = await _service.GetLastFilesListAsync();
+        
+        if (result.IsSuccess && result.Value != null)
+        {
+            filesFromApi = result.Value;
+            files = filesFromApi;
+        }
+        else
+        {
+            filesFromApi = new List<FilesDetailDto>();
+            files = filesFromApi;
+            
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error Loading Files",
+                Detail = result.Error ?? "Failed to load last files list",
+                Duration = 4000
+            });
+        }
     }
 
     void RowRender(RowRenderEventArgs<FilesDetailDto> args)
@@ -95,10 +112,24 @@
     {
         filesOthers = new List<FilesDetailDto>();
 
-        filesOthers = await _service.GetAllFiles(item.FileCategory);
+        var result = await _service.GetAllFilesAsync(item.FileCategory);
+        
+        if (result.IsSuccess && result.Value != null)
+        {
+            filesOthers = result.Value;
+        }
+        else
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error Loading Category Files",
+                Detail = result.Error ?? $"Failed to load files for category: {item.FileCategory}",
+                Duration = 4000
+            });
+        }
 
         StateHasChanged();
-
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -117,12 +148,14 @@
         item.IsNew = false;
         item.IsNotToMove = true;
 
-        if (await _service.UpdateFileDetail(item) != null)
+        var result = await _service.UpdateFileDetailAsync(item);
+        
+        if (result.IsSuccess && result.Value != null)
         {
             NotificationService.Notify(new NotificationMessage
                 {
                     Severity = NotificationSeverity.Info,
-                    Summary = "File update",
+                    Summary = "File Updated",
                     Detail = $"File will not be shown again",
                     Duration = 4000
 
@@ -133,8 +166,8 @@
             NotificationService.Notify(new NotificationMessage
                 {
                     Severity = NotificationSeverity.Error,
-                    Summary = "File NOT update",
-                    Detail = $"Error in updating file: see log for detail",
+                    Summary = "File NOT Updated",
+                    Detail = result.Error ?? "Error in updating file: see log for detail",
                     Duration = 4000
 
                 });

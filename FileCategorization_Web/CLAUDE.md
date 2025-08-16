@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **Blazor WebAssembly** application for file categorization management. The application provides a web interface to interact with a backend file categorization service that handles machine learning-based file categorization, configuration management, and file operations.
+This is a **Blazor WebAssembly** application for file categorization management. The application provides a web interface to interact with a backend file categorization service that handles machine learning-based file categorization, configuration management, file operations, and DownloadDaemon integration. **All services now use modern v2 API endpoints** with enhanced error handling and structured responses.
 
 ## Development Commands
 
@@ -60,14 +60,23 @@ dotnet publish --configuration Release
 - **Dependency Injection**: Scoped services registered in Program.cs
 
 ### Key Services
-- `FileCategorizationServices.cs:11` - Main service for file operations, categorization, and ML model training
-- `WebScrumServices.cs` - Secondary service for web scraping functionality
-- Both implement interfaces in `/Interfaces/` directory
+- **Modern Services** (v2 API):
+  - `ModernFileCategorizationService.cs` - v2 API integration with enhanced error handling
+  - `ModernWebScrumService.cs` - v2 DD endpoints with structured responses
+- **Legacy Services** (v1 API):
+  - `FileCategorizationServices.cs` - Legacy v1 endpoints (maintained for compatibility)
+  - `WebScrumServices.cs` - Legacy v1 DD endpoints
+- **Service Adapters**:
+  - `LegacyServiceAdapter.cs` - FileCategorization adapter with configuration-based selection
+  - `WebScrumServiceAdapter.cs` - WebScrum adapter with automatic v2/v1 selection
+- All services implement interfaces in `/Interfaces/` directory
 
 ### API Integration
 The application communicates with a backend service via REST API:
-- Base URL configured in `wwwroot/appsettings.json:9` (`Uri` property)
-- All API endpoints use `/api/v1/` versioning pattern
+- **Modern Configuration**: `FileCategorizationApi:BaseUrl` in appsettings.json for v2 endpoints
+- **Legacy Configuration**: `Uri` property for v1 endpoints (fallback)
+- **API Versioning**: Primary use of `/api/v2/` endpoints, with automatic fallback to `/api/v1/`
+- **Service Selection**: Configuration-driven selection between modern and legacy services
 - Services handle JSON serialization/deserialization with camelCase naming policy
 
 ### UI Framework
@@ -84,16 +93,28 @@ The application communicates with a backend service via REST API:
 - `Pages/Home.razor` - Landing page
 
 ### Data Models
-- DTOs in `Data/DTOs/FileCategorizationDTOs/` for API communication
-- `FilesDetailDto`, `ConfigsDto`, `FileMoveDto` are primary data transfer objects
-- Enums in `Data/Enum/` for typed constants
+- **Shared DTOs**: `FileCategorization_Shared/DTOs/` for v2 API contracts
+  - `FileManagement/`: FilesDetailDto, FileMoveDto for file operations
+  - `Configuration/`: ConfigsDto for application settings
+  - `DD/`: ThreadSummaryDto, LinkDto, LinkUsageResultDto for DownloadDaemon operations
+- **Local DTOs**: `Data/DTOs/` for legacy compatibility and UI-specific models
+- **Enums**: Centralized in `Data/Enum/` for typed constants
 
 ## Configuration
 
 ### Application Settings
 - Development: `wwwroot/appsettings.Development.json`
 - Production: `wwwroot/appsettings.json`
-- Key setting: `Uri` for backend API base address
+- **Modern Configuration**:
+  ```json
+  {
+    "FileCategorizationApi": {
+      "BaseUrl": "http://localhost:5089/",
+      "Timeout": "00:00:30"
+    }
+  }
+  ```
+- **Legacy Configuration**: `Uri` property for v1 API base address (fallback)
 
 ### Launch Profiles
 - HTTP: localhost:5045
@@ -114,9 +135,11 @@ The application communicates with a backend service via REST API:
 - Configuration through `Extensions/ServiceCollectionExtensions.cs`
 - Proper dependency injection with scoped lifetimes
 
-#### **Service Architecture**
-- **ModernFileCategorizationService**: New service with structured logging
-- **LegacyServiceAdapter**: Backward compatibility adapter
+#### **Service Architecture** ✅ COMPLETE
+- **ModernFileCategorizationService**: v2 API integration with enhanced error handling
+- **ModernWebScrumService**: v2 DD endpoints with structured responses
+- **LegacyServiceAdapter**: FileCategorization backward compatibility adapter
+- **WebScrumServiceAdapter**: DownloadDaemon backward compatibility adapter
 - **ServiceCompatibilityExtensions**: Extension methods for seamless transition
 
 #### **Configuration Management**
@@ -143,7 +166,13 @@ The application supports dual-mode operation:
 ```
 
 #### **Legacy Mode** (automatic fallback):
-Uses original FileCategorizationServices with adapter pattern.
+Uses original FileCategorizationServices and WebScrumServices with adapter pattern.
+
+#### **API v2 Migration Status** ✅ COMPLETE
+- **FileCategorization**: All endpoints migrated to v2 (file operations, configuration, ML actions)
+- **WebScrum/DownloadDaemon**: All endpoints migrated to v2 (threads, links, processing)
+- **Configuration-Driven**: Automatic selection between v2 and v1 based on appsettings.json
+- **Backward Compatibility**: Full support for legacy deployments without configuration changes
 
 ---
 

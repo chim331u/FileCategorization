@@ -1,6 +1,8 @@
-using FileCategorization_Api.Services;
-using FileCategorization_Api.Domain.Entities.FilesDetail;
 using FileCategorization_Api.Domain.Enums;
+using FileCategorization_Api.Domain.Entities.FilesDetail;
+using FileCategorization_Api.Services;
+using FileCategorization_Shared.DTOs.FileManagement;
+using FileCategorization_Shared.Enums;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FileCategorization_Api.Endpoints;
@@ -59,6 +61,15 @@ public static class FilesQueryEndpoint
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status500InternalServerError);
 
+        // Get files by category
+        group.MapGet("/files/category/{category}", GetFilesByCategoryAsync)
+            .WithName("GetFilesByCategory_v2")
+            .WithSummary("[v2] Gets files by category")
+            .WithDescription("[v2 - Repository Pattern] Retrieves all files that belong to the specified category")
+            .Produces<IEnumerable<FilesDetailResponse>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status500InternalServerError);
+
         return group;
     }
 
@@ -72,8 +83,8 @@ public static class FilesQueryEndpoint
         var result = await filesQueryService.GetCategoriesAsync(cancellationToken);
 
         return result.IsSuccess
-            ? Results.Ok(result.Data)
-            : Results.Problem(result.ErrorMessage, statusCode: 500);
+            ? Results.Ok(result.Value)
+            : Results.Problem(result.Error, statusCode: 500);
     }
 
     /// <summary>
@@ -93,8 +104,8 @@ public static class FilesQueryEndpoint
         var result = await filesQueryService.GetFilteredFilesAsync((FileFilterType)filterType, cancellationToken);
 
         return result.IsSuccess
-            ? Results.Ok(result.Data)
-            : Results.Problem(result.ErrorMessage, statusCode: 500);
+            ? Results.Ok(result.Value)
+            : Results.Problem(result.Error, statusCode: 500);
     }
 
     /// <summary>
@@ -107,8 +118,8 @@ public static class FilesQueryEndpoint
         var result = await filesQueryService.GetLastViewListAsync(cancellationToken);
 
         return result.IsSuccess
-            ? Results.Ok(result.Data)
-            : Results.Problem(result.ErrorMessage, statusCode: 500);
+            ? Results.Ok(result.Value)
+            : Results.Problem(result.Error, statusCode: 500);
     }
 
     /// <summary>
@@ -121,8 +132,8 @@ public static class FilesQueryEndpoint
         var result = await filesQueryService.GetFilesToCategorizeAsync(cancellationToken);
 
         return result.IsSuccess
-            ? Results.Ok(result.Data)
-            : Results.Problem(result.ErrorMessage, statusCode: 500);
+            ? Results.Ok(result.Value)
+            : Results.Problem(result.Error, statusCode: 500);
     }
 
     /// <summary>
@@ -141,7 +152,27 @@ public static class FilesQueryEndpoint
         var result = await filesQueryService.SearchFilesByNameAsync(pattern, cancellationToken);
 
         return result.IsSuccess
-            ? Results.Ok(result.Data)
-            : Results.Problem(result.ErrorMessage, statusCode: 500);
+            ? Results.Ok(result.Value)
+            : Results.Problem(result.Error, statusCode: 500);
+    }
+
+    /// <summary>
+    /// Gets files by category.
+    /// </summary>
+    private static async Task<IResult> GetFilesByCategoryAsync(
+        [FromRoute] string category,
+        [FromServices] IFilesQueryService filesQueryService,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return Results.BadRequest("Category is required");
+        }
+
+        var result = await filesQueryService.GetFilesByCategoryAsync(category, cancellationToken);
+
+        return result.IsSuccess
+            ? Results.Ok(result.Value)
+            : Results.Problem(result.Error, statusCode: 500);
     }
 }

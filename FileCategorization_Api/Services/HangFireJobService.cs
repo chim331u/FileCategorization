@@ -1,6 +1,6 @@
 ﻿using FileCategorization_Api.Infrastructure.Data;
-using FileCategorization_Api.Domain.Enums;
-using FileCategorization_Api.Domain.Entities.FilesDetail;
+using FileCategorization_Shared.Enums;
+using FileCategorization_Shared.DTOs.FileManagement;
 using FileCategorization_Api.Interfaces;
 using FileCategorization_Api.Domain.Entities.FileCategorization;
 using Microsoft.AspNetCore.SignalR;
@@ -256,11 +256,11 @@ namespace FileCategorization_Api.Services
                         if (categorizedFilesResult.IsFailure)
                         {
                             _logger.LogError("Failed to categorize files in batch {BatchNumber}: {ErrorMessage}", 
-                                i/batchSize + 1, categorizedFilesResult.ErrorMessage);
+                                i/batchSize + 1, categorizedFilesResult.Error);
                             continue; // Skip this batch and continue with next
                         }
                         
-                        var _categorizedFiles = categorizedFilesResult.Data!;
+                        var _categorizedFiles = categorizedFilesResult.Value!;
                         _logger.LogInformation(
                             $"End Prediction process for batch: [{await _utility.TimeDiff(_categorizationStartTime, DateTime.Now)}]");
 

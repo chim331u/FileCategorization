@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 using FileCategorization_Web.Data.Caching;
-using FileCategorization_Web.Data.DTOs.FileCategorizationDTOs;
+using FileCategorization_Shared.DTOs.FileManagement;using FileCategorization_Shared.DTOs.Configuration;using FileCategorization_Shared.Enums;
 using Fluxor;
 
 namespace FileCategorization_Web.Features.FileManagement.Store;

@@ -1,7 +1,7 @@
 using AutoMapper;
 using FileCategorization_Api.Services;
 using FileCategorization_Api.Domain.Entities.Config;
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Interfaces;
 
 namespace FileCategorization_Api.Services;
@@ -39,10 +39,10 @@ public class ConfigQueryService : IConfigQueryService
         var configsResult = await _configRepository.GetAllAsync(cancellationToken);
         if (configsResult.IsFailure)
         {
-            return Result<IEnumerable<ConfigResponse>>.Failure(configsResult.ErrorMessage!);
+            return Result<IEnumerable<ConfigResponse>>.Failure(configsResult.Error!);
         }
 
-        var responseList = _mapper.Map<IEnumerable<ConfigResponse>>(configsResult.Data);
+        var responseList = _mapper.Map<IEnumerable<ConfigResponse>>(configsResult.Value);
         return Result<IEnumerable<ConfigResponse>>.Success(responseList);
     }
 
@@ -60,16 +60,16 @@ public class ConfigQueryService : IConfigQueryService
         var configResult = await _configRepository.GetByIdAsync(id, cancellationToken);
         if (configResult.IsFailure)
         {
-            return Result<ConfigResponse?>.Failure(configResult.ErrorMessage!);
+            return Result<ConfigResponse?>.Failure(configResult.Error!);
         }
 
-        if (configResult.Data == null)
+        if (configResult.Value == null)
         {
             _logger.LogInformation("Configuration not found with ID: {Id}", id);
             return Result<ConfigResponse?>.Success(null);
         }
 
-        var response = _mapper.Map<ConfigResponse>(configResult.Data);
+        var response = _mapper.Map<ConfigResponse>(configResult.Value);
         return Result<ConfigResponse?>.Success(response);
     }
 
@@ -87,16 +87,16 @@ public class ConfigQueryService : IConfigQueryService
         var configResult = await _configRepository.GetByKeyAsync(key, cancellationToken);
         if (configResult.IsFailure)
         {
-            return Result<ConfigResponse?>.Failure(configResult.ErrorMessage!);
+            return Result<ConfigResponse?>.Failure(configResult.Error!);
         }
 
-        if (configResult.Data == null)
+        if (configResult.Value == null)
         {
             _logger.LogInformation("Configuration not found with key: {Key}", key);
             return Result<ConfigResponse?>.Success(null);
         }
 
-        var response = _mapper.Map<ConfigResponse>(configResult.Data);
+        var response = _mapper.Map<ConfigResponse>(configResult.Value);
         return Result<ConfigResponse?>.Success(response);
     }
 
@@ -114,10 +114,10 @@ public class ConfigQueryService : IConfigQueryService
         var valueResult = await _configRepository.GetValueByKeyAsync(key, cancellationToken);
         if (valueResult.IsFailure)
         {
-            return Result<string?>.Failure(valueResult.ErrorMessage!);
+            return Result<string?>.Failure(valueResult.Error!);
         }
 
-        return Result<string?>.Success(valueResult.Data);
+        return Result<string?>.Success(valueResult.Value);
     }
 
     /// <inheritdoc/>
@@ -128,10 +128,10 @@ public class ConfigQueryService : IConfigQueryService
         var configsResult = await _configRepository.GetByEnvironmentAsync(isDev, cancellationToken);
         if (configsResult.IsFailure)
         {
-            return Result<IEnumerable<ConfigResponse>>.Failure(configsResult.ErrorMessage!);
+            return Result<IEnumerable<ConfigResponse>>.Failure(configsResult.Error!);
         }
 
-        var responseList = _mapper.Map<IEnumerable<ConfigResponse>>(configsResult.Data);
+        var responseList = _mapper.Map<IEnumerable<ConfigResponse>>(configsResult.Value);
         return Result<IEnumerable<ConfigResponse>>.Success(responseList);
     }
 }

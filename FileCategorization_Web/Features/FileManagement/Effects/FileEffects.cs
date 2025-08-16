@@ -3,6 +3,9 @@ using FileCategorization_Web.Features.FileManagement.Actions;
 using FileCategorization_Web.Interfaces;
 using FileCategorization_Web.Services.Caching;
 using FileCategorization_Web.Data.Caching;
+using FileCategorization_Shared.DTOs.FileManagement;
+using FileCategorization_Shared.DTOs.Configuration;
+using FileCategorization_Shared.Enums;
 using Fluxor;
 
 namespace FileCategorization_Web.Features.FileManagement.Effects;
@@ -30,7 +33,7 @@ public class FileEffects
             _logger.LogInformation("Loading files with search parameter: {SearchParameter}", action.SearchParameter);
             
             // Try to get from cache first
-            var cachedFiles = await _cacheService.GetAsync<IEnumerable<Data.DTOs.FileCategorizationDTOs.FilesDetailDto>>(cacheKey);
+            var cachedFiles = await _cacheService.GetAsync<IEnumerable<FilesDetailDto>>(cacheKey);
             if (cachedFiles != null)
             {
                 dispatcher.Dispatch(new CacheHitAction(cacheKey, "FilesDetailDto[]"));
@@ -45,7 +48,7 @@ public class FileEffects
             
             if (result.IsSuccess)
             {
-                var files = result.Value?.ToImmutableList() ?? ImmutableList<Data.DTOs.FileCategorizationDTOs.FilesDetailDto>.Empty;
+                var files = result.Value?.ToImmutableList() ?? ImmutableList<FilesDetailDto>.Empty;
                 
                 // Cache the result using predefined policy
                 if (result.Value != null)
@@ -159,7 +162,7 @@ public class FileEffects
             _logger.LogInformation("Loading configurations");
             
             // Try to get from cache first
-            var cachedConfigurations = await _cacheService.GetAsync<IEnumerable<Data.DTOs.FileCategorizationDTOs.ConfigsDto>>(cacheKey);
+            var cachedConfigurations = await _cacheService.GetAsync<IEnumerable<ConfigsDto>>(cacheKey);
             if (cachedConfigurations != null)
             {
                 dispatcher.Dispatch(new CacheHitAction(cacheKey, "ConfigsDto[]"));
@@ -173,7 +176,7 @@ public class FileEffects
             
             if (result.IsSuccess)
             {
-                var configurations = result.Value?.ToImmutableList() ?? ImmutableList<Data.DTOs.FileCategorizationDTOs.ConfigsDto>.Empty;
+                var configurations = result.Value?.ToImmutableList() ?? ImmutableList<ConfigsDto>.Empty;
                 
                 // Cache the result using predefined policy
                 if (result.Value != null)

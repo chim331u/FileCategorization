@@ -1,3 +1,4 @@
+using FileCategorization_Api.Domain.Entities.FilesDetail;
 namespace FileCategorization_Api.Domain.Entities.FilesDetail;
 
 /// <summary>

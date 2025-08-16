@@ -1,5 +1,7 @@
-using FileCategorization_Web.Data.DTOs.FileCategorizationDTOs;
+using FileCategorization_Shared.DTOs.FileManagement;using FileCategorization_Shared.DTOs.Configuration;using FileCategorization_Shared.Enums;
 using FileCategorization_Web.Interfaces;
+using FileCategorization_Web.Data.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace FileCategorization_Web.Extensions;
 
@@ -89,10 +91,30 @@ public static class ServiceCompatibilityExtensions
         return result.IsSuccess ? result.Value : null;
     }
 
+    public static string GetRestUrl(this IFileCategorizationService service, IConfiguration configuration)
+    {
+        // Try to get URL from modern configuration first
+        var apiOptions = configuration.GetSection(FileCategorizationApiOptions.SectionName).Get<FileCategorizationApiOptions>();
+        if (apiOptions != null && !string.IsNullOrEmpty(apiOptions.BaseUrl))
+        {
+            return apiOptions.BaseUrl.TrimEnd('/') + "/";
+        }
+
+        // Fallback to legacy Uri configuration
+        var legacyUri = configuration.GetValue<string>("Uri");
+        if (!string.IsNullOrEmpty(legacyUri))
+        {
+            return legacyUri.TrimEnd('/') + "/";
+        }
+
+        // Final fallback to localhost for development
+        return "http://localhost:5089/";
+    }
+
     public static string GetRestUrl(this IFileCategorizationService service)
     {
-        // For the modern service, we'll need to get this from configuration
-        // For now, return a placeholder that will work with existing infrastructure
-        return "http://192.168.1.5:30119/";
+        // All services now implement GetRestUrl() in the interface
+        // This extension method is now redundant but kept for compatibility
+        return service.GetRestUrl();
     }
 }

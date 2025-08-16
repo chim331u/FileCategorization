@@ -1,4 +1,5 @@
 using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Contracts.Actions;
 using FileCategorization_Api.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -34,8 +35,8 @@ public static class ActionsEndpointV2
             var result = await actionsService.RefreshFilesAsync(request, cancellationToken);
             
             return result.IsSuccess 
-                ? Results.Ok(result.Data) 
-                : Results.BadRequest(new { Error = result.ErrorMessage });
+                ? Results.Ok(result.Value) 
+                : Results.BadRequest(new { Error = result.Error });
         })
         .WithName("RefreshFilesV2")
         .WithSummary("Refresh files from origin directory with ML categorization")
@@ -58,8 +59,8 @@ public static class ActionsEndpointV2
             var result = await actionsService.MoveFilesAsync(request, cancellationToken);
             
             return result.IsSuccess 
-                ? Results.Ok(result.Data) 
-                : Results.BadRequest(new { Error = result.ErrorMessage });
+                ? Results.Ok(result.Value) 
+                : Results.BadRequest(new { Error = result.Error });
         })
         .WithName("MoveFilesV2")
         .WithSummary("Move files to categorized directories")
@@ -81,8 +82,8 @@ public static class ActionsEndpointV2
             var result = await actionsService.ForceCategorizeAsync(cancellationToken);
             
             return result.IsSuccess 
-                ? Results.Ok(result.Data) 
-                : Results.BadRequest(new { Error = result.ErrorMessage });
+                ? Results.Ok(result.Value) 
+                : Results.BadRequest(new { Error = result.Error });
         })
         .WithName("ForceCategorizeV2")
         .WithSummary("Force re-categorization of uncategorized files")
@@ -102,8 +103,8 @@ public static class ActionsEndpointV2
             var result = await actionsService.TrainModelAsync(cancellationToken);
             
             return result.IsSuccess 
-                ? Results.Ok(result.Data) 
-                : Results.BadRequest(new { Error = result.ErrorMessage });
+                ? Results.Ok(result.Value) 
+                : Results.BadRequest(new { Error = result.Error });
         })
         .WithName("TrainModelV2")
         .WithSummary("Train and save machine learning model")
@@ -124,8 +125,8 @@ public static class ActionsEndpointV2
             var result = await actionsService.GetJobStatusAsync(jobId, cancellationToken);
             
             return result.IsSuccess 
-                ? Results.Ok(result.Data) 
-                : Results.BadRequest(new { Error = result.ErrorMessage });
+                ? Results.Ok(result.Value) 
+                : Results.BadRequest(new { Error = result.Error });
         })
         .WithName("GetJobStatusV2")
         .WithSummary("Get background job status and progress")

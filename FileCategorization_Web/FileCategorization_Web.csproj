@@ -33,4 +33,8 @@
         </PackageReference>
     </ItemGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="..\FileCategorization_Shared\FileCategorization_Shared.csproj" />
+    </ItemGroup>
+
 </Project>

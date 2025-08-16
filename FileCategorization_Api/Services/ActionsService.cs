@@ -1,7 +1,7 @@
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Contracts.Actions;
 using FileCategorization_Api.Domain.Entities.FileCategorization;
-using FileCategorization_Api.Domain.Entities.FilesDetail;
+using FileCategorization_Shared.DTOs.FileManagement;
 using FileCategorization_Api.Interfaces;
 using Hangfire;
 
@@ -84,10 +84,10 @@ public class ActionsService : IActionsService
 
             if (existingFilesResult.IsFailure)
             {
-                return Result<ActionJobResponse>.Failure($"Failed to validate files: {existingFilesResult.ErrorMessage}");
+                return Result<ActionJobResponse>.Failure($"Failed to validate files: {existingFilesResult.Error}");
             }
 
-            var missingFiles = fileIds.Except(existingFilesResult.Data!.Keys).ToList();
+            var missingFiles = fileIds.Except(existingFilesResult.Value!.Keys).ToList();
             if (missingFiles.Any() && !request.ContinueOnError)
             {
                 return Result<ActionJobResponse>.Failure($"Files not found: {string.Join(", ", missingFiles)}");
@@ -168,7 +168,7 @@ public class ActionsService : IActionsService
 
             if (trainResult.IsFailure)
             {
-                return Result<TrainModelResponse>.Failure($"Model training failed: {trainResult.ErrorMessage}");
+                return Result<TrainModelResponse>.Failure($"Model training failed: {trainResult.Error}");
             }
 
             var endTime = DateTime.UtcNow;
@@ -180,7 +180,7 @@ public class ActionsService : IActionsService
             var response = new TrainModelResponse
             {
                 Success = true,
-                Message = trainResult.Data ?? "Model training completed successfully",
+                Message = trainResult.Value ?? "Model training completed successfully",
                 TrainingDuration = duration,
                 ModelVersion = DateTime.UtcNow.ToString("yyyyMMddHHmmss"),
                 Metrics = new Dictionary<string, double>
@@ -190,9 +190,9 @@ public class ActionsService : IActionsService
             };
 
             // Parse model info if available
-            if (modelInfoResult.IsSuccess && !string.IsNullOrEmpty(modelInfoResult.Data))
+            if (modelInfoResult.IsSuccess && !string.IsNullOrEmpty(modelInfoResult.Value))
             {
-                var modelInfo = modelInfoResult.Data;
+                var modelInfo = modelInfoResult.Value;
                 if (modelInfo.Contains("Size:"))
                 {
                     // Try to extract model size from the info string

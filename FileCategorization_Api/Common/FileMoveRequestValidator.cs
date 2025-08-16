@@ -1,4 +1,4 @@
-using FileCategorization_Api.Domain.Entities.FilesDetail;
+using FileCategorization_Shared.DTOs.FileManagement;
 using FluentValidation;
 
 namespace FileCategorization_Api.Common;

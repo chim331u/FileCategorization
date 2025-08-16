@@ -1,4 +1,4 @@
-namespace FileCategorization_Web.Data.DTOs.WebScrum;
+namespace FileCategorization_Web.Value.DTOs.WebScrum;
 
 /// <summary>
 /// Represents a Data Transfer Object (DTO) for settings.

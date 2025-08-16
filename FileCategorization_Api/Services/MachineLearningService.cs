@@ -1,4 +1,4 @@
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Domain.Entities.FileCategorization;
 using FileCategorization_Api.Domain.Entities.MachineLearning;
 using FileCategorization_Api.Interfaces;
@@ -52,11 +52,11 @@ public class MachineLearningService : IMachineLearningService, IDisposable
             var predictionEngine = await EnsureModelLoadedAsync(cancellationToken);
             if (predictionEngine.IsFailure)
             {
-                return Result<string>.Failure($"Failed to load model: {predictionEngine.ErrorMessage}");
+                return Result<string>.Failure($"Failed to load model: {predictionEngine.Error}");
             }
 
             var input = new MlFileName { FileName = fileNameToPredict };
-            var prediction = predictionEngine.Data!.Predict(input);
+            var prediction = predictionEngine.Value!.Predict(input);
 
             _logger.LogDebug("Predicted category for {FileName}: {Category}", fileNameToPredict, prediction.Area);
             
@@ -91,10 +91,10 @@ public class MachineLearningService : IMachineLearningService, IDisposable
             var predictionEngine = await EnsureModelLoadedAsync(cancellationToken);
             if (predictionEngine.IsFailure)
             {
-                return Result<List<FilesDetail>>.Failure($"Failed to load model: {predictionEngine.ErrorMessage}");
+                return Result<List<FilesDetail>>.Failure($"Failed to load model: {predictionEngine.Error}");
             }
 
-            var engine = predictionEngine.Data!;
+            var engine = predictionEngine.Value!;
             var processedCount = 0;
 
             foreach (var file in fileList)
@@ -148,10 +148,10 @@ public class MachineLearningService : IMachineLearningService, IDisposable
             var configResult = await GetModelConfigurationAsync(cancellationToken);
             if (configResult.IsFailure)
             {
-                return Result<string>.Failure($"Failed to get configuration: {configResult.ErrorMessage}");
+                return Result<string>.Failure($"Failed to get configuration: {configResult.Error}");
             }
 
-            var config = configResult.Data!;
+            var config = configResult.Value!;
             var trainDataPath = Path.Combine(config.TrainDataPath, config.TrainDataName);
 
             if (!File.Exists(trainDataPath))
@@ -233,10 +233,10 @@ public class MachineLearningService : IMachineLearningService, IDisposable
             var configResult = await GetModelConfigurationAsync(cancellationToken);
             if (configResult.IsFailure)
             {
-                return Result<string>.Failure($"Failed to get configuration: {configResult.ErrorMessage}");
+                return Result<string>.Failure($"Failed to get configuration: {configResult.Error}");
             }
 
-            var config = configResult.Data!;
+            var config = configResult.Value!;
             var modelPath = Path.Combine(config.ModelPath, config.ModelName);
 
             if (!File.Exists(modelPath))
@@ -287,10 +287,10 @@ public class MachineLearningService : IMachineLearningService, IDisposable
             var configResult = await GetModelConfigurationAsync(cancellationToken);
             if (configResult.IsFailure)
             {
-                return Result<PredictionEngine<MlFileName, MlFileNamePrediction>>.Failure(configResult.ErrorMessage!);
+                return Result<PredictionEngine<MlFileName, MlFileNamePrediction>>.Failure(configResult.Error!);
             }
 
-            var config = configResult.Data!;
+            var config = configResult.Value!;
             var modelPath = Path.Combine(config.ModelPath, config.ModelName);
 
             // Check if model exists, if not, train it
@@ -300,7 +300,7 @@ public class MachineLearningService : IMachineLearningService, IDisposable
                 var trainResult = await TrainAndSaveModelAsync(cancellationToken);
                 if (trainResult.IsFailure)
                 {
-                    return Result<PredictionEngine<MlFileName, MlFileNamePrediction>>.Failure($"Failed to train model: {trainResult.ErrorMessage}");
+                    return Result<PredictionEngine<MlFileName, MlFileNamePrediction>>.Failure($"Failed to train model: {trainResult.Error}");
                 }
             }
 

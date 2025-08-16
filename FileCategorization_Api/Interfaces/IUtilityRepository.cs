@@ -1,4 +1,4 @@
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 
 namespace FileCategorization_Api.Interfaces;
 

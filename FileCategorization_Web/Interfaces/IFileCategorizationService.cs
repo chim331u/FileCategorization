@@ -1,5 +1,5 @@
-using FileCategorization_Web.Data.Common;
-using FileCategorization_Web.Data.DTOs.FileCategorizationDTOs;
+using FileCategorization_Shared.Common;
+using FileCategorization_Shared.DTOs.FileManagement;using FileCategorization_Shared.DTOs.Configuration;using FileCategorization_Shared.Enums;
 
 namespace FileCategorization_Web.Interfaces;
 
@@ -23,4 +23,6 @@ public interface IFileCategorizationService
     Task<Result<ConfigsDto>> DeleteConfigAsync(ConfigsDto item);
 
     Task<Result<List<FilesDetailDto>>> GetFileListAsync(int searchPar);
+    
+    string GetRestUrl();
 }

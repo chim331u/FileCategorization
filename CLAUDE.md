@@ -81,8 +81,9 @@ FileCategorization/
 - **Common** (`Common/`): Shared utilities, validators, Result pattern, AutoMapper profiles
 
 #### API Versioning Strategy
-- **v1 endpoints** (`/api/v1/`): Legacy endpoints marked obsolete
+- **v1 endpoints** (`/api/v1/`): Legacy endpoints (deprecated, maintained for compatibility)
 - **v2 endpoints** (`/api/v2/`): Modern architecture with Repository Pattern, Result Pattern, FluentValidation
+- **Migration Status**: All client applications now use v2 endpoints by default
 
 #### Core Features
 - Machine learning file categorization using ML.NET
@@ -110,11 +111,13 @@ FileCategorization/
 - **SignalR Integration**: Real-time updates automatically flow through Fluxor
 - **Caching Layer**: State-aware cache invalidation with tag-based organization
 - **Testing Infrastructure**: 90+ unit tests with comprehensive coverage
+- **API v2 Integration**: All services use modern v2 endpoints with enhanced error handling
 
 ### FileCategorization_Shared
 - **Purpose**: Common models and utilities shared between API and Web projects
 - **Target**: .NET 8.0 class library with nullable reference types
 - **Dependencies**: Pure .NET library with no external dependencies
+- **DTOs**: Centralized data transfer objects for v2 API contracts (FileManagement, Configuration, DD)
 
 ## Key Technologies
 
@@ -149,9 +152,10 @@ FileCategorization/
 ### Frontend Patterns
 - **Fluxor State Management**: Centralized Redux-style state with actions/reducers
 - **Effect-based Side Effects**: Async operations handled in Effects
-- **Service Abstraction**: HTTP services with Result pattern integration
+- **Service Abstraction**: HTTP services with Result pattern integration and v2 API endpoints
 - **Cache-First Loading**: Performance optimization with state-aware invalidation
 - **Real-time Integration**: SignalR events dispatch Fluxor actions
+- **Service Adapters**: Intelligent selection between modern v2 and legacy v1 APIs based on configuration
 
 ## Testing Strategy
 

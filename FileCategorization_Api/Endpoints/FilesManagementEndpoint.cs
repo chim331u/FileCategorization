@@ -1,7 +1,9 @@
-using AutoMapper;
 using FileCategorization_Api.Domain.Entities.FilesDetail;
-using FileCategorization_Api.Interfaces;
+using AutoMapper;
 using FileCategorization_Api.Common;
+using FileCategorization_Shared.DTOs.FileManagement;
+using FileCategorization_Api.Interfaces;
+using FileCategorization_Shared.Common;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 
@@ -83,12 +85,12 @@ public static class FilesManagementEndpoint
         
         if (result.IsFailure)
         {
-            logger.LogError("Failed to create file record: {Error}", result.ErrorMessage);
-            return Results.Problem(result.ErrorMessage, statusCode: 500);
+            logger.LogError("Failed to create file record: {Error}", result.Error);
+            return Results.Problem(result.Error, statusCode: 500);
         }
 
         // Map entity to response
-        var response = mapper.Map<FilesDetailResponse>(result.Data);
+        var response = mapper.Map<FilesDetailResponse>(result.Value);
         
         return Results.Created($"/api/v1/files/{response.Id}", response);
     }
@@ -110,28 +112,28 @@ public static class FilesManagementEndpoint
         var existingResult = await repository.GetByIdAsync(id, cancellationToken);
         if (existingResult.IsFailure)
         {
-            return Results.Problem(existingResult.ErrorMessage, statusCode: 500);
+            return Results.Problem(existingResult.Error, statusCode: 500);
         }
 
-        if (existingResult.Data == null)
+        if (existingResult.Value == null)
         {
             return Results.NotFound($"File with ID {id} not found");
         }
 
         // Map update request to existing entity
-        var updatedEntity = mapper.Map(request, existingResult.Data);
+        var updatedEntity = mapper.Map(request, existingResult.Value);
         
         // Update in repository
         var result = await repository.UpdateAsync(updatedEntity, cancellationToken);
         
         if (result.IsFailure)
         {
-            logger.LogError("Failed to update file record {FileId}: {Error}", id, result.ErrorMessage);
-            return Results.Problem(result.ErrorMessage, statusCode: 500);
+            logger.LogError("Failed to update file record {FileId}: {Error}", id, result.Error);
+            return Results.Problem(result.Error, statusCode: 500);
         }
 
         // Map entity to response
-        var response = mapper.Map<FilesDetailResponse>(result.Data);
+        var response = mapper.Map<FilesDetailResponse>(result.Value);
         
         return Results.Ok(response);
     }
@@ -156,11 +158,11 @@ public static class FilesManagementEndpoint
         
         if (result.IsFailure)
         {
-            logger.LogError("Failed to move file {FileId}: {Error}", request.Id, result.ErrorMessage);
-            return Results.Problem(result.ErrorMessage, statusCode: 500);
+            logger.LogError("Failed to move file {FileId}: {Error}", request.Id, result.Error);
+            return Results.Problem(result.Error, statusCode: 500);
         }
 
-        if (!result.Data)
+        if (!result.Value)
         {
             return Results.NotFound($"File with ID {request.Id} not found");
         }
@@ -183,11 +185,11 @@ public static class FilesManagementEndpoint
         
         if (result.IsFailure)
         {
-            logger.LogError("Failed to delete file record {FileId}: {Error}", id, result.ErrorMessage);
-            return Results.Problem(result.ErrorMessage, statusCode: 500);
+            logger.LogError("Failed to delete file record {FileId}: {Error}", id, result.Error);
+            return Results.Problem(result.Error, statusCode: 500);
         }
 
-        if (!result.Data)
+        if (!result.Value)
         {
             return Results.NotFound($"File with ID {id} not found");
         }

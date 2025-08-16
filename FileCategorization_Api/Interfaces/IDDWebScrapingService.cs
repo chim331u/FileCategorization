@@ -1,4 +1,4 @@
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Domain.Entities.DD_Web;
 
 namespace FileCategorization_Api.Interfaces;

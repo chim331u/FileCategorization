@@ -1,4 +1,4 @@
-﻿namespace FileCategorization_Web.Data.DTOs
+﻿namespace FileCategorization_Web.Value.DTOs
 {
     public class LocalSettings
     {

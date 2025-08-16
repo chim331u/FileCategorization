@@ -1,7 +1,9 @@
-using AutoMapper;
-using FileCategorization_Api.Domain.Entities.FilesDetail;
-using FileCategorization_Api.Common;
 using FileCategorization_Api.Domain.Enums;
+using FileCategorization_Api.Domain.Entities.FilesDetail;
+using AutoMapper;
+using FileCategorization_Shared.DTOs.FileManagement;
+using FileCategorization_Shared.Common;
+using FileCategorization_Shared.Enums;
 using FileCategorization_Api.Interfaces;
 
 namespace FileCategorization_Api.Services;
@@ -52,10 +54,10 @@ public class FilesQueryService : IFilesQueryService
         var filesResult = await _filesRepository.GetFilteredFilesAsync((int)filterType, cancellationToken);
         
         if (filesResult.IsFailure)
-            return Result<IEnumerable<FilesDetailResponse>>.Failure(filesResult.ErrorMessage!);
+            return Result<IEnumerable<FilesDetailResponse>>.Failure(filesResult.Error!);
 
         // Map to DTOs using AutoMapper
-        var responseList = _mapper.Map<IEnumerable<FilesDetailResponse>>(filesResult.Data);
+        var responseList = _mapper.Map<IEnumerable<FilesDetailResponse>>(filesResult.Value);
 
         return Result<IEnumerable<FilesDetailResponse>>.Success(responseList);
     }
@@ -72,10 +74,10 @@ public class FilesQueryService : IFilesQueryService
         var filesResult = await _filesRepository.GetLatestFilesByCategoryAsync(cancellationToken);
         
         if (filesResult.IsFailure)
-            return Result<IEnumerable<FilesDetailResponse>>.Failure(filesResult.ErrorMessage!);
+            return Result<IEnumerable<FilesDetailResponse>>.Failure(filesResult.Error!);
 
         // Map to DTOs using AutoMapper
-        var responseList = _mapper.Map<IEnumerable<FilesDetailResponse>>(filesResult.Data);
+        var responseList = _mapper.Map<IEnumerable<FilesDetailResponse>>(filesResult.Value);
 
         return Result<IEnumerable<FilesDetailResponse>>.Success(responseList);
     }
@@ -92,10 +94,10 @@ public class FilesQueryService : IFilesQueryService
         var filesResult = await _filesRepository.GetToCategorizeAsync(cancellationToken);
         
         if (filesResult.IsFailure)
-            return Result<IEnumerable<FilesDetailResponse>>.Failure(filesResult.ErrorMessage!);
+            return Result<IEnumerable<FilesDetailResponse>>.Failure(filesResult.Error!);
 
         // Map to DTOs using AutoMapper
-        var responseList = _mapper.Map<IEnumerable<FilesDetailResponse>>(filesResult.Data);
+        var responseList = _mapper.Map<IEnumerable<FilesDetailResponse>>(filesResult.Value);
 
         return Result<IEnumerable<FilesDetailResponse>>.Success(responseList);
     }
@@ -116,11 +118,41 @@ public class FilesQueryService : IFilesQueryService
         var filesResult = await _filesRepository.SearchByNameAsync(namePattern, cancellationToken);
         
         if (filesResult.IsFailure)
-            return Result<IEnumerable<FilesDetailResponse>>.Failure(filesResult.ErrorMessage!);
+            return Result<IEnumerable<FilesDetailResponse>>.Failure(filesResult.Error!);
 
         // Map to DTOs using AutoMapper
-        var responseList = _mapper.Map<IEnumerable<FilesDetailResponse>>(filesResult.Data);
+        var responseList = _mapper.Map<IEnumerable<FilesDetailResponse>>(filesResult.Value);
 
+        return Result<IEnumerable<FilesDetailResponse>>.Success(responseList);
+    }
+
+    /// <summary>
+    /// Gets files by category.
+    /// </summary>
+    /// <param name="category">The category to filter by.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Result containing the files in the specified category.</returns>
+    public async Task<Result<IEnumerable<FilesDetailResponse>>> GetFilesByCategoryAsync(string category, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return Result<IEnumerable<FilesDetailResponse>>.Failure("Category cannot be null or empty");
+        }
+
+        _logger.LogInformation("Retrieving files for category: {Category}", category);
+
+        var filesResult = await _filesRepository.GetByCategoryAsync(category, cancellationToken);
+
+        if (filesResult.IsFailure)
+        {
+            _logger.LogError("Failed to retrieve files by category: {Error}", filesResult.Error);
+            return Result<IEnumerable<FilesDetailResponse>>.Failure(filesResult.Error!);
+        }
+
+        // Map to DTOs using AutoMapper
+        var responseList = _mapper.Map<IEnumerable<FilesDetailResponse>>(filesResult.Value);
+
+        _logger.LogInformation("Retrieved {Count} files for category: {Category}", responseList.Count(), category);
         return Result<IEnumerable<FilesDetailResponse>>.Success(responseList);
     }
 }
@@ -154,4 +186,9 @@ public interface IFilesQueryService
     /// Searches files by name pattern.
     /// </summary>
     Task<Result<IEnumerable<FilesDetailResponse>>> SearchFilesByNameAsync(string namePattern, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Gets files by category.
+    /// </summary>
+    Task<Result<IEnumerable<FilesDetailResponse>>> GetFilesByCategoryAsync(string category, CancellationToken cancellationToken = default);
 }

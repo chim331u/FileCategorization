@@ -1,9 +1,10 @@
 using AutoMapper;
+using FileCategorization_Api.Common;
 using FileCategorization_Api.Services;
 using FileCategorization_Api.Domain.Entities.Config;
 using FileCategorization_Api.Interfaces;
 using FileCategorization_Api.Domain.Entities.FileCategorization;
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FileCategorization_Api.Endpoints;
@@ -114,8 +115,8 @@ public static class ConfigEndpoint
         var result = await configQueryService.GetAllConfigsAsync(cancellationToken);
 
         return result.IsSuccess
-            ? Results.Ok(result.Data)
-            : Results.Problem(result.ErrorMessage, statusCode: 500);
+            ? Results.Ok(result.Value)
+            : Results.Problem(result.Error, statusCode: 500);
     }
 
     /// <summary>
@@ -138,11 +139,11 @@ public static class ConfigEndpoint
 
         if (result.IsFailure)
         {
-            return Results.Problem(result.ErrorMessage, statusCode: 500);
+            return Results.Problem(result.Error, statusCode: 500);
         }
 
-        return result.Data != null
-            ? Results.Ok(result.Data)
+        return result.Value != null
+            ? Results.Ok(result.Value)
             : Results.NotFound($"Configuration with ID {id} not found");
     }
 
@@ -166,11 +167,11 @@ public static class ConfigEndpoint
 
         if (result.IsFailure)
         {
-            return Results.Problem(result.ErrorMessage, statusCode: 500);
+            return Results.Problem(result.Error, statusCode: 500);
         }
 
-        return result.Data != null
-            ? Results.Ok(result.Data)
+        return result.Value != null
+            ? Results.Ok(result.Value)
             : Results.NotFound($"Configuration with key '{key}' not found");
     }
 
@@ -194,11 +195,11 @@ public static class ConfigEndpoint
 
         if (result.IsFailure)
         {
-            return Results.Problem(result.ErrorMessage, statusCode: 500);
+            return Results.Problem(result.Error, statusCode: 500);
         }
 
-        return result.Data != null
-            ? Results.Ok(result.Data)
+        return result.Value != null
+            ? Results.Ok(result.Value)
             : Results.NotFound($"Configuration with key '{key}' not found");
     }
 
@@ -216,8 +217,8 @@ public static class ConfigEndpoint
         var result = await configQueryService.GetConfigsByEnvironmentAsync(isDev, cancellationToken);
 
         return result.IsSuccess
-            ? Results.Ok(result.Data)
-            : Results.Problem(result.ErrorMessage, statusCode: 500);
+            ? Results.Ok(result.Value)
+            : Results.Problem(result.Error, statusCode: 500);
     }
 
     /// <summary>
@@ -240,19 +241,19 @@ public static class ConfigEndpoint
 
         if (result.IsFailure)
         {
-            logger.LogError("Failed to create configuration: {Error}", result.ErrorMessage);
+            logger.LogError("Failed to create configuration: {Error}", result.Error);
             
             // Check if it's a duplicate key error
-            if (result.ErrorMessage!.Contains("already exists"))
+            if (result.Error!.Contains("already exists"))
             {
-                return Results.Conflict(result.ErrorMessage);
+                return Results.Conflict(result.Error);
             }
             
-            return Results.Problem(result.ErrorMessage, statusCode: 500);
+            return Results.Problem(result.Error, statusCode: 500);
         }
 
         // Map entity to response
-        var response = mapper.Map<ConfigResponse>(result.Data);
+        var response = mapper.Map<ConfigResponse>(result.Value);
 
         return Results.Created($"/api/v2/configs/{response.Id}", response);
     }
@@ -274,35 +275,35 @@ public static class ConfigEndpoint
         var existingResult = await configRepository.GetByIdAsync(id, cancellationToken);
         if (existingResult.IsFailure)
         {
-            return Results.Problem(existingResult.ErrorMessage, statusCode: 500);
+            return Results.Problem(existingResult.Error, statusCode: 500);
         }
 
-        if (existingResult.Data == null)
+        if (existingResult.Value == null)
         {
             return Results.NotFound($"Configuration with ID {id} not found");
         }
 
         // Map update request to existing entity
-        var updatedEntity = mapper.Map(request, existingResult.Data);
+        var updatedEntity = mapper.Map(request, existingResult.Value);
 
         // Update in repository
         var result = await configRepository.UpdateAsync(updatedEntity, cancellationToken);
 
         if (result.IsFailure)
         {
-            logger.LogError("Failed to update configuration {Id}: {Error}", id, result.ErrorMessage);
+            logger.LogError("Failed to update configuration {Id}: {Error}", id, result.Error);
             
             // Check if it's a duplicate key error
-            if (result.ErrorMessage!.Contains("already exists"))
+            if (result.Error!.Contains("already exists"))
             {
-                return Results.Conflict(result.ErrorMessage);
+                return Results.Conflict(result.Error);
             }
             
-            return Results.Problem(result.ErrorMessage, statusCode: 500);
+            return Results.Problem(result.Error, statusCode: 500);
         }
 
         // Map entity to response
-        var response = mapper.Map<ConfigResponse>(result.Data);
+        var response = mapper.Map<ConfigResponse>(result.Value);
 
         return Results.Ok(response);
     }
@@ -322,11 +323,11 @@ public static class ConfigEndpoint
 
         if (result.IsFailure)
         {
-            logger.LogError("Failed to delete configuration {Id}: {Error}", id, result.ErrorMessage);
-            return Results.Problem(result.ErrorMessage, statusCode: 500);
+            logger.LogError("Failed to delete configuration {Id}: {Error}", id, result.Error);
+            return Results.Problem(result.Error, statusCode: 500);
         }
 
-        if (!result.Data)
+        if (!result.Value)
         {
             return Results.NotFound($"Configuration with ID {id} not found");
         }

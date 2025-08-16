@@ -1,5 +1,5 @@
 using FileCategorization_Api.Infrastructure.Data;
-using FileCategorization_Api.Domain.Entities.Configs;
+using FileCategorization_Shared.DTOs.Configuration;
 using FileCategorization_Api.Interfaces;
 using FileCategorization_Api.Domain.Entities.FileCategorization;
 using Microsoft.EntityFrameworkCore;

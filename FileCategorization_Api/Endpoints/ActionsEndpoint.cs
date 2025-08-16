@@ -1,4 +1,4 @@
-using FileCategorization_Api.Domain.Entities.FilesDetail;
+using FileCategorization_Shared.DTOs.FileManagement;
 using FileCategorization_Api.Interfaces;
 using Hangfire;
 
@@ -70,10 +70,10 @@ public static class ActionsEndpoint
             
             if (trainModelResult.IsFailure)
             {
-                return Results.BadRequest(trainModelResult.ErrorMessage);
+                return Results.BadRequest(trainModelResult.Error);
             }
             
-            return Results.Ok(trainModelResult.Data);
+            return Results.Ok(trainModelResult.Value);
         })
         .WithSummary("[OBSOLETE] Train machine learning model")
         .WithDescription("⚠️ **DEPRECATED**: This endpoint is obsolete. Use '/api/v2/actions/train-model' instead for detailed training metrics, model information, and better error handling.");

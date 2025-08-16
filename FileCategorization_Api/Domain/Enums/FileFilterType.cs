@@ -1,3 +1,4 @@
+using FileCategorization_Api.Domain.Enums;
 namespace FileCategorization_Api.Domain.Enums;
 
 /// <summary>

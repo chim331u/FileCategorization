@@ -1,4 +1,4 @@
-namespace FileCategorization_Web.Data.Enum;
+namespace FileCategorization_Web.Value.Enum;
 
 public enum SettingType
 {

@@ -34,4 +34,14 @@ public class Ed2kLinkDto
     /// Gets or sets the identifier of the thread associated with the ED2K link.
     /// </summary>
     public int ThreadId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the link creation date.
+    /// </summary>
+    public DateTime CreatedDate { get; set; }
+
+    /// <summary>
+    /// Gets or sets the last update date.
+    /// </summary>
+    public DateTime? LastUpdatedDate { get; set; }
 }

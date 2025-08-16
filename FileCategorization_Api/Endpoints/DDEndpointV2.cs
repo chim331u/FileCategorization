@@ -1,7 +1,8 @@
+using FileCategorization_Api.Common;
 using Microsoft.AspNetCore.Mvc;
 using FileCategorization_Api.Interfaces;
 using FileCategorization_Api.Contracts.DD;
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 
 namespace FileCategorization_Api.Endpoints;
 
@@ -90,17 +91,17 @@ public static class DDEndpointV2
         
         if (!result.IsSuccess)
         {
-            logger.LogWarning("Failed to process thread {Url}: {Error}", request.ThreadUrl, result.ErrorMessage);
+            logger.LogWarning("Failed to process thread {Url}: {Error}", request.ThreadUrl, result.Error);
             return Results.Problem(
                 title: "Thread Processing Failed",
-                detail: result.ErrorMessage,
+                detail: result.Error,
                 statusCode: 400);
         }
 
         logger.LogInformation("Successfully processed thread {ThreadId} with {NewLinks} new links", 
-            result.Data.ThreadId, result.Data.NewLinksCount);
+            result.Value.ThreadId, result.Value.NewLinksCount);
 
-        return Results.Ok(result.Data);
+        return Results.Ok(result.Value);
     }
 
     /// <summary>
@@ -117,26 +118,26 @@ public static class DDEndpointV2
         
         if (!result.IsSuccess)
         {
-            logger.LogWarning("Failed to refresh thread {ThreadId}: {Error}", threadId, result.ErrorMessage);
+            logger.LogWarning("Failed to refresh thread {ThreadId}: {Error}", threadId, result.Error);
             
-            if (result.ErrorMessage.Contains("not found", StringComparison.OrdinalIgnoreCase))
+            if (result.Error.Contains("not found", StringComparison.OrdinalIgnoreCase))
             {
                 return Results.Problem(
                     title: "Thread Not Found",
-                    detail: result.ErrorMessage,
+                    detail: result.Error,
                     statusCode: 404);
             }
 
             return Results.Problem(
                 title: "Thread Refresh Failed",
-                detail: result.ErrorMessage,
+                detail: result.Error,
                 statusCode: 500);
         }
 
         logger.LogInformation("Successfully refreshed thread {ThreadId} with {NewLinks} new links", 
-            threadId, result.Data.NewLinksCount);
+            threadId, result.Value.NewLinksCount);
 
-        return Results.Ok(result.Data);
+        return Results.Ok(result.Value);
     }
 
     /// <summary>
@@ -152,15 +153,15 @@ public static class DDEndpointV2
         
         if (!result.IsSuccess)
         {
-            logger.LogError("Failed to get active threads: {Error}", result.ErrorMessage);
+            logger.LogError("Failed to get active threads: {Error}", result.Error);
             return Results.Problem(
                 title: "Failed to Get Threads",
-                detail: result.ErrorMessage,
+                detail: result.Error,
                 statusCode: 500);
         }
 
-        logger.LogInformation("Successfully retrieved {Count} active threads", result.Data.Count);
-        return Results.Ok(result.Data);
+        logger.LogInformation("Successfully retrieved {Count} active threads", result.Value.Count);
+        return Results.Ok(result.Value);
     }
 
     /// <summary>
@@ -178,17 +179,17 @@ public static class DDEndpointV2
         
         if (!result.IsSuccess)
         {
-            logger.LogWarning("Failed to get links for thread {ThreadId}: {Error}", threadId, result.ErrorMessage);
+            logger.LogWarning("Failed to get links for thread {ThreadId}: {Error}", threadId, result.Error);
             return Results.Problem(
                 title: "Failed to Get Thread Links",
-                detail: result.ErrorMessage,
+                detail: result.Error,
                 statusCode: 500);
         }
 
         logger.LogInformation("Successfully retrieved {Count} links for thread {ThreadId}", 
-            result.Data.Count, threadId);
+            result.Value.Count, threadId);
 
-        return Results.Ok(result.Data);
+        return Results.Ok(result.Value);
     }
 
     /// <summary>
@@ -205,24 +206,24 @@ public static class DDEndpointV2
         
         if (!result.IsSuccess)
         {
-            logger.LogWarning("Failed to use link {LinkId}: {Error}", linkId, result.ErrorMessage);
+            logger.LogWarning("Failed to use link {LinkId}: {Error}", linkId, result.Error);
             
-            if (result.ErrorMessage.Contains("not found", StringComparison.OrdinalIgnoreCase))
+            if (result.Error.Contains("not found", StringComparison.OrdinalIgnoreCase))
             {
                 return Results.Problem(
                     title: "Link Not Found",
-                    detail: result.ErrorMessage,
+                    detail: result.Error,
                     statusCode: 404);
             }
 
             return Results.Problem(
                 title: "Failed to Use Link",
-                detail: result.ErrorMessage,
+                detail: result.Error,
                 statusCode: 500);
         }
 
         logger.LogInformation("Successfully marked link {LinkId} as used", linkId);
-        return Results.Ok(result.Data);
+        return Results.Ok(result.Value);
     }
 
     /// <summary>
@@ -239,23 +240,23 @@ public static class DDEndpointV2
         
         if (!result.IsSuccess)
         {
-            logger.LogWarning("Failed to deactivate thread {ThreadId}: {Error}", threadId, result.ErrorMessage);
+            logger.LogWarning("Failed to deactivate thread {ThreadId}: {Error}", threadId, result.Error);
             
-            if (result.ErrorMessage.Contains("not found", StringComparison.OrdinalIgnoreCase))
+            if (result.Error.Contains("not found", StringComparison.OrdinalIgnoreCase))
             {
                 return Results.Problem(
                     title: "Thread Not Found",
-                    detail: result.ErrorMessage,
+                    detail: result.Error,
                     statusCode: 404);
             }
 
             return Results.Problem(
                 title: "Failed to Deactivate Thread",
-                detail: result.ErrorMessage,
+                detail: result.Error,
                 statusCode: 500);
         }
 
         logger.LogInformation("Successfully deactivated thread {ThreadId}", threadId);
-        return Results.Ok(result.Data);
+        return Results.Ok(result.Value);
     }
 }

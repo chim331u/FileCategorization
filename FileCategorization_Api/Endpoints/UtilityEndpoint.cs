@@ -1,6 +1,7 @@
+using FileCategorization_Api.Common;
 using FileCategorization_Api.Domain.Entities.Utility;
 using FileCategorization_Api.Interfaces;
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FileCategorization_Api.Endpoints;
@@ -75,13 +76,13 @@ public static class UtilityEndpoint
 
         if (result.IsFailure)
         {
-            logger.LogError("String encryption failed: {Error}", result.ErrorMessage);
-            return Results.Problem(result.ErrorMessage, statusCode: 500);
+            logger.LogError("String encryption failed: {Error}", result.Error);
+            return Results.Problem(result.Error, statusCode: 500);
         }
 
         var response = new StringUtilityResponse
         {
-            Result = result.Data!,
+            Result = result.Value!,
             IsSuccess = true,
             Message = "String encrypted successfully"
         };
@@ -104,13 +105,13 @@ public static class UtilityEndpoint
 
         if (result.IsFailure)
         {
-            logger.LogError("String decryption failed: {Error}", result.ErrorMessage);
-            return Results.Problem(result.ErrorMessage, statusCode: 500);
+            logger.LogError("String decryption failed: {Error}", result.Error);
+            return Results.Problem(result.Error, statusCode: 500);
         }
 
         var response = new StringUtilityResponse
         {
-            Result = result.Data!,
+            Result = result.Value!,
             IsSuccess = true,
             Message = "String decrypted successfully"
         };
@@ -133,13 +134,13 @@ public static class UtilityEndpoint
 
         if (result.IsFailure)
         {
-            logger.LogError("String hashing failed: {Error}", result.ErrorMessage);
-            return Results.Problem(result.ErrorMessage, statusCode: 500);
+            logger.LogError("String hashing failed: {Error}", result.Error);
+            return Results.Problem(result.Error, statusCode: 500);
         }
 
         var response = new StringUtilityResponse
         {
-            Result = result.Data!,
+            Result = result.Value!,
             IsSuccess = true,
             Message = "String hashed successfully"
         };
@@ -162,15 +163,15 @@ public static class UtilityEndpoint
 
         if (result.IsFailure)
         {
-            logger.LogError("Hash verification failed: {Error}", result.ErrorMessage);
-            return Results.Problem(result.ErrorMessage, statusCode: 500);
+            logger.LogError("Hash verification failed: {Error}", result.Error);
+            return Results.Problem(result.Error, statusCode: 500);
         }
 
         var response = new BooleanUtilityResponse
         {
-            Result = result.Data,
+            Result = result.Value,
             IsSuccess = true,
-            Message = result.Data ? "Hash verification successful - match found" : "Hash verification successful - no match"
+            Message = result.Value ? "Hash verification successful - match found" : "Hash verification successful - no match"
         };
 
         return Results.Ok(response);

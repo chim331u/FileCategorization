@@ -1,4 +1,4 @@
-using FileCategorization_Api.Domain.Entities.Configs;
+using FileCategorization_Shared.DTOs.Configuration;
 using FileCategorization_Api.Interfaces;
 using System.ComponentModel;
 

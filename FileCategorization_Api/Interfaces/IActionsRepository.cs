@@ -1,6 +1,6 @@
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Domain.Entities.FileCategorization;
-using FileCategorization_Api.Domain.Entities.FilesDetail;
+using FileCategorization_Shared.DTOs.FileManagement;
 
 namespace FileCategorization_Api.Interfaces;
 

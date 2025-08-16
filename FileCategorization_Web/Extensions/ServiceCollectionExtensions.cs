@@ -31,8 +31,22 @@ public static class ServiceCollectionExtensions
             services.AddScoped<IFileCategorizationService, LegacyServiceAdapter>();
         }
 
-        // Add WebScrum service (keeping original for now)
-        services.AddScoped<IWebScrumServices, WebScrumServices>();
+        // Add WebScrum services with modern/legacy support
+        if (apiOptions != null && !string.IsNullOrEmpty(apiOptions.BaseUrl))
+        {
+            // Register modern WebScrum service
+            services.AddHttpClient<ModernWebScrumService>(client =>
+            {
+                client.BaseAddress = new Uri(apiOptions.BaseUrl);
+                client.Timeout = apiOptions.Timeout;
+            });
+        }
+        
+        // Register legacy service
+        services.AddScoped<WebScrumServices>();
+        
+        // Register adapter that selects appropriate implementation
+        services.AddScoped<IWebScrumServices, WebScrumServiceAdapter>();
 
         return services;
     }
