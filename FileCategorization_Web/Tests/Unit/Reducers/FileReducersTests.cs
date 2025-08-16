@@ -4,7 +4,7 @@ using FluentAssertions;
 using FileCategorization_Web.Features.FileManagement.Store;
 using FileCategorization_Web.Features.FileManagement.Actions;
 using FileCategorization_Web.Features.FileManagement.Reducers;
-using FileCategorization_Web.Data.DTOs.FileCategorizationDTOs;
+using FileCategorization_Shared.DTOs.FileManagement;using FileCategorization_Shared.DTOs.Configuration;using FileCategorization_Shared.Enums;
 using FileCategorization_Web.Data.Caching;
 
 namespace FileCategorization_Web.Tests.Unit.Reducers;

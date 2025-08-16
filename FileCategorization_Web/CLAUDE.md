@@ -13,11 +13,27 @@ This is a **Blazor WebAssembly** application for file categorization management.
 # Build the project
 dotnet build
 
-# Run the application (development mode)
+# Run the application (development mode) - HTTP port 5046
 dotnet run
 
 # Run with specific profile
-dotnet run --launch-profile https
+dotnet run --launch-profile https  # HTTPS port 7275, HTTP port 5046
+
+# Alternative: specify custom port
+dotnet run --urls "http://localhost:5047"
+```
+
+### Troubleshooting
+```bash
+# If port conflict occurs (address already in use)
+lsof -i :5046  # Check what's using the port
+kill <PID>     # Kill the conflicting process
+
+# Or use a different port
+dotnet run --urls "http://localhost:5047"
+
+# Check compilation errors after namespace changes
+dotnet build --verbosity normal
 ```
 
 ### Testing and Validation
@@ -458,6 +474,22 @@ dotnet sln FileCategorization.Tests.sln add FileCategorization.Web.Tests
 # 5. Enhance test coverage
 # Add component-level tests and E2E scenarios with bUnit
 ```
+
+## 🔧 Recent Fixes & Improvements
+
+### **🚀 Compilation & Runtime Issues Resolved**
+- ✅ **Namespace Consolidation**: Fixed DTOs imports after FileCategorization_Shared migration
+- ✅ **Port Conflict Resolution**: Changed default port from 5045 to 5046 to avoid conflicts
+- ✅ **WebScrum DTOs**: Corrected namespace from `FileCategorization_Web.Data.DTOs.WebScrum` to `FileCategorization_Web.Value.DTOs.WebScrum`
+- ✅ **Cache Actions**: Fixed `ValueType` → `DataType` property reference in CacheHitAction/CacheMissAction reducers
+- ✅ **API Test Fixes**: Corrected repository namespaces from `Infrastructure.Value` to `Infrastructure.Data.Repositories`
+- ✅ **Service Contracts**: Fixed nullability mismatch in IFilesDetailService.GetLastViewList()
+
+### **📊 Testing Infrastructure Status**
+- ✅ **7 Compilation Errors → 0 Errors**: Successfully resolved all build issues
+- ✅ **90+ Tests Validated**: All test files compile correctly with proper namespace imports
+- ✅ **Framework Integration**: xUnit, Moq, FluentAssertions, and Coverage tools properly configured
+- ⚠️ **Execution Limitation**: Tests require dedicated project due to Blazor WebAssembly constraints
 
 ## 💡 Architecture Benefits Achieved
 

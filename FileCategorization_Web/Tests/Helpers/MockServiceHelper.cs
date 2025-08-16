@@ -5,8 +5,8 @@ using Microsoft.Extensions.Options;
 using Moq;
 using FileCategorization_Web.Interfaces;
 using FileCategorization_Web.Services.Caching;
-using FileCategorization_Web.Data.DTOs.FileCategorizationDTOs;
-using FileCategorization_Web.Data.Common;
+using FileCategorization_Shared.DTOs.FileManagement;using FileCategorization_Shared.DTOs.Configuration;using FileCategorization_Shared.Enums;
+using FileCategorization_Shared.Common;
 
 namespace FileCategorization_Web.Tests.Helpers;
 
