@@ -1,9 +1,10 @@
 using AutoMapper;
+using FileCategorization_Api.Common;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using FileCategorization_Api.Services;
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Interfaces;
 using FileCategorization_Api.Contracts.DD;
 using FileCategorization_Api.Domain.Entities.DD_Web;
@@ -105,13 +106,13 @@ public class DDQueryServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.Equal(1, result.Data.ThreadId);
-        Assert.Equal("Test Thread", result.Data.Title);
-        Assert.Equal(testUrl, result.Data.Url);
-        Assert.True(result.Data.IsNewThread);
-        Assert.Equal(1, result.Data.NewLinksCount);
-        Assert.Equal(1, result.Data.TotalLinksCount);
+        Assert.NotNull(result.Value);
+        Assert.Equal(1, result.Value.ThreadId);
+        Assert.Equal("Test Thread", result.Value.Title);
+        Assert.Equal(testUrl, result.Value.Url);
+        Assert.True(result.Value.IsNewThread);
+        Assert.Equal(1, result.Value.NewLinksCount);
+        Assert.Equal(1, result.Value.TotalLinksCount);
 
         // Verify repository calls
         _mockRepository.Verify(x => x.CreateThreadAsync(It.IsAny<DD_Threads>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -178,10 +179,10 @@ public class DDQueryServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.Equal(1, result.Data.ThreadId);
-        Assert.Equal("Updated Title", result.Data.Title);
-        Assert.False(result.Data.IsNewThread);
+        Assert.NotNull(result.Value);
+        Assert.Equal(1, result.Value.ThreadId);
+        Assert.Equal("Updated Title", result.Value.Title);
+        Assert.False(result.Value.IsNewThread);
 
         // Verify repository calls
         _mockRepository.Verify(x => x.UpdateThreadAsync(It.IsAny<DD_Threads>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -202,7 +203,7 @@ public class DDQueryServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Failed to fetch page content", result.ErrorMessage);
+        Assert.Contains("Failed to fetch page content", result.Error);
     }
 
     [Fact]
@@ -255,16 +256,16 @@ public class DDQueryServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Data.Count);
+        Assert.Equal(2, result.Value.Count);
         
-        var thread1 = result.Data.First(t => t.Id == 1);
+        var thread1 = result.Value.First(t => t.Id == 1);
         Assert.Equal("Thread 1", thread1.MainTitle);
         Assert.Equal(5, thread1.LinksCount);
         Assert.Equal(2, thread1.NewLinksCount);
         Assert.Equal(3, thread1.UsedLinksCount);
         Assert.True(thread1.HasNewLinks);
 
-        var thread2 = result.Data.First(t => t.Id == 2);
+        var thread2 = result.Value.First(t => t.Id == 2);
         Assert.Equal("Thread 2", thread2.MainTitle);
         Assert.Equal(3, thread2.LinksCount);
         Assert.Equal(1, thread2.NewLinksCount);
@@ -305,11 +306,11 @@ public class DDQueryServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.Equal(linkId, result.Data.LinkId);
-        Assert.Equal("Test File", result.Data.Title);
-        Assert.Equal("ed2k://testfile", result.Data.Ed2kLink);
-        Assert.Equal(1, result.Data.ThreadId);
+        Assert.NotNull(result.Value);
+        Assert.Equal(linkId, result.Value.LinkId);
+        Assert.Equal("Test File", result.Value.Title);
+        Assert.Equal("ed2k://testfile", result.Value.Ed2kLink);
+        Assert.Equal(1, result.Value.ThreadId);
     }
 
     [Fact]
@@ -356,8 +357,8 @@ public class DDQueryServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.Equal(threadId, result.Data.ThreadId);
+        Assert.NotNull(result.Value);
+        Assert.Equal(threadId, result.Value.ThreadId);
     }
 
     [Fact]
@@ -375,7 +376,7 @@ public class DDQueryServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("not found", result.ErrorMessage);
+        Assert.Contains("not found", result.Error);
     }
 
     [Fact]
@@ -416,9 +417,9 @@ public class DDQueryServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Single(result.Data);
-        Assert.Equal("New File", result.Data.First().Title);
-        Assert.False(result.Data.First().IsUsed);
+        Assert.Single(result.Value);
+        Assert.Equal("New File", result.Value.First().Title);
+        Assert.False(result.Value.First().IsUsed);
     }
 
     [Fact]
@@ -436,7 +437,7 @@ public class DDQueryServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.True(result.Data);
+        Assert.True(result.Value);
 
         // Verify repository call
         _mockRepository.Verify(x => x.DeactivateThreadAsync(threadId, It.IsAny<CancellationToken>()), Times.Once);

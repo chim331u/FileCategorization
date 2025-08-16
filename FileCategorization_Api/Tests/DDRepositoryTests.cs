@@ -126,10 +126,10 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.Equal(1, result.Data.Id);
-        Assert.Equal("Test Thread 1", result.Data.MainTitle);
-        Assert.Equal(url, result.Data.Url);
+        Assert.NotNull(result.Value);
+        Assert.Equal(1, result.Value.Id);
+        Assert.Equal("Test Thread 1", result.Value.MainTitle);
+        Assert.Equal(url, result.Value.Url);
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Null(result.Data);
+        Assert.Null(result.Value);
     }
 
     [Theory]
@@ -156,7 +156,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("URL cannot be null or empty", result.ErrorMessage);
+        Assert.Contains("URL cannot be null or empty", result.Error);
     }
 
     [Fact]
@@ -167,7 +167,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("URL cannot be null or empty", result.ErrorMessage);
+        Assert.Contains("URL cannot be null or empty", result.Error);
     }
 
     [Fact]
@@ -178,9 +178,9 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.Equal(1, result.Data.Id);
-        Assert.Equal("Test Thread 1", result.Data.MainTitle);
+        Assert.NotNull(result.Value);
+        Assert.Equal(1, result.Value.Id);
+        Assert.Equal("Test Thread 1", result.Value.MainTitle);
     }
 
     [Fact]
@@ -191,7 +191,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Null(result.Data);
+        Assert.Null(result.Value);
     }
 
     [Theory]
@@ -204,7 +204,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Thread ID must be greater than zero", result.ErrorMessage);
+        Assert.Contains("Thread ID must be greater than zero", result.Error);
     }
 
     [Fact]
@@ -215,11 +215,11 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Data.Count);
-        Assert.All(result.Data, thread => Assert.True(thread.IsActive));
-        Assert.Contains(result.Data, t => t.Id == 1);
-        Assert.Contains(result.Data, t => t.Id == 2);
-        Assert.DoesNotContain(result.Data, t => t.Id == 3);
+        Assert.Equal(2, result.Value.Count);
+        Assert.All(result.Value, thread => Assert.True(thread.IsActive));
+        Assert.Contains(result.Value, t => t.Id == 1);
+        Assert.Contains(result.Value, t => t.Id == 2);
+        Assert.DoesNotContain(result.Value, t => t.Id == 3);
     }
 
     [Fact]
@@ -238,14 +238,14 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.True(result.Data.Id > 0);
-        Assert.Equal("New Test Thread", result.Data.MainTitle);
-        Assert.True(result.Data.IsActive);
-        Assert.True(result.Data.CreatedDate > DateTime.MinValue);
+        Assert.NotNull(result.Value);
+        Assert.True(result.Value.Id > 0);
+        Assert.Equal("New Test Thread", result.Value.MainTitle);
+        Assert.True(result.Value.IsActive);
+        Assert.True(result.Value.CreatedDate > DateTime.MinValue);
 
         // Verify it was actually saved to database
-        var savedThread = await _context.DDThreads.FindAsync(result.Data.Id);
+        var savedThread = await _context.DDThreads.FindAsync(result.Value.Id);
         Assert.NotNull(savedThread);
         Assert.Equal(newThread.MainTitle, savedThread.MainTitle);
     }
@@ -258,7 +258,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Thread cannot be null", result.ErrorMessage);
+        Assert.Contains("Thread cannot be null", result.Error);
     }
 
     [Fact]
@@ -274,9 +274,9 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal("Updated Title", result.Data.MainTitle);
-        Assert.Equal("Updated Type", result.Data.Type);
-        Assert.True(result.Data.LastUpdatedDate > DateTime.MinValue);
+        Assert.Equal("Updated Title", result.Value.MainTitle);
+        Assert.Equal("Updated Type", result.Value.Type);
+        Assert.True(result.Value.LastUpdatedDate > DateTime.MinValue);
 
         // Verify it was actually updated in database
         var updatedThread = await _context.DDThreads.FindAsync(1);
@@ -293,7 +293,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Thread cannot be null", result.ErrorMessage);
+        Assert.Contains("Thread cannot be null", result.Error);
     }
 
     [Fact]
@@ -304,7 +304,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.True(result.Data);
+        Assert.True(result.Value);
 
         // Verify thread was deactivated
         var thread = await _context.DDThreads.FindAsync(1);
@@ -320,7 +320,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Thread not found", result.ErrorMessage);
+        Assert.Contains("Thread not found", result.Error);
     }
 
     #endregion
@@ -335,9 +335,9 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Data.Count);
-        Assert.All(result.Data, link => Assert.True(link.IsActive));
-        Assert.All(result.Data, link => Assert.Equal(1, link.Threads.Id));
+        Assert.Equal(2, result.Value.Count);
+        Assert.All(result.Value, link => Assert.True(link.IsActive));
+        Assert.All(result.Value, link => Assert.Equal(1, link.Threads.Id));
     }
 
     [Fact]
@@ -360,7 +360,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Empty(result.Data);
+        Assert.Empty(result.Value);
     }
 
     [Theory]
@@ -373,7 +373,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Thread ID must be greater than zero", result.ErrorMessage);
+        Assert.Contains("Thread ID must be greater than zero", result.Error);
     }
 
     [Fact]
@@ -384,9 +384,9 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.Equal(1, result.Data.Id);
-        Assert.Equal("Movie File 1", result.Data.Title);
+        Assert.NotNull(result.Value);
+        Assert.Equal(1, result.Value.Id);
+        Assert.Equal("Movie File 1", result.Value.Title);
     }
 
     [Fact]
@@ -397,7 +397,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Null(result.Data);
+        Assert.Null(result.Value);
     }
 
     [Fact]
@@ -415,8 +415,8 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Single(result.Data);
-        Assert.Equal("ed2k://|file|movie1.avi|123|ABC|/", result.Data[0].Ed2kLink);
+        Assert.Single(result.Value);
+        Assert.Equal("ed2k://|file|movie1.avi|123|ABC|/", result.Value[0].Ed2kLink);
     }
 
     [Fact]
@@ -427,7 +427,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Empty(result.Data);
+        Assert.Empty(result.Value);
     }
 
     [Fact]
@@ -460,7 +460,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Data);
+        Assert.Equal(2, result.Value);
 
         // Verify links were created
         var createdLinks = await _context.DDLinkEd2
@@ -478,7 +478,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(0, result.Data);
+        Assert.Equal(0, result.Value);
     }
 
     [Fact]
@@ -499,7 +499,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(links.Count, result.Data);
+        Assert.Equal(links.Count, result.Value);
 
         // Verify updates
         var updatedLinks = await _context.DDLinkEd2
@@ -517,10 +517,10 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.True(result.Data.IsUsed);
-        Assert.False(result.Data.IsNew);
-        Assert.True(result.Data.LastUpdatedDate > DateTime.MinValue);
+        Assert.NotNull(result.Value);
+        Assert.True(result.Value.IsUsed);
+        Assert.False(result.Value.IsNew);
+        Assert.True(result.Value.LastUpdatedDate > DateTime.MinValue);
 
         // Verify in database
         var link = await _context.DDLinkEd2.FindAsync(1);
@@ -536,7 +536,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Link not found", result.ErrorMessage);
+        Assert.Contains("Link not found", result.Error);
     }
 
     [Fact]
@@ -550,7 +550,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.True(result.Data);
+        Assert.True(result.Value);
 
         // Verify deactivation
         var links = await _context.DDLinkEd2
@@ -568,7 +568,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.True(result.Data);
+        Assert.True(result.Value);
     }
 
     #endregion
@@ -583,7 +583,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(1, result.Data); // Only one new link for thread 1
+        Assert.Equal(1, result.Value); // Only one new link for thread 1
     }
 
     [Fact]
@@ -602,7 +602,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(0, result.Data);
+        Assert.Equal(0, result.Value);
     }
 
     [Fact]
@@ -616,9 +616,9 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Data.Count);
-        Assert.Equal(2, result.Data[1]); // Thread 1 has 2 active links
-        Assert.Equal(1, result.Data[2]); // Thread 2 has 1 active link
+        Assert.Equal(2, result.Value.Count);
+        Assert.Equal(2, result.Value[1]); // Thread 1 has 2 active links
+        Assert.Equal(1, result.Value[2]); // Thread 2 has 1 active link
     }
 
     [Fact]
@@ -643,9 +643,9 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Data.Count);
-        Assert.Equal(2, result.Data[1]);
-        Assert.Equal(0, result.Data[newThread.Id]);
+        Assert.Equal(2, result.Value.Count);
+        Assert.Equal(2, result.Value[1]);
+        Assert.Equal(0, result.Value[newThread.Id]);
     }
 
     [Fact]
@@ -656,7 +656,7 @@ public class DDRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Empty(result.Data);
+        Assert.Empty(result.Value);
     }
 
     #endregion

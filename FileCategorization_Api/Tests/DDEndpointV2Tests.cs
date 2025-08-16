@@ -5,7 +5,7 @@ using System.Text.Json;
 using Xunit;
 using Moq;
 using FileCategorization_Api.Interfaces;
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Contracts.DD;
 using Microsoft.Extensions.Logging;
 using System.Net;

@@ -1,8 +1,10 @@
+using FileCategorization_Api.Domain.Enums;
+using FileCategorization_Api.Domain.Entities.FilesDetail;
 using AutoMapper;
 using FileCategorization_Api.Services;
-using FileCategorization_Api.Domain.Entities.FilesDetail;
-using FileCategorization_Api.Common;
-using FileCategorization_Api.Domain.Enums;
+using FileCategorization_Shared.DTOs.FileManagement;
+using FileCategorization_Shared.Common;
+using FileCategorization_Shared.Enums;
 using FileCategorization_Api.Interfaces;
 using FileCategorization_Api.Domain.Entities.FileCategorization;
 using Microsoft.Extensions.Logging;
@@ -46,7 +48,7 @@ public class FilesQueryServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(expectedCategories, result.Data);
+        Assert.Equal(expectedCategories, result.Value);
         _mockRepository.Verify(r => r.GetCategoriesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -66,7 +68,7 @@ public class FilesQueryServiceTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal(errorMessage, result.ErrorMessage);
+        Assert.Equal(errorMessage, result.Error);
         _mockRepository.Verify(r => r.GetCategoriesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -101,7 +103,7 @@ public class FilesQueryServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(expectedResponses, result.Data);
+        Assert.Equal(expectedResponses, result.Value);
         _mockRepository.Verify(r => r.GetFilteredFilesAsync((int)filterType, It.IsAny<CancellationToken>()), Times.Once);
         _mockMapper.Verify(m => m.Map<IEnumerable<FilesDetailResponse>>(files), Times.Once);
     }
@@ -123,7 +125,7 @@ public class FilesQueryServiceTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal(errorMessage, result.ErrorMessage);
+        Assert.Equal(errorMessage, result.Error);
         _mockRepository.Verify(r => r.GetFilteredFilesAsync((int)filterType, It.IsAny<CancellationToken>()), Times.Once);
         _mockMapper.Verify(m => m.Map<IEnumerable<FilesDetailResponse>>(It.IsAny<IEnumerable<FilesDetail>>()), Times.Never);
     }
@@ -139,7 +141,7 @@ public class FilesQueryServiceTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Search pattern cannot be empty", result.ErrorMessage);
+        Assert.Equal("Search pattern cannot be empty", result.Error);
         _mockRepository.Verify(r => r.SearchByNameAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -174,7 +176,7 @@ public class FilesQueryServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(expectedResponses, result.Data);
+        Assert.Equal(expectedResponses, result.Value);
         _mockRepository.Verify(r => r.SearchByNameAsync(pattern, It.IsAny<CancellationToken>()), Times.Once);
         _mockMapper.Verify(m => m.Map<IEnumerable<FilesDetailResponse>>(files), Times.Once);
     }
@@ -209,7 +211,7 @@ public class FilesQueryServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(expectedResponses, result.Data);
+        Assert.Equal(expectedResponses, result.Value);
         _mockRepository.Verify(r => r.GetLatestFilesByCategoryAsync(It.IsAny<CancellationToken>()), Times.Once);
         _mockMapper.Verify(m => m.Map<IEnumerable<FilesDetailResponse>>(latestFiles), Times.Once);
     }

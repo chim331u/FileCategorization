@@ -1,7 +1,7 @@
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Contracts.Actions;
 using FileCategorization_Api.Domain.Entities.FileCategorization;
-using FileCategorization_Api.Domain.Entities.FilesDetail;
+using FileCategorization_Shared.DTOs.FileManagement;
 using FileCategorization_Api.Interfaces;
 using FileCategorization_Api.Services;
 using Hangfire;
@@ -133,12 +133,12 @@ public class ActionsServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.NotEmpty(result.Data!.JobId);
-        Assert.Equal("Queued", result.Data.Status);
-        Assert.Equal(request.BatchSize, result.Data.Metadata["BatchSize"]);
-        Assert.Equal(request.ForceRecategorization, result.Data.Metadata["ForceRecategorization"]);
-        Assert.Equal(request.FileExtensionFilters, result.Data.Metadata["FileExtensionFilters"]);
+        Assert.NotNull(result.Value);
+        Assert.NotEmpty(result.Value!.JobId);
+        Assert.Equal("Queued", result.Value.Status);
+        Assert.Equal(request.BatchSize, result.Value.Metadata["BatchSize"]);
+        Assert.Equal(request.ForceRecategorization, result.Value.Metadata["ForceRecategorization"]);
+        Assert.Equal(request.FileExtensionFilters, result.Value.Metadata["FileExtensionFilters"]);
     }
 
     [Fact]
@@ -157,8 +157,8 @@ public class ActionsServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        var filters = (List<string>)result.Data!.Metadata["FileExtensionFilters"];
+        Assert.NotNull(result.Value);
+        var filters = (List<string>)result.Value!.Metadata["FileExtensionFilters"];
         Assert.Empty(filters);
     }
 
@@ -212,13 +212,13 @@ public class ActionsServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.NotEmpty(result.Data!.JobId);
-        Assert.Equal("Queued", result.Data.Status);
-        Assert.Equal(2, result.Data.TotalItems);
-        Assert.Equal(request.ContinueOnError, result.Data.Metadata["ContinueOnError"]);
-        Assert.Equal(request.ValidateCategories, result.Data.Metadata["ValidateCategories"]);
-        Assert.Equal(request.CreateDirectories, result.Data.Metadata["CreateDirectories"]);
+        Assert.NotNull(result.Value);
+        Assert.NotEmpty(result.Value!.JobId);
+        Assert.Equal("Queued", result.Value.Status);
+        Assert.Equal(2, result.Value.TotalItems);
+        Assert.Equal(request.ContinueOnError, result.Value.Metadata["ContinueOnError"]);
+        Assert.Equal(request.ValidateCategories, result.Value.Metadata["ValidateCategories"]);
+        Assert.Equal(request.CreateDirectories, result.Value.Metadata["CreateDirectories"]);
     }
 
     [Fact]
@@ -249,7 +249,7 @@ public class ActionsServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Files not found: 999", result.ErrorMessage);
+        Assert.Contains("Files not found: 999", result.Error);
     }
 
     [Fact]
@@ -280,8 +280,8 @@ public class ActionsServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        var missingFiles = (List<int>)result.Data!.Metadata["MissingFiles"];
+        Assert.NotNull(result.Value);
+        var missingFiles = (List<int>)result.Value!.Metadata["MissingFiles"];
         Assert.Contains(999, missingFiles);
     }
 
@@ -306,7 +306,7 @@ public class ActionsServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Failed to validate files: Database error", result.ErrorMessage);
+        Assert.Contains("Failed to validate files: Database error", result.Error);
     }
 
     #endregion
@@ -321,10 +321,10 @@ public class ActionsServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.NotEmpty(result.Data!.JobId);
-        Assert.Equal("Running", result.Data.Status);
-        Assert.Equal("ForceCategorize", result.Data.Metadata["Operation"]);
+        Assert.NotNull(result.Value);
+        Assert.NotEmpty(result.Value!.JobId);
+        Assert.Equal("Running", result.Value.Status);
+        Assert.Equal("ForceCategorize", result.Value.Metadata["Operation"]);
     }
 
     [Fact]
@@ -361,14 +361,14 @@ public class ActionsServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.True(result.Data!.Success);
-        Assert.Equal(expectedMessage, result.Data.Message);
-        Assert.NotNull(result.Data.ModelVersion);
-        Assert.True(result.Data.TrainingDuration.TotalMilliseconds >= 0);
-        Assert.Equal(1024, result.Data.ModelSizeBytes);
-        Assert.Equal("/path/model.zip", result.Data.ModelPath);
-        Assert.Contains("TrainingDurationSeconds", result.Data.Metrics.Keys);
+        Assert.NotNull(result.Value);
+        Assert.True(result.Value!.Success);
+        Assert.Equal(expectedMessage, result.Value.Message);
+        Assert.NotNull(result.Value.ModelVersion);
+        Assert.True(result.Value.TrainingDuration.TotalMilliseconds >= 0);
+        Assert.Equal(1024, result.Value.ModelSizeBytes);
+        Assert.Equal("/path/model.zip", result.Value.ModelPath);
+        Assert.Contains("TrainingDurationSeconds", result.Value.Metrics.Keys);
     }
 
     [Fact]
@@ -383,7 +383,7 @@ public class ActionsServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Model training failed: Training failed", result.ErrorMessage);
+        Assert.Contains("Model training failed: Training failed", result.Error);
     }
 
     [Fact]
@@ -401,10 +401,10 @@ public class ActionsServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.True(result.Data!.Success);
-        Assert.Null(result.Data.ModelSizeBytes); // Should not be set due to info failure
-        Assert.Null(result.Data.ModelPath);
+        Assert.NotNull(result.Value);
+        Assert.True(result.Value!.Success);
+        Assert.Null(result.Value.ModelSizeBytes); // Should not be set due to info failure
+        Assert.Null(result.Value.ModelPath);
     }
 
     [Fact]
@@ -419,7 +419,7 @@ public class ActionsServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Unexpected error", result.ErrorMessage);
+        Assert.Contains("Unexpected error", result.Error);
     }
 
     [Fact]
@@ -437,7 +437,7 @@ public class ActionsServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("canceled", result.ErrorMessage.ToLowerInvariant());
+        Assert.Contains("canceled", result.Error.ToLowerInvariant());
     }
 
     #endregion
@@ -455,10 +455,10 @@ public class ActionsServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.Equal(jobId, result.Data!.JobId);
-        Assert.Equal("Unknown", result.Data.Status);
-        Assert.Contains("Note", result.Data.Metadata.Keys);
+        Assert.NotNull(result.Value);
+        Assert.Equal(jobId, result.Value!.JobId);
+        Assert.Equal("Unknown", result.Value.Status);
+        Assert.Contains("Note", result.Value.Metadata.Keys);
     }
 
     [Fact]
@@ -469,7 +469,7 @@ public class ActionsServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Job ID cannot be null or empty", result.ErrorMessage);
+        Assert.Contains("Job ID cannot be null or empty", result.Error);
     }
 
     [Fact]
@@ -480,7 +480,7 @@ public class ActionsServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Job ID cannot be null or empty", result.ErrorMessage);
+        Assert.Contains("Job ID cannot be null or empty", result.Error);
     }
 
     [Fact]
@@ -491,7 +491,7 @@ public class ActionsServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Job ID cannot be null or empty", result.ErrorMessage);
+        Assert.Contains("Job ID cannot be null or empty", result.Error);
     }
 
     [Fact]
@@ -556,8 +556,8 @@ public class ActionsServiceTests
         Assert.True(moveResult.IsSuccess);
 
         // Verify all operations returned valid job information
-        Assert.NotEmpty(refreshResult.Data!.JobId);
-        Assert.NotEmpty(moveResult.Data!.JobId);
+        Assert.NotEmpty(refreshResult.Value!.JobId);
+        Assert.NotEmpty(moveResult.Value!.JobId);
     }
 
     #endregion
@@ -594,7 +594,7 @@ public class ActionsServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(1000, result.Data!.TotalItems);
+        Assert.Equal(1000, result.Value!.TotalItems);
         
         // Performance assertion - validation should be fast
         Assert.True(stopwatch.ElapsedMilliseconds < 1000, 

@@ -20,6 +20,17 @@ dotnet test --filter "ClassName" # Run tests for specific class
 
 Tests are located in the `Tests/` folder and use xUnit with in-memory database for repository testing.
 
+### Troubleshooting
+```bash
+# Check compilation errors
+dotnet build --verbosity normal
+
+# Common fixes for namespace issues:
+# - Repository tests: use Infrastructure.Data.Repositories (not Infrastructure.Value.Repositories)
+# - Service contracts: ensure nullability consistency between interfaces and implementations
+# - Missing mapping profiles: verify AutoMapper configuration is registered
+```
+
 ### Database Operations
 ```bash
 dotnet ef migrations add <MigrationName>  # Add new migration

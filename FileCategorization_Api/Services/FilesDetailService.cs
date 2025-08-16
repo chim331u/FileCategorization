@@ -1,5 +1,6 @@
-using FileCategorization_Api.Infrastructure.Data;
 using FileCategorization_Api.Domain.Entities.FilesDetail;
+using FileCategorization_Api.Infrastructure.Data;
+using FileCategorization_Shared.DTOs.FileManagement;
 using FileCategorization_Api.Interfaces;
 using FileCategorization_Api.Domain.Entities.FileCategorization;
 using Microsoft.EntityFrameworkCore;
@@ -409,7 +410,7 @@ namespace FileCategorization_Api.Services
         /// Get the last view list of files
         /// </summary>
         /// <returns>list of FilesDetail</returns>
-        public async Task<IEnumerable<FilesDetailResponse>> GetLastViewList()
+        public async Task<IEnumerable<FilesDetailResponse?>> GetLastViewList()
         {
             try
             {
@@ -461,11 +462,11 @@ namespace FileCategorization_Api.Services
 
                     if (categorizedFilesResult.IsFailure)
                     {
-                        _logger.LogError("Failed to categorize files: {ErrorMessage}", categorizedFilesResult.ErrorMessage);
+                        _logger.LogError("Failed to categorize files: {ErrorMessage}", categorizedFilesResult.Error);
                         return null;
                     }
                     
-                    var _categorizedFiles = categorizedFilesResult.Data!;
+                    var _categorizedFiles = categorizedFilesResult.Value!;
                     _logger.LogInformation($"End Prediction process: [{_utilityServices.TimeDiff(_categorizationStartTime, DateTime.Now)}]");
 
                     //add to db

@@ -1,6 +1,6 @@
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Contracts.Actions;
-using FileCategorization_Api.Domain.Entities.FilesDetail;
+using FileCategorization_Shared.DTOs.FileManagement;
 using FileCategorization_Api.Endpoints;
 using FileCategorization_Api.Interfaces;
 using Microsoft.AspNetCore.Http;
@@ -459,8 +459,8 @@ public class ActionsEndpointV2Tests
         var result = await _mockActionsService.Object.RefreshFilesAsync(request, cancellationToken);
         
         return result.IsSuccess 
-            ? Results.Ok(result.Data) 
-            : Results.BadRequest(new { Error = result.ErrorMessage });
+            ? Results.Ok(result.Value) 
+            : Results.BadRequest(new { Error = result.Error });
     }
 
     /// <summary>
@@ -473,8 +473,8 @@ public class ActionsEndpointV2Tests
         var result = await _mockActionsService.Object.MoveFilesAsync(request, cancellationToken);
         
         return result.IsSuccess 
-            ? Results.Ok(result.Data) 
-            : Results.BadRequest(new { Error = result.ErrorMessage });
+            ? Results.Ok(result.Value) 
+            : Results.BadRequest(new { Error = result.Error });
     }
 
     /// <summary>
@@ -485,8 +485,8 @@ public class ActionsEndpointV2Tests
         var result = await _mockActionsService.Object.ForceCategorizeAsync(cancellationToken);
         
         return result.IsSuccess 
-            ? Results.Ok(result.Data) 
-            : Results.BadRequest(new { Error = result.ErrorMessage });
+            ? Results.Ok(result.Value) 
+            : Results.BadRequest(new { Error = result.Error });
     }
 
     /// <summary>
@@ -497,8 +497,8 @@ public class ActionsEndpointV2Tests
         var result = await _mockActionsService.Object.TrainModelAsync(cancellationToken);
         
         return result.IsSuccess 
-            ? Results.Ok(result.Data) 
-            : Results.BadRequest(new { Error = result.ErrorMessage });
+            ? Results.Ok(result.Value) 
+            : Results.BadRequest(new { Error = result.Error });
     }
 
     /// <summary>
@@ -511,8 +511,8 @@ public class ActionsEndpointV2Tests
         var result = await _mockActionsService.Object.GetJobStatusAsync(jobId, cancellationToken);
         
         return result.IsSuccess 
-            ? Results.Ok(result.Data) 
-            : Results.BadRequest(new { Error = result.ErrorMessage });
+            ? Results.Ok(result.Value) 
+            : Results.BadRequest(new { Error = result.Error });
     }
 
     #endregion

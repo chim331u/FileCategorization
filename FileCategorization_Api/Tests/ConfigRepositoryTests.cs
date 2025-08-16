@@ -57,9 +57,9 @@ public class ConfigRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.Equal("TestKey", result.Data.Key);
-        Assert.Equal("TestValue", result.Data.Value);
+        Assert.NotNull(result.Value);
+        Assert.Equal("TestKey", result.Value.Key);
+        Assert.Equal("TestValue", result.Value.Value);
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class ConfigRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Null(result.Data);
+        Assert.Null(result.Value);
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public class ConfigRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Contains("cannot be null or empty", result.ErrorMessage);
+        Assert.Contains("cannot be null or empty", result.Error);
     }
 
     [Fact]
@@ -106,7 +106,7 @@ public class ConfigRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal("TestValue", result.Data);
+        Assert.Equal("TestValue", result.Value);
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public class ConfigRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.True(result.Data);
+        Assert.True(result.Value);
     }
 
     [Fact]
@@ -142,7 +142,7 @@ public class ConfigRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.False(result.Data);
+        Assert.False(result.Value);
     }
 
     [Fact]
@@ -167,7 +167,7 @@ public class ConfigRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.False(result.Data); // Should return false because we excluded the matching record
+        Assert.False(result.Value); // Should return false because we excluded the matching record
     }
 
     [Fact]
@@ -202,8 +202,8 @@ public class ConfigRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Single(result.Data);
-        Assert.Equal("DevKey", result.Data.First().Key);
+        Assert.Single(result.Value);
+        Assert.Equal("DevKey", result.Value.First().Key);
     }
 
     [Fact]
@@ -222,9 +222,9 @@ public class ConfigRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal("NewKey", result.Data!.Key);
-        Assert.Equal("NewValue", result.Data.Value);
-        Assert.True(result.Data.IsActive);
+        Assert.Equal("NewKey", result.Value!.Key);
+        Assert.Equal("NewValue", result.Value.Value);
+        Assert.True(result.Value.IsActive);
     }
 
     [Fact]
@@ -256,7 +256,7 @@ public class ConfigRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Contains("already exists", result.ErrorMessage);
+        Assert.Contains("already exists", result.Error);
     }
 
     [Fact]
@@ -281,7 +281,7 @@ public class ConfigRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.True(result.Data);
+        Assert.True(result.Value);
 
         // Verify the update in database
         var updatedConfig = await _context.Configuration.FindAsync(config.Id);
@@ -296,7 +296,7 @@ public class ConfigRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.False(result.Data);
+        Assert.False(result.Value);
     }
 
     /// <summary>

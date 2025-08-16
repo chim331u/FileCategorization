@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using FileCategorization_Api.Services;
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Domain.Entities.DD_Web;
 
 namespace FileCategorization_Api.Tests;
@@ -64,7 +64,7 @@ public class DDWebScrapingServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(expectedContent, result.Data);
+        Assert.Equal(expectedContent, result.Value);
     }
 
     [Fact]
@@ -90,8 +90,8 @@ public class DDWebScrapingServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Failed to fetch page", result.ErrorMessage);
-        Assert.Contains("NotFound", result.ErrorMessage);
+        Assert.Contains("Failed to fetch page", result.Error);
+        Assert.Contains("NotFound", result.Error);
     }
 
     [Fact]
@@ -113,7 +113,7 @@ public class DDWebScrapingServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Network error occurred", result.ErrorMessage);
+        Assert.Contains("Network error occurred", result.Error);
     }
 
     [Fact]
@@ -135,10 +135,10 @@ public class DDWebScrapingServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.Equal("Test Movie Thread", result.Data.MainTitle);
-        Assert.True(result.Data.IsActive);
-        Assert.True(result.Data.CreatedDate > DateTime.MinValue);
+        Assert.NotNull(result.Value);
+        Assert.Equal("Test Movie Thread", result.Value.MainTitle);
+        Assert.True(result.Value.IsActive);
+        Assert.True(result.Value.CreatedDate > DateTime.MinValue);
     }
 
     [Fact]
@@ -152,7 +152,7 @@ public class DDWebScrapingServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Unable to find thread title", result.ErrorMessage);
+        Assert.Contains("Unable to find thread title", result.Error);
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public class DDWebScrapingServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Unable to find thread title", result.ErrorMessage);
+        Assert.Contains("Unable to find thread title", result.Error);
     }
 
     [Fact]
@@ -195,10 +195,10 @@ public class DDWebScrapingServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.Equal(2, result.Data.Count);
+        Assert.NotNull(result.Value);
+        Assert.Equal(2, result.Value.Count);
 
-        var firstLink = result.Data.First();
+        var firstLink = result.Value.First();
         Assert.Equal("movie1.avi", firstLink.Title);
         Assert.Contains("ed2k://", firstLink.Ed2kLink);
         Assert.Equal(thread, firstLink.Threads);
@@ -231,8 +231,8 @@ public class DDWebScrapingServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.Empty(result.Data);
+        Assert.NotNull(result.Value);
+        Assert.Empty(result.Value);
     }
 
     [Fact]
@@ -261,8 +261,8 @@ public class DDWebScrapingServiceTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Data.Count);
-        Assert.All(result.Data, link => Assert.StartsWith("ed2k://", link.Ed2kLink));
+        Assert.Equal(2, result.Value.Count);
+        Assert.All(result.Value, link => Assert.StartsWith("ed2k://", link.Ed2kLink));
     }
 
     // LoginAsync is private, no need to test it directly
@@ -277,7 +277,7 @@ public class DDWebScrapingServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Thread URL cannot be null or empty", result.ErrorMessage);
+        Assert.Contains("Thread URL cannot be null or empty", result.Error);
     }
 
     [Fact]
@@ -288,7 +288,7 @@ public class DDWebScrapingServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Thread URL cannot be null or empty", result.ErrorMessage);
+        Assert.Contains("Thread URL cannot be null or empty", result.Error);
     }
 
     [Theory]
@@ -301,7 +301,7 @@ public class DDWebScrapingServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("HTML content cannot be null or empty", result.ErrorMessage);
+        Assert.Contains("HTML content cannot be null or empty", result.Error);
     }
 
     [Fact] 
@@ -312,7 +312,7 @@ public class DDWebScrapingServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("HTML content cannot be null or empty", result.ErrorMessage);
+        Assert.Contains("HTML content cannot be null or empty", result.Error);
     }
 
     [Fact]
@@ -326,7 +326,7 @@ public class DDWebScrapingServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Thread cannot be null", result.ErrorMessage);
+        Assert.Contains("Thread cannot be null", result.Error);
     }
 
     // Service doesn't implement IDisposable

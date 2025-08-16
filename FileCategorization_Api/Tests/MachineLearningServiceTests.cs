@@ -1,4 +1,4 @@
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Domain.Entities.FileCategorization;
 using FileCategorization_Api.Interfaces;
 using FileCategorization_Api.Services;
@@ -88,7 +88,7 @@ public class MachineLearningServiceTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("File name cannot be null or empty", result.ErrorMessage);
+        Assert.Contains("File name cannot be null or empty", result.Error);
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public class MachineLearningServiceTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("File name cannot be null or empty", result.ErrorMessage);
+        Assert.Contains("File name cannot be null or empty", result.Error);
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public class MachineLearningServiceTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("File name cannot be null or empty", result.ErrorMessage);
+        Assert.Contains("File name cannot be null or empty", result.Error);
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public class MachineLearningServiceTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Failed to load model", result.ErrorMessage);
+        Assert.Contains("Failed to load model", result.Error);
     }
 
     [Fact]
@@ -142,7 +142,7 @@ public class MachineLearningServiceTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Training data file not found", result.ErrorMessage);
+        Assert.Contains("Training data file not found", result.Error);
     }
 
     #endregion
@@ -157,7 +157,7 @@ public class MachineLearningServiceTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("File list cannot be null", result.ErrorMessage);
+        Assert.Contains("File list cannot be null", result.Error);
     }
 
     [Fact]
@@ -171,7 +171,7 @@ public class MachineLearningServiceTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Empty(result.Data!);
+        Assert.Empty(result.Value!);
     }
 
     [Fact]
@@ -191,7 +191,7 @@ public class MachineLearningServiceTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.All(result.Data!, file => Assert.Equal("Unknown", file.FileCategory));
+        Assert.All(result.Value!, file => Assert.Equal("Unknown", file.FileCategory));
     }
 
 
@@ -211,7 +211,7 @@ public class MachineLearningServiceTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Training data file not found", result.ErrorMessage);
+        Assert.Contains("Training data file not found", result.Error);
     }
 
     [Fact]
@@ -225,7 +225,7 @@ public class MachineLearningServiceTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Contains("Model training completed successfully", result.Data);
+        Assert.Contains("Model training completed successfully", result.Value);
         
         // Verify model file was created
         var modelPath = Path.Combine(_testModelDirectory, "test_model.zip");
@@ -243,7 +243,7 @@ public class MachineLearningServiceTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Failed to load training data", result.ErrorMessage);
+        Assert.Contains("Failed to load training data", result.Error);
     }
 
     #endregion
@@ -258,7 +258,7 @@ public class MachineLearningServiceTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Contains("Model not found", result.Data);
+        Assert.Contains("Model not found", result.Value);
     }
 
     [Fact]
@@ -274,9 +274,9 @@ public class MachineLearningServiceTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Contains("Model exists at", result.Data);
-        Assert.Contains("Size:", result.Data);
-        Assert.Contains("Last Modified:", result.Data);
+        Assert.Contains("Model exists at", result.Value);
+        Assert.Contains("Size:", result.Value);
+        Assert.Contains("Last Modified:", result.Value);
     }
 
     [Fact]
@@ -291,7 +291,7 @@ public class MachineLearningServiceTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Failed to get configuration", result.ErrorMessage);
+        Assert.Contains("Failed to get configuration", result.Error);
     }
 
     #endregion
@@ -361,12 +361,12 @@ public class MachineLearningServiceTests : IDisposable
         // Act - Predict single file first to load the model into cache
         var predictResult = await _service.PredictFileCategoryAsync("action_movie_2024.mp4");
         Assert.True(predictResult.IsSuccess);
-        Assert.NotEmpty(predictResult.Data!);
+        Assert.NotEmpty(predictResult.Value!);
 
         // Act - Get model info (now it should show cached info)
         var infoResult = await _service.GetModelInfoAsync();
         Assert.True(infoResult.IsSuccess);
-        Assert.Contains("Model exists at", infoResult.Data);
+        Assert.Contains("Model exists at", infoResult.Value);
 
         // Act - Predict multiple files
         var files = new List<FilesDetail>
@@ -378,7 +378,7 @@ public class MachineLearningServiceTests : IDisposable
 
         var batchResult = await _service.PredictFileCategoriesAsync(files);
         Assert.True(batchResult.IsSuccess);
-        Assert.All(batchResult.Data!, file => Assert.NotEmpty(file.FileCategory ?? ""));
+        Assert.All(batchResult.Value!, file => Assert.NotEmpty(file.FileCategory ?? ""));
     }
 
     #endregion

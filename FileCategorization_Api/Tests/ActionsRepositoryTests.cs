@@ -1,4 +1,4 @@
-using FileCategorization_Api.Common;
+using FileCategorization_Shared.Common;
 using FileCategorization_Api.Domain.Entities.FileCategorization;
 using FileCategorization_Api.Infrastructure.Data;
 using FileCategorization_Api.Infrastructure.Data.Repositories;
@@ -70,7 +70,7 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Empty(result.Data!);
+        Assert.Empty(result.Value!);
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Empty(result.Data!);
+        Assert.Empty(result.Value!);
     }
 
     [Fact]
@@ -108,10 +108,10 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Data!.Count);
-        Assert.Contains(1, result.Data.Keys);
-        Assert.Contains(2, result.Data.Keys);
-        Assert.DoesNotContain(3, result.Data.Keys);
+        Assert.Equal(2, result.Value!.Count);
+        Assert.Contains(1, result.Value.Keys);
+        Assert.Contains(2, result.Value.Keys);
+        Assert.DoesNotContain(3, result.Value.Keys);
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Empty(result.Data!);
+        Assert.Empty(result.Value!);
     }
 
     [Fact]
@@ -141,7 +141,7 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Empty(result.Data!); // No files exist with those IDs
+        Assert.Empty(result.Value!); // No files exist with those IDs
     }
 
     #endregion
@@ -156,7 +156,7 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(0, result.Data);
+        Assert.Equal(0, result.Value);
     }
 
     [Fact]
@@ -170,7 +170,7 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(0, result.Data);
+        Assert.Equal(0, result.Value);
     }
 
     [Fact]
@@ -200,7 +200,7 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Data);
+        Assert.Equal(2, result.Value);
 
         // Verify updates in database
         var dbFile1 = await _context.FilesDetail.FindAsync(1);
@@ -224,7 +224,7 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(0, result.Data); // No files updated
+        Assert.Equal(0, result.Value); // No files updated
     }
 
     [Fact]
@@ -244,7 +244,7 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert - Will succeed but update 0 files since they don't exist
         Assert.True(result.IsSuccess);
-        Assert.Equal(0, result.Data);
+        Assert.Equal(0, result.Value);
     }
 
     #endregion
@@ -262,7 +262,7 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Empty(result.Data!);
+        Assert.Empty(result.Value!);
     }
 
     [Fact]
@@ -286,11 +286,11 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Data!.Count);
-        Assert.Contains("file1.txt", result.Data);
-        Assert.Contains("file2.jpg", result.Data);
-        Assert.DoesNotContain("file3.mp4", result.Data);
-        Assert.DoesNotContain("nonexistent.pdf", result.Data);
+        Assert.Equal(2, result.Value!.Count);
+        Assert.Contains("file1.txt", result.Value);
+        Assert.Contains("file2.jpg", result.Value);
+        Assert.DoesNotContain("file3.mp4", result.Value);
+        Assert.DoesNotContain("nonexistent.pdf", result.Value);
     }
 
     [Fact]
@@ -306,7 +306,7 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Empty(result.Data!); // No files exist
+        Assert.Empty(result.Value!); // No files exist
     }
 
     #endregion
@@ -328,7 +328,7 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Data);
+        Assert.Equal(2, result.Value);
 
         // Verify files were added to database
         var dbFiles = await _context.FilesDetail.ToListAsync();
@@ -348,7 +348,7 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(0, result.Data);
+        Assert.Equal(0, result.Value);
     }
 
     #endregion
@@ -373,7 +373,7 @@ public class ActionsRepositoryTests : IDisposable
 
             // Assert
             Assert.True(result.IsSuccess);
-            Assert.Equal(2, result.Data);
+            Assert.Equal(2, result.Value);
 
             // Verify file content
             var content = await File.ReadAllTextAsync(tempFilePath);
@@ -401,7 +401,7 @@ public class ActionsRepositoryTests : IDisposable
 
             // Assert
             Assert.True(result.IsSuccess);
-            Assert.Equal(0, result.Data);
+            Assert.Equal(0, result.Value);
         }
         finally
         {
@@ -443,7 +443,7 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(1000, result.Data);
+        Assert.Equal(1000, result.Value);
         
         // Performance assertion - should complete in reasonable time
         Assert.True(stopwatch.ElapsedMilliseconds < 5000, $"Batch update took too long: {stopwatch.ElapsedMilliseconds}ms");
@@ -464,7 +464,7 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Cannot access a disposed context", result.ErrorMessage);
+        Assert.Contains("Cannot access a disposed context", result.Error);
     }
 
     [Fact]
@@ -483,7 +483,7 @@ public class ActionsRepositoryTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Cannot access a disposed context", result.ErrorMessage);
+        Assert.Contains("Cannot access a disposed context", result.Error);
     }
 
     #endregion

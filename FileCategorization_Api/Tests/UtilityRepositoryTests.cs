@@ -36,9 +36,9 @@ public class UtilityRepositoryTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.NotEmpty(result.Data);
-        Assert.NotEqual(plainText, result.Data);
+        Assert.NotNull(result.Value);
+        Assert.NotEmpty(result.Value);
+        Assert.NotEqual(plainText, result.Value);
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public class UtilityRepositoryTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Plain text cannot be null or empty", result.ErrorMessage);
+        Assert.Equal("Plain text cannot be null or empty", result.Error);
     }
 
     [Fact]
@@ -64,11 +64,11 @@ public class UtilityRepositoryTests
         Assert.True(encryptResult.IsSuccess);
 
         // Act
-        var decryptResult = await _repository.DecryptStringAsync(encryptResult.Data!);
+        var decryptResult = await _repository.DecryptStringAsync(encryptResult.Value!);
 
         // Assert
         Assert.True(decryptResult.IsSuccess);
-        Assert.Equal(originalText, decryptResult.Data);
+        Assert.Equal(originalText, decryptResult.Value);
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public class UtilityRepositoryTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Contains("Invalid encrypted text format", result.ErrorMessage);
+        Assert.Contains("Invalid encrypted text format", result.Error);
     }
 
     [Fact]
@@ -96,9 +96,9 @@ public class UtilityRepositoryTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Data);
-        Assert.Equal(64, result.Data.Length); // SHA256 hash is 64 characters
-        Assert.Matches("^[a-f0-9]{64}$", result.Data); // Valid hex format
+        Assert.NotNull(result.Value);
+        Assert.Equal(64, result.Value.Length); // SHA256 hash is 64 characters
+        Assert.Matches("^[a-f0-9]{64}$", result.Value); // Valid hex format
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public class UtilityRepositoryTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Text cannot be null or empty", result.ErrorMessage);
+        Assert.Equal("Text cannot be null or empty", result.Error);
     }
 
     [Fact]
@@ -124,11 +124,11 @@ public class UtilityRepositoryTests
         Assert.True(hashResult.IsSuccess);
 
         // Act
-        var verifyResult = await _repository.VerifyHashAsync(text, hashResult.Data!);
+        var verifyResult = await _repository.VerifyHashAsync(text, hashResult.Value!);
 
         // Assert
         Assert.True(verifyResult.IsSuccess);
-        Assert.True(verifyResult.Data);
+        Assert.True(verifyResult.Value);
     }
 
     [Fact]
@@ -141,11 +141,11 @@ public class UtilityRepositoryTests
         Assert.True(hashResult.IsSuccess);
 
         // Act
-        var verifyResult = await _repository.VerifyHashAsync(text, hashResult.Data!);
+        var verifyResult = await _repository.VerifyHashAsync(text, hashResult.Value!);
 
         // Assert
         Assert.True(verifyResult.IsSuccess);
-        Assert.False(verifyResult.Data);
+        Assert.False(verifyResult.Value);
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public class UtilityRepositoryTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Plain text cannot be null or empty", result.ErrorMessage);
+        Assert.Equal("Plain text cannot be null or empty", result.Error);
     }
 
     [Fact]
@@ -175,6 +175,6 @@ public class UtilityRepositoryTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Hash cannot be null or empty", result.ErrorMessage);
+        Assert.Equal("Hash cannot be null or empty", result.Error);
     }
 }
