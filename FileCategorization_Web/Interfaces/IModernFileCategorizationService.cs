@@ -22,5 +22,5 @@ public interface IModernFileCategorizationService
     Task<Result<List<FilesDetailDto>>> GetAllFilesAsync(string fileCategory);
     Task<Result<List<FilesDetailDto>>> GetFileToMoveAsync();
     Task<Result<string>> MoveFileAsync(int id, string category);
-    string GetRestUrl();
+
 }

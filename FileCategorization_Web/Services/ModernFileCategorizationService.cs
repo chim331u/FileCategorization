@@ -751,9 +751,4 @@ public class ModernFileCategorizationService : IModernFileCategorizationService
 
     #endregion
 
-    public string GetRestUrl()
-    {
-        // Return the base URL from the configured options
-        return _options.BaseUrl.TrimEnd('/') + "/";
-    }
 }

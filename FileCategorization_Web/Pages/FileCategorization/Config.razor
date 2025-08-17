@@ -2,7 +2,6 @@
 @using Fluxor
 @using FileCategorization_Web.Features.FileManagement.Actions
 @using FileCategorization_Web.Features.FileManagement.Store
-@using Radzen
 @inject TooltipService tooltipService
 @inherits LayoutComponentBase
 @inject NotificationService NotificationService
@@ -165,7 +164,7 @@
 
     private string ExtractConfigKeyFromMessage(string message)
     {
-        // Extract config key from message like "Configuration 'DESTDIR' created successfully"
+        // Extract a config key from a message like "Configuration 'DESTDIR' created successfully"
         var startIndex = message.IndexOf("'") + 1;
         var endIndex = message.IndexOf("'", startIndex);
         
@@ -181,11 +180,6 @@
     {
         // Unsubscribe from state changes
         FileState.StateChanged -= OnStateChanged;
-    }
-
-    protected void RefreshConfigList()
-    {
-        Dispatcher.Dispatch(new LoadConfigurationsAction());
     }
 
     ConfigsDto? configToUpdate;
@@ -258,24 +252,10 @@
         Dispatcher.Dispatch(new DeleteConfigurationAction(config));
     }
 
-    protected void Reset()
+    private void Reset()
     {
         configToInsert = null;
         configToUpdate = null;
     }
-
-
-    #region Tooltips
-
-    void ShowTooltipDeleteConfig(ElementReference elementReference, TooltipOptions options = null) => tooltipService.Open(elementReference, "Delete", options);
-
-    void ShowTooltipUpdateConfig(ElementReference elementReference, TooltipOptions options = null) => tooltipService.Open(elementReference, "Update", options);
-
-    //void ShowTooltipAddCategory(ElementReference elementReference, TooltipOptions options = null) => tooltipService.Open(elementReference, "Add new Category", options);
-
-    //void ShowTooltipSaveCategory(ElementReference elementReference, TooltipOptions options = null) => tooltipService.Open(elementReference, "Save new Category", options);
-
-    //void ShowTooltipBackCategory(ElementReference elementReference, TooltipOptions options = null) => tooltipService.Open(elementReference, "Back", options);
-
-    #endregion
+    
 }

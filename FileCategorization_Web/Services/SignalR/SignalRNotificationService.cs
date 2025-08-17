@@ -1,6 +1,10 @@
 using Microsoft.AspNetCore.SignalR.Client;
-using FileCategorization_Shared.DTOs.FileManagement;using FileCategorization_Shared.DTOs.Configuration;using FileCategorization_Shared.Enums;
+using FileCategorization_Shared.DTOs.FileManagement;
+using FileCategorization_Shared.DTOs.Configuration;
+using FileCategorization_Shared.Enums;
 using FileCategorization_Web.Features.FileManagement.Actions;
+using FileCategorization_Web.Data.Configuration;
+using Microsoft.Extensions.Options;
 using Fluxor;
 
 namespace FileCategorization_Web.Services.SignalR;
@@ -28,11 +32,11 @@ public class SignalRNotificationService : INotificationService
     public SignalRNotificationService(
         ILogger<SignalRNotificationService> logger,
         IDispatcher dispatcher,
-        IConfiguration configuration)
+        IOptions<FileCategorizationApiOptions> options)
     {
         _logger = logger;
         _dispatcher = dispatcher;
-        _baseUrl = configuration["Uri"] ?? configuration["FileCategorizationApi:BaseUrl"] ?? "http://localhost:5000/";
+        _baseUrl = options.Value.BaseUrl.TrimEnd('/') + "/";
         
         _logger.LogInformation("SignalR service initialized with base URL: {BaseUrl}", _baseUrl);
     }

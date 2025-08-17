@@ -84,6 +84,7 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
             entity.CreatedDate = DateTime.UtcNow;
             entity.LastUpdatedDate = DateTime.UtcNow;
             entity.IsActive = true;
+            
 
             _dbSet.Add(entity);
             await _context.SaveChangesAsync(cancellationToken);
