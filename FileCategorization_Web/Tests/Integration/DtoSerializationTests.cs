@@ -29,8 +29,8 @@ public class DtoSerializationTests
         var original = new ConfigRequest
         {
             Key = "test.key",
-            Value = "test value",
-            IsDev = true
+            Value = "test value"
+            // Note: IsDev removed - environment is handled automatically by API
         };
 
         // Act
@@ -41,7 +41,7 @@ public class DtoSerializationTests
         deserialized.Should().NotBeNull();
         deserialized!.Key.Should().Be(original.Key);
         deserialized.Value.Should().Be(original.Value);
-        deserialized.IsDev.Should().Be(original.IsDev);
+        // IsDev is no longer part of requests
     }
 
     [Fact]
@@ -52,8 +52,8 @@ public class DtoSerializationTests
         {
             Id = 123,
             Key = "test.key",
-            Value = "test value",
-            IsDev = false
+            Value = "test value"
+            // Note: IsDev removed - responses only include current environment configs
         };
 
         // Act
@@ -65,7 +65,7 @@ public class DtoSerializationTests
         deserialized!.Id.Should().Be(original.Id);
         deserialized.Key.Should().Be(original.Key);
         deserialized.Value.Should().Be(original.Value);
-        deserialized.IsDev.Should().Be(original.IsDev);
+        // IsDev is no longer included in responses
     }
 
     [Fact]
@@ -75,8 +75,8 @@ public class DtoSerializationTests
         var original = new ConfigUpdateRequest
         {
             Key = "updated.key",
-            Value = "updated value",
-            IsDev = null // Test nullable property
+            Value = "updated value"
+            // Note: IsDev removed - environment cannot be changed after creation
         };
 
         // Act
@@ -87,7 +87,7 @@ public class DtoSerializationTests
         deserialized.Should().NotBeNull();
         deserialized!.Key.Should().Be(original.Key);
         deserialized.Value.Should().Be(original.Value);
-        deserialized.IsDev.Should().BeNull();
+        // IsDev is no longer part of update requests
     }
 
     [Fact]
@@ -98,8 +98,8 @@ public class DtoSerializationTests
         {
             Id = 456,
             Key = "legacy.key",
-            Value = "legacy value",
-            IsDev = true
+            Value = "legacy value"
+            // Note: IsDev removed - environment handled automatically by API
         };
 
         // Act
@@ -111,7 +111,7 @@ public class DtoSerializationTests
         deserialized!.Id.Should().Be(original.Id);
         deserialized.Key.Should().Be(original.Key);
         deserialized.Value.Should().Be(original.Value);
-        deserialized.IsDev.Should().Be(original.IsDev);
+        // IsDev assertion removed - no longer part of DTO
     }
 
     [Fact]
@@ -122,8 +122,8 @@ public class DtoSerializationTests
         {
             Id = 789,
             Key = "mapping.test",
-            Value = "mapping value",
-            IsDev = false
+            Value = "mapping value"
+            // Note: IsDev removed from shared DTOs - handled by environment filtering
         };
 
         // Act - Simulate the mapping done in ModernFileCategorizationService
@@ -131,15 +131,15 @@ public class DtoSerializationTests
         {
             Id = configResponse.Id,
             Key = configResponse.Key,
-            Value = configResponse.Value,
-            IsDev = configResponse.IsDev
+            Value = configResponse.Value
+            // Note: IsDev mapping removed as it's no longer in ConfigResponse
         };
 
         // Assert
         configsDto.Id.Should().Be(configResponse.Id);
         configsDto.Key.Should().Be(configResponse.Key);
         configsDto.Value.Should().Be(configResponse.Value);
-        configsDto.IsDev.Should().Be(configResponse.IsDev);
+        // IsDev comparison removed
     }
 
     [Fact]
@@ -150,22 +150,22 @@ public class DtoSerializationTests
         {
             Id = 999, // Should be ignored in request
             Key = "create.test",
-            Value = "create value",
-            IsDev = true
+            Value = "create value"
+            // Note: IsDev removed from ConfigsDto - environment handled automatically
         };
 
         // Act - Simulate the mapping done in ModernFileCategorizationService
         var configRequest = new ConfigRequest
         {
             Key = configsDto.Key ?? string.Empty,
-            Value = configsDto.Value ?? string.Empty,
-            IsDev = configsDto.IsDev
+            Value = configsDto.Value ?? string.Empty
+            // Note: IsDev no longer sent in requests - handled automatically by API
         };
 
         // Assert
         configRequest.Key.Should().Be(configsDto.Key);
         configRequest.Value.Should().Be(configsDto.Value);
-        configRequest.IsDev.Should().Be(configsDto.IsDev);
+        // IsDev assertion removed - no longer part of API contract
     }
 
     [Fact]
@@ -176,21 +176,21 @@ public class DtoSerializationTests
         {
             Id = 888,
             Key = "update.test",
-            Value = "update value",
-            IsDev = false
+            Value = "update value"
+            // Note: IsDev removed from ConfigsDto - environment handled automatically
         };
 
         // Act - Simulate the mapping done in ModernFileCategorizationService
         var updateRequest = new ConfigUpdateRequest
         {
             Key = configsDto.Key,
-            Value = configsDto.Value,
-            IsDev = configsDto.IsDev
+            Value = configsDto.Value
+            // Note: IsDev no longer sent in update requests - environment cannot be changed
         };
 
         // Assert
         updateRequest.Key.Should().Be(configsDto.Key);
         updateRequest.Value.Should().Be(configsDto.Value);
-        updateRequest.IsDev.Should().Be(configsDto.IsDev);
+        // IsDev assertion removed - no longer part of update API contract
     }
 }

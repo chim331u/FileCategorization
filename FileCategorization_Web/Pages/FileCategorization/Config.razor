@@ -195,6 +195,19 @@
 
     void OnUpdateRow(ConfigsDto config)
     {
+        // Validate required fields before updating
+        if (string.IsNullOrWhiteSpace(config.Key) || string.IsNullOrWhiteSpace(config.Value))
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Validation Error",
+                Detail = "Both Key and Value are required fields",
+                Duration = 4000
+            });
+            return;
+        }
+        
         if (config == configToInsert)
         {
             configToInsert = null;
@@ -207,6 +220,19 @@
 
     void OnCreateRow(ConfigsDto config)
     {
+        // Validate required fields before creating
+        if (string.IsNullOrWhiteSpace(config.Key) || string.IsNullOrWhiteSpace(config.Value))
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Validation Error",
+                Detail = "Both Key and Value are required fields",
+                Duration = 4000
+            });
+            return;
+        }
+        
         configToInsert = null;
         
         Dispatcher.Dispatch(new CreateConfigurationAction(config));

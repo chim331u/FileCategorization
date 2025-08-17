@@ -246,12 +246,12 @@ public class ModernFileCategorizationService : IModernFileCategorizationService
                 var configResponses = JsonSerializer.Deserialize<List<ConfigResponse>>(content, _serializerOptions) ?? new List<ConfigResponse>();
                 
                 // Map ConfigResponse to ConfigsDto
+                // Note: IsDev is no longer included in responses as it's handled by environment filtering
                 var configs = configResponses.Select(cr => new ConfigsDto
                 {
                     Id = cr.Id,
                     Key = cr.Key,
-                    Value = cr.Value,
-                    IsDev = cr.IsDev
+                    Value = cr.Value
                 }).ToList();
                 
                 _logger.LogInformation("Retrieved {Count} configs from v2 API", configs.Count);
@@ -330,11 +330,11 @@ public class ModernFileCategorizationService : IModernFileCategorizationService
             _logger.LogInformation("Updating config ID: {Id} using v2 API", item.Id);
             
             // Create v2 update request object
+            // Note: IsDev is no longer sent in requests as it's handled automatically by environment
             var updateRequest = new ConfigUpdateRequest
             {
                 Key = item.Key,
-                Value = item.Value,
-                IsDev = item.IsDev // Pass the actual IsDev value from the item
+                Value = item.Value
             };
             
             var response = await _httpClient.PutAsJsonAsync($"api/v2/configs/{item.Id}", updateRequest, _serializerOptions);
@@ -352,8 +352,8 @@ public class ModernFileCategorizationService : IModernFileCategorizationService
                     {
                         Id = configResponse.Id,
                         Key = configResponse.Key,
-                        Value = configResponse.Value,
-                        IsDev = configResponse.IsDev // Use the IsDev value from the API response
+                        Value = configResponse.Value
+                        // Note: IsDev is no longer included in responses as it's handled by environment filtering
                     };
                     
                     _logger.LogInformation("Config updated successfully using v2 API");
@@ -391,11 +391,11 @@ public class ModernFileCategorizationService : IModernFileCategorizationService
             _logger.LogInformation("Adding new config using v2 API");
             
             // Create v2 create request object
+            // Note: IsDev is no longer sent in requests as it's handled automatically by environment
             var createRequest = new ConfigRequest
             {
                 Key = item.Key ?? string.Empty,
-                Value = item.Value ?? string.Empty,
-                IsDev = item.IsDev // Pass the actual IsDev value from the item
+                Value = item.Value ?? string.Empty
             };
             
             var response = await _httpClient.PostAsJsonAsync("api/v2/configs", createRequest, _serializerOptions);
@@ -413,8 +413,8 @@ public class ModernFileCategorizationService : IModernFileCategorizationService
                     {
                         Id = configResponse.Id,
                         Key = configResponse.Key,
-                        Value = configResponse.Value,
-                        IsDev = configResponse.IsDev
+                        Value = configResponse.Value
+                        // Note: IsDev is no longer included in responses as it's handled by environment filtering
                     };
                     
                     _logger.LogInformation("Config added successfully using v2 API");
