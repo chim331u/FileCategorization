@@ -8,11 +8,13 @@ namespace FileCategorization_Api.Services;
 
 /// <summary>
 /// Implementation of configuration query service.
+/// Automatically filters configurations based on current environment (development/production).
 /// </summary>
 public class ConfigQueryService : IConfigQueryService
 {
     private readonly IConfigRepository _configRepository;
     private readonly IMapper _mapper;
+    private readonly IHostEnvironment _environment;
     private readonly ILogger<ConfigQueryService> _logger;
 
     /// <summary>
@@ -20,36 +22,45 @@ public class ConfigQueryService : IConfigQueryService
     /// </summary>
     /// <param name="configRepository">The configuration repository.</param>
     /// <param name="mapper">The AutoMapper instance.</param>
+    /// <param name="environment">The host environment instance.</param>
     /// <param name="logger">The logger instance.</param>
     public ConfigQueryService(
         IConfigRepository configRepository,
         IMapper mapper,
+        IHostEnvironment environment,
         ILogger<ConfigQueryService> logger)
     {
         _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+        _environment = environment ?? throw new ArgumentNullException(nameof(environment));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <inheritdoc/>
     public async Task<Result<IEnumerable<ConfigResponse>>> GetAllConfigsAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Retrieving all configurations");
+        var isDev = _environment.IsDevelopment();
+        _logger.LogInformation("Retrieving all configurations for environment: {Environment} (IsDev: {IsDev})", 
+            _environment.EnvironmentName, isDev);
 
-        var configsResult = await _configRepository.GetAllAsync(cancellationToken);
+        // Use the environment-specific method from repository
+        var configsResult = await _configRepository.GetByEnvironmentAsync(isDev, cancellationToken);
         if (configsResult.IsFailure)
         {
             return Result<IEnumerable<ConfigResponse>>.Failure(configsResult.Error!);
         }
 
         var responseList = _mapper.Map<IEnumerable<ConfigResponse>>(configsResult.Value);
+        _logger.LogInformation("Retrieved {Count} configurations for environment {Environment}", 
+            responseList.Count(), _environment.EnvironmentName);
         return Result<IEnumerable<ConfigResponse>>.Success(responseList);
     }
 
     /// <inheritdoc/>
     public async Task<Result<ConfigResponse?>> GetConfigByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Retrieving configuration by ID: {Id}", id);
+        var isDev = _environment.IsDevelopment();
+        _logger.LogInformation("Retrieving configuration by ID: {Id} for environment: {Environment}", id, _environment.EnvironmentName);
 
         if (id <= 0)
         {
@@ -63,9 +74,9 @@ public class ConfigQueryService : IConfigQueryService
             return Result<ConfigResponse?>.Failure(configResult.Error!);
         }
 
-        if (configResult.Value == null)
+        if (configResult.Value == null || configResult.Value.IsDev != isDev)
         {
-            _logger.LogInformation("Configuration not found with ID: {Id}", id);
+            _logger.LogInformation("Configuration not found with ID: {Id} for current environment", id);
             return Result<ConfigResponse?>.Success(null);
         }
 
@@ -76,7 +87,8 @@ public class ConfigQueryService : IConfigQueryService
     /// <inheritdoc/>
     public async Task<Result<ConfigResponse?>> GetConfigByKeyAsync(string key, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Retrieving configuration by key: {Key}", key);
+        var isDev = _environment.IsDevelopment();
+        _logger.LogInformation("Retrieving configuration by key: {Key} for environment: {Environment}", key, _environment.EnvironmentName);
 
         if (string.IsNullOrWhiteSpace(key))
         {
@@ -90,9 +102,9 @@ public class ConfigQueryService : IConfigQueryService
             return Result<ConfigResponse?>.Failure(configResult.Error!);
         }
 
-        if (configResult.Value == null)
+        if (configResult.Value == null || configResult.Value.IsDev != isDev)
         {
-            _logger.LogInformation("Configuration not found with key: {Key}", key);
+            _logger.LogInformation("Configuration not found with key: {Key} for current environment", key);
             return Result<ConfigResponse?>.Success(null);
         }
 

@@ -20,8 +20,6 @@ public class ConfigsDto
     /// </summary>
     public string? Value { get; set; }
 
-    /// <summary>
-    /// Gets or sets a value indicating whether this configuration is for development environment.
-    /// </summary>
-    public bool IsDev { get; set; }
+    // Note: IsDev removed - environment is now handled automatically by the API
+    // based on IHostEnvironment.IsDevelopment(). UI no longer needs to specify environment.
 }

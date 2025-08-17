@@ -16,9 +16,8 @@ public class ConfigUpdateRequestValidator : AbstractValidator<ConfigUpdateReques
         // At least one field must be provided for update
         RuleFor(x => x)
             .Must(x => !string.IsNullOrWhiteSpace(x.Key) || 
-                      !string.IsNullOrWhiteSpace(x.Value) || 
-                      x.IsDev.HasValue)
-            .WithMessage("At least one field (Key, Value, or IsDev) must be provided for update");
+                      !string.IsNullOrWhiteSpace(x.Value))
+            .WithMessage("At least one field (Key or Value) must be provided for update");
 
         RuleFor(x => x.Key)
             .MaximumLength(100)

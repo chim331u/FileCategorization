@@ -39,7 +39,7 @@ public class ConfigRepository : Repository<Configs>, IConfigRepository
             }
 
             var config = await _dbSet.AsNoTracking()
-                .Where(c => c.IsActive && c.Key == key)
+                .Where(c => c.IsActive && c.Key == key && c.IsDev == _environment.IsDevelopment())
                 .FirstOrDefaultAsync(cancellationToken);
 
             _logger.LogInformation("Configuration retrieval by key completed. Found: {Found}", config != null);
@@ -89,7 +89,7 @@ public class ConfigRepository : Repository<Configs>, IConfigRepository
             }
 
             var query = _dbSet.AsNoTracking()
-                .Where(c => c.IsActive && c.Key == key);
+                .Where(c => c.IsActive && c.Key == key && c.IsDev == _environment.IsDevelopment());
 
             if (excludeId.HasValue)
             {

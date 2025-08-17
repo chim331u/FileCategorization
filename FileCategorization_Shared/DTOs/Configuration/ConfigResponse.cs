@@ -3,6 +3,7 @@ namespace FileCategorization_Shared.DTOs.Configuration;
 /// <summary>
 /// Represents a response Data Transfer Object (DTO) for configuration settings.
 /// Used for GET operations and as response from POST/PUT operations.
+/// Only configurations for the current environment (development/production) are returned.
 /// </summary>
 public class ConfigResponse
 {
@@ -23,10 +24,4 @@ public class ConfigResponse
     /// This contains the actual configuration data.
     /// </summary>
     public required string Value { get; set; }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether this configuration is for development environment.
-    /// True for development configurations, false for production configurations.
-    /// </summary>
-    public bool IsDev { get; set; }
 }

@@ -4,6 +4,7 @@ namespace FileCategorization_Shared.DTOs.Configuration;
 /// Represents a request Data Transfer Object (DTO) for updating configuration settings.
 /// Used for PUT operations to update existing configuration entries.
 /// All properties are nullable to support partial updates.
+/// Environment (development/production) cannot be changed after creation.
 /// </summary>
 public class ConfigUpdateRequest
 {
@@ -19,11 +20,4 @@ public class ConfigUpdateRequest
     /// Optional - if provided, the configuration value will be updated.
     /// </summary>
     public string? Value { get; set; }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether this configuration is for development environment.
-    /// Optional - if provided, the environment setting will be updated.
-    /// True for development, false for production.
-    /// </summary>
-    public bool? IsDev { get; set; }
 }

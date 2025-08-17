@@ -18,8 +18,8 @@ public class ConfigRequestValidator : AbstractValidator<ConfigRequest>
             .WithMessage("Configuration key is required")
             .MaximumLength(100)
             .WithMessage("Configuration key cannot exceed 100 characters")
-            .Matches("^[a-zA-Z0-9._-]+$")
-            .WithMessage("Configuration key can only contain alphanumeric characters, dots, underscores, and hyphens")
+            .Matches("^[a-zA-Z0-9._\\-?@#%&*+=\\[\\]()]+$")
+            .WithMessage("Configuration key can only contain alphanumeric characters, dots, underscores, hyphens, and safe special characters (?@#%&*+=[]())")
             .Must(BeValidKey)
             .WithMessage("Configuration key cannot contain reserved keywords");
 

@@ -294,8 +294,8 @@ public static class ConfigEndpoint
         logger.LogInformation("Updating existing entity. Existing ID: {ExistingId}, Key: {ExistingKey}", 
             existingResult.Value.Id, existingResult.Value.Key);
         
-        logger.LogInformation("Request data - Key: {RequestKey}, Value: {RequestValue}, IsDev: {RequestIsDev}", 
-            request.Key, request.Value, request.IsDev);
+        logger.LogInformation("Request data - Key: {RequestKey}, Value: {RequestValue}", 
+            request.Key, request.Value);
             
         var updatedEntity = existingResult.Value;
         
@@ -306,8 +306,7 @@ public static class ConfigEndpoint
         if (!string.IsNullOrWhiteSpace(request.Value))
             updatedEntity.Value = request.Value;
             
-        if (request.IsDev.HasValue)
-            updatedEntity.IsDev = request.IsDev.Value;
+        // Note: IsDev cannot be changed after creation - it's determined by environment
             
         updatedEntity.LastUpdatedDate = DateTime.UtcNow;
         

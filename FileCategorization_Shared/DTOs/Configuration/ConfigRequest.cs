@@ -3,6 +3,7 @@ namespace FileCategorization_Shared.DTOs.Configuration;
 /// <summary>
 /// Represents a request Data Transfer Object (DTO) for creating configuration settings.
 /// Used for POST operations to create new configuration entries.
+/// Environment (development/production) is automatically determined by the API server.
 /// </summary>
 public class ConfigRequest
 {
@@ -17,10 +18,4 @@ public class ConfigRequest
     /// This is required and contains the actual configuration data.
     /// </summary>
     public required string Value { get; set; }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether this configuration is for development environment.
-    /// Defaults to false (production environment).
-    /// </summary>
-    public bool IsDev { get; set; } = false;
 }

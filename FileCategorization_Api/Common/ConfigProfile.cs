@@ -15,11 +15,11 @@ public class ConfigProfile : Profile
     public ConfigProfile()
     {
         // Entity to Response DTO mapping
+        // Note: IsDev is excluded from response as it's handled by environment filtering
         CreateMap<Configs, ConfigResponse>()
             .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
             .ForMember(dest => dest.Key, opt => opt.MapFrom(src => src.Key ?? string.Empty))
-            .ForMember(dest => dest.Value, opt => opt.MapFrom(src => src.Value ?? string.Empty))
-            .ForMember(dest => dest.IsDev, opt => opt.MapFrom(src => src.IsDev));
+            .ForMember(dest => dest.Value, opt => opt.MapFrom(src => src.Value ?? string.Empty));
 
         // Request DTO to Entity mapping
         CreateMap<ConfigRequest, Configs>()
@@ -32,14 +32,12 @@ public class ConfigProfile : Profile
             .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => true));
 
         // Update Request DTO to Entity mapping (partial update)
+        // Note: IsDev cannot be changed after creation - it's determined by environment
         CreateMap<ConfigUpdateRequest, Configs>()
             .ForMember(dest => dest.Id, opt => opt.Ignore()) // Preserve existing ID - don't map from request
             .ForMember(dest => dest.Key, opt => opt.Condition(src => !string.IsNullOrWhiteSpace(src.Key)))
             .ForMember(dest => dest.Value, opt => opt.Condition(src => !string.IsNullOrWhiteSpace(src.Value)))
-            .ForMember(dest => dest.IsDev, opt => {
-                opt.Condition(src => src.IsDev.HasValue);
-                opt.MapFrom(src => src.IsDev!.Value);
-            })
+            .ForMember(dest => dest.IsDev, opt => opt.Ignore()) // IsDev cannot be changed after creation
             .ForMember(dest => dest.LastUpdatedDate, opt => opt.MapFrom(src => DateTime.UtcNow))
             .ForMember(dest => dest.CreatedDate, opt => opt.Ignore()) // Don't update creation date
             .ForMember(dest => dest.IsActive, opt => opt.Ignore()) // Don't change active status

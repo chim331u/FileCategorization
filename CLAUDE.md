@@ -327,3 +327,103 @@ FileCategorization/
   - **Pure Blazor**: Rewrite UI using native Blazor components with custom styling
   - **Hybrid Approach**: Selective replacement of heavy Radzen components
 - **Decision Criteria**: Performance impact, design flexibility, maintenance complexity
+
+## 🚀 Sprint Plan - Configuration Management Modernization (August 2024)
+
+### Overview
+Piano di modernizzazione per eliminare riferimenti API v1 dal progetto Web, consolidare i DTO delle configurazioni, e automatizzare la gestione dell'environment (dev/prod) senza parametri manuali IsDev.
+
+### Sprint 1: ✅ COMPLETED - Eliminare riferimenti API v1 dal progetto WEB
+**Obiettivo**: Rimuovere tutti i riferimenti alle API v1 dal FileCategorization_Web
+**Status**: ✅ Completato - La maggior parte del codice legacy era già stata rimossa
+**Risultato**: Pulizia delle configurazioni di fallback e conferma uso esclusivo API v2
+
+### Sprint 2: ✅ COMPLETED - Consolidamento DTO Config
+**Obiettivo**: Eliminare ConfigDTO e sostituire con ConfigRequest/ConfigResponse/ConfigUpdateRequest in FileCategorization_Shared
+**Status**: ✅ Completato - Tutti i DTO centralizzati in FileCategorization_Shared
+**Risultato**: 
+- Eliminata duplicazione DTO tra progetti
+- ConfigRequest, ConfigResponse, ConfigUpdateRequest ora in FileCategorization_Shared
+- Mappature AutoMapper aggiornate
+
+### Sprint 3: 🔄 IN PROGRESS - Automazione Environment (IsDev)
+**Obiettivo**: Rimuovere IsDev dai DTO Config e automatizzare basandosi su `IHostEnvironment.IsDevelopment()`
+
+#### ✅ Day 1 - Rimozione IsDev dai DTO Shared (COMPLETED)
+- ✅ Rimosso IsDev da ConfigRequest.cs
+- ✅ Rimosso IsDev da ConfigResponse.cs  
+- ✅ Rimosso IsDev da ConfigUpdateRequest.cs
+- ✅ Mantenuto IsDev solo nell'Entity Configs.cs (database)
+
+#### ✅ Day 2 - Aggiornamento API Layer (COMPLETED)
+- ✅ Aggiornato AutoMapper ConfigProfile.cs per gestire IsDev automaticamente
+- ✅ Aggiornato ConfigUpdateRequestValidator per rimuovere validazione IsDev
+- ✅ Modificato ConfigEndpoint.cs per impostare IsDev automaticamente tramite IHostEnvironment
+- ✅ Aggiornato ConfigRepository.cs per filtrare per environment corrente
+- ✅ Testato logica di filtro per environment nell'API
+
+#### ✅ Day 3a - Aggiornamento Web Service Layer (COMPLETED)
+- ✅ Aggiornato ModernFileCategorizationService.cs per non inviare IsDev nelle request
+- ✅ Corretto mapping ConfigResponse → ConfigsDto rimuovendo riferimenti IsDev
+- ✅ Aggiornati test di integrazione per rimuovere riferimenti IsDev
+
+#### ✅ Day 3b - State Management & UI (COMPLETED)
+- ✅ Modificato Fluxor state management per rimuovere IsDev
+- ✅ Aggiornato UI Config.razor per rimuovere campo IsDev
+- ✅ Testato che dev/prod environments funzionino correttamente
+- ✅ Validato che configurations siano filtrate correttamente
+
+#### ✅ Sprint 3 Hotfixes (COMPLETED)
+- ✅ Aggiunta validazione client-side per campi vuoti in Config.razor
+- ✅ **SPECIAL CHARACTER SUPPORT**: Risolto problema gestione caratteri speciali "?" nelle configurazioni
+  - Aggiornato regex validator: `^[a-zA-Z0-9._\\-?@#%&*+=\\[\\]()]+$`
+  - Supporto completo per caratteri speciali sicuri: `?@#%&*+=[]()` 
+  - Messaggio errore aggiornato per documentare caratteri supportati
+  - Test end-to-end confermato per chiavi/valori con carattere "?"
+
+### Risultati Ottenuti
+#### ✅ API Layer
+- **Environment Automation**: Configurazioni automaticamente filtrate per environment corrente
+- **Eliminazione IsDev**: Parametro rimosso da tutti i DTO pubblici (request/response)
+- **Backward Compatibility**: Entity database mantiene IsDev per compatibilità
+- **Auto-Detection**: `IHostEnvironment.IsDevelopment()` utilizzato per determinare environment
+
+#### ✅ Web Service Layer  
+- **Modern API Integration**: ModernFileCategorizationService aggiornato per API v2 senza IsDev
+- **Test Coverage**: Test di serializzazione aggiornati per nuovo contratto API
+- **Clean Architecture**: Rimozione parametri manuali IsDev dai servizi
+
+#### 🎯 Benefici Architetturali
+- **Meno Errori**: Impossibile creare config nell'environment sbagliato
+- **Automazione**: Environment detection automatico senza intervento manuale
+- **Consistency**: API v2 consistency migliorata
+- **Maintainability**: Codice più pulito senza parametri ridondanti
+
+### ✅ Sprint 3 - COMPLETATO (Agosto 2024)
+**Status**: **COMPLETED** - Automazione Environment per Configuration Management
+
+#### Obiettivi Raggiunti
+1. ✅ **Eliminazione IsDev Manuale**: Rimosso parametro IsDev da tutti i DTO pubblici
+2. ✅ **Automazione Environment**: `IHostEnvironment.IsDevelopment()` per detection automatico
+3. ✅ **Fluxor State Management**: State management aggiornato per rimuovere gestione IsDev  
+4. ✅ **Config.razor UI**: Interfaccia utente semplificata senza campo IsDev
+5. ✅ **Special Character Support**: Supporto completo per caratteri speciali sicuri nelle configurazioni
+6. ✅ **End-to-End Testing**: Validazione completa dev/prod environments e character handling
+
+#### Risultati Architetturali
+- **Zero Configuration Error Risk**: Impossibile creare config nell'environment sbagliato
+- **Enhanced User Experience**: UI semplificata senza parametri tecnici
+- **Improved API Consistency**: Contract API v2 pulito e coerente
+- **Special Character Robustness**: Gestione sicura di caratteri speciali come `?@#%&*+=[]()` nelle configurazioni
+
+### Note Tecniche
+#### Configurazioni Environment
+- **Development**: Utilizza `IHostEnvironment.IsDevelopment() = true`
+- **Production**: Utilizza `IHostEnvironment.IsDevelopment() = false`
+- **Database**: Campo IsDev mantenuto per compatibilità e query performance
+- **API Responses**: IsDev non più incluso (filtering automatico lato server)
+
+#### Compatibilità
+- **Legacy Code**: ConfigsDto mantiene IsDev per backward compatibility UI
+- **Modern API**: Shared DTOs (ConfigRequest/Response/Update) senza IsDev
+- **Database Schema**: Nessuna modifica richiesta al database esistente
