@@ -1,15 +1,10 @@
-namespace FileCategorization_Api.Domain.Entities.Config;
+namespace FileCategorization_Web.Data.DTOs.Configuration;
 
 /// <summary>
-/// Represents a response Data Transfer Object (DTO) for configuration settings.
+/// Represents a request Data Transfer Object (DTO) for creating configuration settings.
 /// </summary>
-public class ConfigResponse
+public class ConfigRequest
 {
-    /// <summary>
-    /// Gets or sets the unique identifier for the configuration.
-    /// </summary>
-    public int Id { get; set; }
-
     /// <summary>
     /// Gets or sets the key of the configuration.
     /// </summary>
@@ -23,5 +18,5 @@ public class ConfigResponse
     /// <summary>
     /// Gets or sets a value indicating whether this configuration is for development environment.
     /// </summary>
-    public bool IsDev { get; set; }
+    public bool IsDev { get; set; } = false;
 }

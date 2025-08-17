@@ -228,6 +228,7 @@ public static class ConfigEndpoint
         [FromBody] ConfigRequest request,
         [FromServices] IConfigRepository configRepository,
         [FromServices] IMapper mapper,
+        [FromServices] IHostEnvironment environment,
         [FromServices] ILogger logger,
         CancellationToken cancellationToken)
     {
@@ -235,6 +236,12 @@ public static class ConfigEndpoint
 
         // Map request to entity
         var configEntity = mapper.Map<Configs>(request);
+        
+        // Set IsDev based on current environment instead of request value
+        configEntity.IsDev = environment.IsDevelopment();
+        
+        logger.LogInformation("Setting IsDev to {IsDev} based on environment {EnvironmentName}", 
+            configEntity.IsDev, environment.EnvironmentName);
 
         // Add to repository
         var result = await configRepository.AddAsync(configEntity, cancellationToken);
@@ -283,8 +290,29 @@ public static class ConfigEndpoint
             return Results.NotFound($"Configuration with ID {id} not found");
         }
 
-        // Map update request to existing entity
-        var updatedEntity = mapper.Map(request, existingResult.Value);
+        // Update existing entity manually to preserve ID
+        logger.LogInformation("Updating existing entity. Existing ID: {ExistingId}, Key: {ExistingKey}", 
+            existingResult.Value.Id, existingResult.Value.Key);
+        
+        logger.LogInformation("Request data - Key: {RequestKey}, Value: {RequestValue}, IsDev: {RequestIsDev}", 
+            request.Key, request.Value, request.IsDev);
+            
+        var updatedEntity = existingResult.Value;
+        
+        // Update only the fields that are provided
+        if (!string.IsNullOrWhiteSpace(request.Key))
+            updatedEntity.Key = request.Key;
+            
+        if (!string.IsNullOrWhiteSpace(request.Value))
+            updatedEntity.Value = request.Value;
+            
+        if (request.IsDev.HasValue)
+            updatedEntity.IsDev = request.IsDev.Value;
+            
+        updatedEntity.LastUpdatedDate = DateTime.UtcNow;
+        
+        logger.LogInformation("After manual update - Entity ID: {EntityId}, Key: {EntityKey}, Value: {EntityValue}, IsDev: {EntityIsDev}", 
+            updatedEntity.Id, updatedEntity.Key, updatedEntity.Value, updatedEntity.IsDev);
 
         // Update in repository
         var result = await configRepository.UpdateAsync(updatedEntity, cancellationToken);

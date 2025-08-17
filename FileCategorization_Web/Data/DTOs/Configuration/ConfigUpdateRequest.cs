@@ -1,15 +1,10 @@
-namespace FileCategorization_Shared.DTOs.Configuration;
+namespace FileCategorization_Web.Data.DTOs.Configuration;
 
 /// <summary>
-/// Represents a Data Transfer Object (DTO) for configuration settings.
+/// Represents a request Data Transfer Object (DTO) for updating configuration settings.
 /// </summary>
-public class ConfigsDto
+public class ConfigUpdateRequest
 {
-    /// <summary>
-    /// Gets or sets the unique identifier for the configuration.
-    /// </summary>
-    public int Id { get; set; }
-
     /// <summary>
     /// Gets or sets the key of the configuration.
     /// </summary>
@@ -23,5 +18,5 @@ public class ConfigsDto
     /// <summary>
     /// Gets or sets a value indicating whether this configuration is for development environment.
     /// </summary>
-    public bool IsDev { get; set; }
+    public bool? IsDev { get; set; }
 }

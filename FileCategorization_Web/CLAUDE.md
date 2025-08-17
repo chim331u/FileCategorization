@@ -520,6 +520,16 @@ dotnet sln FileCategorization.Tests.sln add FileCategorization.Web.Tests
 - ✅ **Framework Integration**: xUnit, Moq, FluentAssertions, and Coverage tools properly configured
 - ⚠️ **Execution Limitation**: Tests require dedicated project due to Blazor WebAssembly constraints
 
+### **🎯 UI/UX Enhancements & Bug Fixes (August 2024)**
+- ✅ **Comprehensive Notifications**: Added Radzen NotificationService integration for all Config CRUD operations
+- ✅ **Environment-Based Configuration**: Fixed Config creation to use IHostEnvironment.IsDevelopment() instead of hardcoded false
+- ✅ **Cache Invalidation Strategy**: Resolved Config grid refresh issues with proper cache bypass for CRUD operations
+- ✅ **IsDev Parameter Preservation**: Added IsDev field to all DTOs and mappings to maintain environment settings across updates
+- ✅ **Enhanced Error Handling**: Improved Train Model timeout detection with specific TaskCanceledException handling
+- ✅ **API Request Format**: Fixed Refresh button 400 error by creating proper RefreshFilesRequest DTO format
+- ✅ **Real-time Feedback**: Extended notification system for Refresh and ForceCategory actions with enhanced error messages
+- ✅ **LastView Bug Fix**: Resolved "not show again" button 500 error by correcting UpdateFileDetailAsync DTO format matching
+
 ## 💡 Architecture Benefits Achieved
 
 ### **🏗️ Foundation (Phase 1-2)**

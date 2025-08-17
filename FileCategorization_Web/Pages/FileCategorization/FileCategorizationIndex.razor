@@ -1,17 +1,26 @@
 ﻿@page "/filecategorizationindex"
 @using Microsoft.AspNetCore.SignalR.Client
+@using Fluxor
+@using FileCategorization_Web.Features.FileManagement.Actions
+@using FileCategorization_Web.Features.FileManagement.Store
+@using FileCategorization_Shared.DTOs.FileManagement
+@using Radzen
 @inject TooltipService tooltipService
+@inject NotificationService NotificationService
+@inject IState<FileState> FileState
+@inject IDispatcher Dispatcher
+@implements IDisposable
 
 <RadzenLayout class="rz-shadow-3" Style="grid-template-columns: auto 1fr auto; grid-template-areas: 'rz-header rz-header rz-header' 'rz-sidebar rz-body rz-right-sidebar'">
 <div class="p-2">
     
     <RadzenRow JustifyContent="JustifyContent.SpaceBetween">
 
-        <RadzenButton Click="refreshFiles" Icon="autorenew" ButtonStyle="ButtonStyle.Dark" Size="ButtonSize.Large"
-        IsBusy=@busyRefresh Text="Refresh"
+        <RadzenButton Click="RefreshFiles" Icon="autorenew" ButtonStyle="ButtonStyle.Dark" Size="ButtonSize.Large"
+        IsBusy=@FileState.Value.IsRefreshing Text="Refresh"
         BusyText="Wait ..." />
 
-        <RadzenSelectBar @bind-Value=@searchCatParam TValue="int" Change=@(args => OnChangeCatParam(args))>
+        <RadzenSelectBar Value=@FileState.Value.SearchParameter TValue="int" Change=@(args => OnChangeCatParam(args))>
             <Items>
                 <RadzenSelectBarItem Text="All" Value="1" />
                 <RadzenSelectBarItem Text="Categorized" Value="2" />
@@ -21,26 +30,28 @@
 
         <RadzenButton Text="Train Model" Icon="psychology" Click="TrainModel" ButtonStyle="ButtonStyle.Dark"
         Size="ButtonSize.Large"
-        IsBusy=@busyTrain
+        IsBusy=@FileState.Value.IsTraining
         BusyText="Training ..." />
 
 
         <RadzenButton Text="Force Categories" Icon="category" Click="ForceCategory" ButtonStyle="ButtonStyle.Dark"
-        Size="ButtonSize.Large" />
+        Size="ButtonSize.Large"
+        IsBusy=@FileState.Value.IsCategorizing
+        BusyText="Categorizing ..." />
 
 
         <RadzenButton ButtonStyle="ButtonStyle.Primary" Icon="drive_file_move" Variant="Variant.Flat" Text="Move"
         Shade="Shade.Default" Size="ButtonSize.Medium" Class="my-1 ms-1" Click="MoveFiles">
         </RadzenButton>
     </RadzenRow>
-    @if (fileList == null)
+    @if (FileState.Value.IsLoading)
     {
         <p><em>Loading...</em></p>
     }
     else
     {
         <RadzenRow class="row p-2">
-            <RadzenTextArea @bind-Value="@consoleText" ReadOnly="true" Rows="3"></RadzenTextArea>
+            <RadzenTextArea Value="@ConsoleText" ReadOnly="true" Rows="3"></RadzenTextArea>
         </RadzenRow>
         @*  @if (_progressIsVisible)
         {
@@ -52,7 +63,7 @@
         <RadzenDataGrid AllowFiltering="true" AllowColumnResize="true" AllowAlternatingRows="true" Density="Density.Compact"
         FilterMode="FilterMode.Advanced" AllowSorting="true" PageSize="9" AllowPaging="true"
         PagerHorizontalAlign="HorizontalAlign.Left" ShowPagingSummary="true" ColumnWidth="250px"
-        Data="@fileList" TItem="FilesDetailDto" LogicalFilterOperator="LogicalFilterOperator.Or">
+        Data="@FileStateSelectors.GetFilteredFiles(FileState.Value)" TItem="FilesDetailDto" LogicalFilterOperator="LogicalFilterOperator.Or">
 
             <Columns>
 
@@ -93,7 +104,7 @@
                                 TValue="string" Class="w-99" Placeholder="Select a Category"
                                 FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
                                 AllowFiltering="true"
-                                Data=@categories @bind-Value="@category.FileCategory" />
+                                Data=@FileState.Value.Categories @bind-Value="@category.FileCategory" />
                             }
                         }
                         else
@@ -148,146 +159,167 @@
 
 
 @code {
-
-    [Inject]
-    public IFileCategorizationService _service { get; set; }
-
-    bool busyRefresh;
-    bool busyTrain;
     protected bool _categorization = false;
-    protected IEnumerable<FilesDetailDto>? fileList;
-    protected IEnumerable<string>? categories;
     protected string newCategory = string.Empty;
-    protected string consoleText = string.Empty;
     protected int addCategory = 0;
-    protected int searchCatParam = 3;
     // private bool _progressIsVisible = false;
     // private double _progressPercentage = 0;
     // private double totalSize;
 
-    private HubConnection? _hubConnection;
+    // SignalR is now handled by INotificationService - no direct HubConnection needed
+
+    // Console text computed from Fluxor state
+    protected string ConsoleText => string.Join("\n", FileState.Value.ConsoleMessages);
 
 
-    protected override async Task OnInitializedAsync()
+    private string? lastErrorMessage = null;
+
+    protected override Task OnInitializedAsync()
     {
         try
         {
-            var url = _service.GetRestUrl();
-
-            _hubConnection = new HubConnectionBuilder()
-            .WithUrl(_service.GetRestUrl() + "notifications")
-            .WithAutomaticReconnect()
-            .ConfigureLogging(logging =>
-                {
-                    logging.SetMinimumLevel(LogLevel.Debug);
-                })
-            .Build();
-
-            _hubConnection.On<string, decimal>("notifications", (stockName, stockPrice) =>
-               {
-                   Console.WriteLine($"Message received--> Stock Name: {stockName} Stock Price: {stockPrice}");
-
-                   WriteConsole($"Message received--> Stock Name: {stockName} Stock Price: {stockPrice}");
-                   StateHasChanged();
-               });
-
-            _hubConnection.On<int, string, MoveFilesResults>("moveFilesNotifications", (fileId, resultText, result) =>
-               {
-                   Console.WriteLine($"SignalR Message received ==> File with id: {fileId} - Result: {result} - Text: {resultText}");
-                   WriteConsole($"File {resultText}: {result}");
-                   if (result == MoveFilesResults.Completed)
-                   {
-                       fileList = fileList.Where(u => u.Id != fileId).ToList();
-                   }
-
-                   StateHasChanged();
-               });
-
-            _hubConnection.On<string, MoveFilesResults>("jobNotifications", (resultText, result) =>
-               {
-                   Console.WriteLine($"SignalR Message received ==> {resultText}");
-                   WriteConsole($"{resultText}");
-                   if (result == MoveFilesResults.Completed)
-                   {
-                       //job completed
-                       //TODO something
-                       //refreshFiles();
-                   }
-
-                   StateHasChanged();
-               });
-
-            if (_hubConnection.State == HubConnectionState.Disconnected)
-            {
-                await _hubConnection.StartAsync();
-                Console.WriteLine($"SignalR connection started: id {_hubConnection.ConnectionId}");
-                WriteConsole($"SignalR - Connection established. Connection ID: {_hubConnection.ConnectionId}");
-            }
-            else
-            {
-                WriteConsole($"SignalR - Already Connected. Connection ID: {_hubConnection.ConnectionId}");
-                Console.WriteLine($"SignalR - Already Connected. Connection ID: {_hubConnection.ConnectionId}");
-            }
-
+            // Subscribe to state changes for error notifications
+            FileState.StateChanged += OnStateChanged;
+            
+            // Initialize Fluxor state - load initial data
+            // SignalR is automatically handled by INotificationService which integrates with Fluxor
+            Dispatcher.Dispatch(new LoadCategoriesAction());
+            Dispatcher.Dispatch(new LoadFilesAction(FileState.Value.SearchParameter));
+            Dispatcher.Dispatch(new AddConsoleMessageAction("Application ready!"));
+            
+            _categorization = false;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"SignlaR Error connection: {ex.Message}");
-            WriteConsole($"SignlaR Error connection: {ex.Message}");
+            Dispatcher.Dispatch(new SetErrorAction($"Error: {ex.Message}"));
         }
+        
+        return Task.CompletedTask;
+    }
 
+    private void OnStateChanged(object? sender, EventArgs e)
+    {
+        var currentState = FileState.Value;
+        
+        // Check for action completion messages in console
+        if (currentState.ConsoleMessages.Any())
+        {
+            var lastMessage = currentState.ConsoleMessages.LastOrDefault();
+            if (lastMessage != null && lastMessage != lastErrorMessage)
+            {
+                // Check for success messages
+                if (lastMessage.Contains("refreshed successfully") || lastMessage.Contains("Refresh completed"))
+                {
+                    NotificationService.Notify(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Success,
+                        Summary = "Refresh Completed",
+                        Detail = "Files have been refreshed successfully",
+                        Duration = 4000
+                    });
+                    lastErrorMessage = lastMessage;
+                }
+                else if (lastMessage.Contains("categorization completed") || lastMessage.Contains("Force categorization"))
+                {
+                    NotificationService.Notify(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Success,
+                        Summary = "Categorization Completed",
+                        Detail = "File categorization has been completed successfully",
+                        Duration = 4000
+                    });
+                    lastErrorMessage = lastMessage;
+                }
+                else if (lastMessage.Contains("training completed") || lastMessage.Contains("Model training"))
+                {
+                    NotificationService.Notify(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Success,
+                        Summary = "Training Completed",
+                        Detail = "Model training has been completed successfully",
+                        Duration = 4000
+                    });
+                    lastErrorMessage = lastMessage;
+                }
+            }
+        }
+        
+        // Check for errors and show notification
+        if (!string.IsNullOrEmpty(currentState.Error) && currentState.Error != lastErrorMessage)
+        {
+            // Check for specific error types
+            if (currentState.Error.Contains("Training") || currentState.Error.Contains("train"))
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Training Failed",
+                    Detail = currentState.Error,
+                    Duration = 8000
+                });
+            }
+            else if (currentState.Error.Contains("Refresh") || currentState.Error.Contains("refresh"))
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Refresh Failed",
+                    Detail = currentState.Error,
+                    Duration = 7000
+                });
+            }
+            else if (currentState.Error.Contains("categorization") || currentState.Error.Contains("Force"))
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Categorization Failed",
+                    Detail = currentState.Error,
+                    Duration = 7000
+                });
+            }
+            else
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = currentState.Error,
+                    Duration = 6000
+                });
+            }
+            
+            lastErrorMessage = currentState.Error;
+        }
+        
+        InvokeAsync(() => StateHasChanged());
+    }
 
-        _categorization = false;
-        await refreshFiles();
-
+    public void Dispose()
+    {
+        // Unsubscribe from state changes
+        FileState.StateChanged -= OnStateChanged;
     }
 
 
     protected void WriteConsole(string message)
     {
-        consoleText = $"{DateTime.Now.ToString("G")} - {message}" + Environment.NewLine + consoleText;
-
+        var timestampedMessage = $"{DateTime.Now.ToString("G")} - {message}";
+        Dispatcher.Dispatch(new AddConsoleMessageAction(timestampedMessage));
     }
 
-    private async Task refreshFiles()
+    private void RefreshFiles()
     {
-        busyRefresh = true;
-        WriteConsole("Refresh data: loading...");
+        Dispatcher.Dispatch(new RefreshDataAction());
+    }
 
-        var refreshFileResult = await _service.RefreshCategory();
 
-        WriteConsole(refreshFileResult);
-
-        if (refreshFileResult != null)
+    protected void OnChangeCatParam(object value)
+    {
+        if (value is int searchParam)
         {
-
-            await RefreshCategoryList();
-
-            await RefreshFileList();
-            WriteConsole("All Data updated");
+            Dispatcher.Dispatch(new LoadFilesAction(searchParam));
         }
-        else
-        {
-            WriteConsole($"Update Fail");
-        }
-
-        busyRefresh = false;
-    }
-
-
-    protected async Task OnChangeCatParam(object value)
-    {
-        await RefreshFileList();
-    }
-
-    protected async Task RefreshFileList()
-    {
-
-        fileList = await _service.GetFileListDto(searchCatParam);
-
-        WriteConsole($"File List updated");
-        StateHasChanged();
-
     }
 
     private string FileSizeFormatted(double len)
@@ -310,51 +342,28 @@
 
     private void Schedule(FilesDetailDto item)
     {
-        item.IsNotToMove = true;
+        Dispatcher.Dispatch(new ScheduleFileAction(item.Id));
     }
 
     private void Revert(FilesDetailDto item)
     {
-        item.IsNotToMove = false;
-
+        Dispatcher.Dispatch(new RevertFileAction(item.Id));
     }
 
-    protected async Task TrainModel()
+    protected void TrainModel()
     {
-        busyTrain = true;
-        await Task.Run(() => WriteConsole($"Start Model Train... "));
-        StateHasChanged();
-        WriteConsole(await _service.TrainModel());
-        busyTrain = false;
+        Dispatcher.Dispatch(new TrainModelAction());
     }
 
-    protected async Task NotShowAgain(FilesDetailDto item)
+    protected void NotShowAgain(FilesDetailDto item)
     {
-        item.IsToCategorize = false;
-        item.IsNew = false;
-        item.IsNotToMove = true;
-
-        if (await _service.UpdateFileDetail(item) != null)
-        {
-            WriteConsole($"File {item.Name} will not show again");
-        }
-        else
-        {
-            WriteConsole("ERROR: file exclusion failed");
-
-        }
-        await RefreshFileList();
+        Dispatcher.Dispatch(new NotShowAgainFileAction(item.Id));
     }
 
 
-    protected async Task ForceCategory()
+    protected void ForceCategory()
     {
-        await Task.Run(() => WriteConsole($"Starting Categorization... "));
-        StateHasChanged();
-        WriteConsole(await _service.ForceCategory());
-        StateHasChanged();
-        await RefreshFileList();
-
+        Dispatcher.Dispatch(new ForceCategoryAction());
     }
 
     // protected async Task MoveFile()
@@ -384,34 +393,25 @@
     //     await RefreshFileList();
     // }
 
-    protected async Task MoveFiles()
+    protected void MoveFiles()
     {
         // _progressIsVisible = true;
 
-        var filesToMove = fileList.Where(f => f.IsNotToMove).ToList();
+        var filesToMove = FileStateSelectors.GetFilesToMove(FileState.Value);
 
         // _progressPercentage = 0;
         // totalSize = (from x in filesToMove select x.FileSize).Sum(); // totSize : 100 = movedSize : x
 
-        var jobId = await _service.MoveFiles(filesToMove);
+        Dispatcher.Dispatch(new MoveFilesAction(filesToMove));
 
-        if (!string.IsNullOrEmpty(jobId))
-        {
-            WriteConsole($"Scheduled job n {jobId}");
-        }
-        // totalSize = 0;
-
-        // _progressIsVisible = false;
-        // _progressPercentage = 0;
-        await RefreshFileList();
+        // Job scheduling handled by Fluxor effect
     }
 
     #region Categories
 
-    protected async Task RefreshCategoryList()
+    protected void RefreshCategoryList()
     {
-        categories = await _service.GetCategoryList();
-        StateHasChanged();
+        Dispatcher.Dispatch(new LoadCategoriesAction());
     }
 
     private void ShowAddCat(int detailId)
@@ -419,20 +419,22 @@
         addCategory = detailId;
     }
 
-    private async Task SaveNewCat(FilesDetailDto item)
+    private void SaveNewCat(FilesDetailDto item)
     {
-
-        categories = categories.Append(newCategory);
-
-        item.FileCategory = newCategory;
-
-        await Task.Run(() => WriteConsole($"Added new category: {newCategory}"));
-
-        newCategory = string.Empty;
-
-        addCategory = 0;
-
-
+        if (!string.IsNullOrEmpty(newCategory))
+        {
+            // Add new category to state
+            Dispatcher.Dispatch(new AddNewCategoryAction(newCategory));
+            
+            // Update the item directly (since FilesDetailDto is not a record type)
+            item.FileCategory = newCategory;
+            Dispatcher.Dispatch(new UpdateFileDetailAction(item));
+            
+            WriteConsole($"Added new category: {newCategory}");
+            
+            newCategory = string.Empty;
+            addCategory = 0;
+        }
     }
 
     private void BackCat()

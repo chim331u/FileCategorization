@@ -5,8 +5,6 @@ namespace FileCategorization_Api.Domain.Entities.FileCategorization;
 
 public class Configs : BaseEntity
 {
-    [Key]
-    public int Id { get; set; }
     [Required]
     public string? Key { get; set; }
     [Required]

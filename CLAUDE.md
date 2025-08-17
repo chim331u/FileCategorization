@@ -225,6 +225,15 @@ FileCategorization/
 - **Tag-Based Organization**: Intelligent cache grouping for precise invalidation
 - **Performance Monitoring**: Real-time cache statistics and memory usage tracking
 
+### UI/UX Enhancements and Bug Fixes (August 2024)
+- **Comprehensive Notifications**: Added Radzen NotificationService for all CRUD operations
+- **Environment-Based Config**: Fixed Config creation to use IHostEnvironment.IsDevelopment()
+- **Cache Invalidation**: Resolved Config grid refresh issues with proper cache bypass
+- **Error Handling**: Enhanced timeout detection and detailed error messages for ML operations
+- **API Integration**: Fixed 400/500 errors with proper DTO format and request validation
+- **Real-time Feedback**: Added UI notifications for Refresh and ForceCategory actions
+- **Data Consistency**: Fixed IsDev parameter preservation across all Config operations
+
 ## Development Guidelines
 
 ### Code Organization Best Practices

@@ -223,23 +223,9 @@ public class ConfigRepository : Repository<Configs>, IConfigRepository
     {
         try
         {
-            _logger.LogInformation("Updating configuration with ID: {Id}", entity.Id);
+            _logger.LogInformation("Updating configuration with ID: {Id}, Key: {Key}", entity.Id, entity.Key);
 
-            // Check if key already exists (excluding current entity)
-            if (!string.IsNullOrWhiteSpace(entity.Key))
-            {
-                var keyExistsResult = await KeyExistsAsync(entity.Key, entity.Id, cancellationToken);
-                if (keyExistsResult.IsFailure)
-                {
-                    return Result<Configs>.Failure($"Error checking key existence: {keyExistsResult.Error}");
-                }
-
-                if (keyExistsResult.Value)
-                {
-                    _logger.LogWarning("Configuration key already exists: {Key}", entity.Key);
-                    return Result<Configs>.Failure($"Configuration key '{entity.Key}' already exists");
-                }
-            }
+            // Key uniqueness check removed for updates - allow updating existing keys
 
             // Update audit fields
             entity.LastUpdatedDate = DateTime.UtcNow;

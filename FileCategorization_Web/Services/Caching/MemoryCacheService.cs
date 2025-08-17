@@ -92,25 +92,38 @@ public class MemoryCacheService : ICacheService, IDisposable
                 return;
             }
 
+            if (string.IsNullOrEmpty(key))
+            {
+                _logger.LogWarning("Attempted to cache with null or empty key");
+                return;
+            }
+
             var cachePolicy = policy ?? CachePolicy.Medium;
             var options = CreateMemoryCacheEntryOptions(cachePolicy, key);
             
+            _logger.LogDebug("Setting cache for key: {Key}, value type: {ValueType}", key, typeof(T).Name);
             _memoryCache.Set(key, value, options);
             _keyCreationTimes[key] = DateTime.UtcNow;
             
-            // Tag management
-            foreach (var tag in cachePolicy.Tags)
+            // Tag management - safe handling of tags
+            if (cachePolicy.Tags != null && cachePolicy.Tags.Any())
             {
-                _taggedKeys.AddOrUpdate(tag, 
-                    new List<string> { key }, 
-                    (_, existing) => 
+                foreach (var tag in cachePolicy.Tags)
+                {
+                    if (!string.IsNullOrEmpty(tag))
                     {
-                        if (!existing.Contains(key))
-                        {
-                            existing.Add(key);
-                        }
-                        return existing;
-                    });
+                        _taggedKeys.AddOrUpdate(tag, 
+                            new List<string> { key }, 
+                            (_, existing) => 
+                            {
+                                if (!existing.Contains(key))
+                                {
+                                    existing.Add(key);
+                                }
+                                return existing;
+                            });
+                    }
+                }
             }
 
             _logger.LogDebug("Cached value for key: {Key} with policy: {Policy}", key, cachePolicy.GetType().Name);
@@ -333,6 +346,10 @@ public class MemoryCacheService : ICacheService, IDisposable
             _ => Microsoft.Extensions.Caching.Memory.CacheItemPriority.Normal
         };
 
+        // Set size for memory cache sizing (required when SizeLimit is configured)
+        // Estimate size based on cache policy and key type
+        options.Size = EstimateCacheEntrySize(key);
+
         // Add eviction callback for cleanup
         options.RegisterPostEvictionCallback((evictedKey, evictedValue, reason, state) =>
         {
@@ -349,6 +366,23 @@ public class MemoryCacheService : ICacheService, IDisposable
         });
 
         return options;
+    }
+
+    private long EstimateCacheEntrySize(string key)
+    {
+        // Estimate cache entry size based on key patterns
+        // This is required when MemoryCache has SizeLimit configured
+        if (string.IsNullOrEmpty(key))
+            return 1;
+
+        return key switch
+        {
+            var k when k.StartsWith("files") => 10,        // File lists can be large
+            var k when k.StartsWith("categories") => 2,    // Category lists are small
+            var k when k.StartsWith("configs") => 5,       // Config lists are medium
+            var k when k.StartsWith("cache-stats") => 1,   // Stats are tiny
+            _ => 3  // Default size for other entries
+        };
     }
 
     private long EstimateMemoryUsage()

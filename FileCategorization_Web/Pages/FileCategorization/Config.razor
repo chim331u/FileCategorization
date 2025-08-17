@@ -1,12 +1,19 @@
 ﻿@page "/config"
+@using Fluxor
+@using FileCategorization_Web.Features.FileManagement.Actions
+@using FileCategorization_Web.Features.FileManagement.Store
+@using Radzen
 @inject TooltipService tooltipService
 @inherits LayoutComponentBase
 @inject NotificationService NotificationService
+@inject IState<FileState> FileState
+@inject IDispatcher Dispatcher
+@implements IDisposable
 
 <RadzenLayout class="rz-shadow-3" Style="grid-template-columns: auto 1fr auto; grid-template-areas: 'rz-header rz-header rz-header' 'rz-sidebar rz-body rz-right-sidebar'">
 <div class="p-2">
 
-    @if (configurations == null)
+    @if (FileState.Value.IsLoading)
     {
         <p><em>Loading configurations...</em></p>
     }
@@ -17,7 +24,7 @@
         <RadzenDataGrid AllowFiltering="true" AllowColumnResize="true" AllowAlternatingRows="true" @ref="configGrid"
                     FilterMode="FilterMode.Advanced" AllowSorting="true" PageSize="15" AllowPaging="true"
                     PagerHorizontalAlign="HorizontalAlign.Left" ShowPagingSummary="true" ColumnWidth="250px"
-                    Data="@configurations" TItem="ConfigsDto" LogicalFilterOperator="LogicalFilterOperator.Or"
+                    Data="@FileState.Value.Configurations" TItem="ConfigsDto" LogicalFilterOperator="LogicalFilterOperator.Or"
                     EditMode="DataGridEditMode.Single" RowUpdate="@OnUpdateRow" RowCreate="@OnCreateRow"
                     Sort="@Reset" Page="@Reset" Filter="@Reset">
             <Columns>
@@ -63,40 +70,122 @@
 
 </RadzenLayout>
 @code {
-    [Inject]
-    public IFileCategorizationService _service { get; set; }
+    // Legacy service removed - now using Fluxor state management
+    private string? lastActionType = null;
+    private string? lastActionMessage = null;
 
-    protected IEnumerable<ConfigsDto>? configurations;
-
-    protected override async Task OnInitializedAsync()
-
+    protected override Task OnInitializedAsync()
     {
-        await RefreshConfigList();
-
+        // Subscribe to state changes
+        FileState.StateChanged += OnStateChanged;
+        
+        Dispatcher.Dispatch(new LoadConfigurationsAction());
+        return Task.CompletedTask;
     }
 
-    protected async Task RefreshConfigList()
+    private void OnStateChanged(object? sender, EventArgs e)
     {
-        var result = await _service.GetConfigListAsync();
+        // Check for notifications to show based on last console message
+        var currentState = FileState.Value;
         
-        if (result.IsSuccess && result.Value != null)
+        // Look for CRUD operation completion messages in console
+        if (currentState.ConsoleMessages.Any())
         {
-            configurations = result.Value;
+            var lastMessage = currentState.ConsoleMessages.LastOrDefault();
+            if (lastMessage != null && lastMessage != lastActionMessage)
+            {
+                ShowNotificationForAction(lastMessage);
+                lastActionMessage = lastMessage;
+                
+                // Refresh grid after CRUD operations
+                if (lastMessage.Contains("created successfully") || 
+                    lastMessage.Contains("updated successfully") || 
+                    lastMessage.Contains("deleted successfully"))
+                {
+                    InvokeAsync(async () => 
+                    {
+                        await configGrid?.Reload();
+                        StateHasChanged();
+                    });
+                    return;
+                }
+            }
         }
-        else
+        
+        InvokeAsync(() => StateHasChanged());
+    }
+
+    private void ShowNotificationForAction(string message)
+    {
+        // Parse the console message to show appropriate UI notification
+        if (message.Contains("created successfully"))
         {
-            configurations = new List<ConfigsDto>();
-            
+            var configKey = ExtractConfigKeyFromMessage(message);
             NotificationService.Notify(new NotificationMessage
             {
-                Severity = NotificationSeverity.Error,
-                Summary = "Error Loading Configs",
-                Detail = result.Error ?? "Failed to load configurations",
+                Severity = NotificationSeverity.Success,
+                Summary = "Configuration Created",
+                Detail = $"Configuration '{configKey}' has been created successfully",
                 Duration = 4000
             });
         }
+        else if (message.Contains("updated successfully"))
+        {
+            var configKey = ExtractConfigKeyFromMessage(message);
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Configuration Updated",
+                Detail = $"Configuration '{configKey}' has been updated successfully",
+                Duration = 4000
+            });
+        }
+        else if (message.Contains("deleted successfully"))
+        {
+            var configKey = ExtractConfigKeyFromMessage(message);
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Configuration Deleted",
+                Detail = $"Configuration '{configKey}' has been deleted successfully",
+                Duration = 4000
+            });
+        }
+        else if (message.Contains("Error") || message.Contains("Failed"))
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Configuration Error",
+                Detail = message,
+                Duration = 6000
+            });
+        }
+    }
+
+    private string ExtractConfigKeyFromMessage(string message)
+    {
+        // Extract config key from message like "Configuration 'DESTDIR' created successfully"
+        var startIndex = message.IndexOf("'") + 1;
+        var endIndex = message.IndexOf("'", startIndex);
         
-        StateHasChanged();
+        if (startIndex > 0 && endIndex > startIndex)
+        {
+            return message.Substring(startIndex, endIndex - startIndex);
+        }
+        
+        return "Configuration";
+    }
+
+    public void Dispose()
+    {
+        // Unsubscribe from state changes
+        FileState.StateChanged -= OnStateChanged;
+    }
+
+    protected void RefreshConfigList()
+    {
+        Dispatcher.Dispatch(new LoadConfigurationsAction());
     }
 
     ConfigsDto? configToUpdate;
@@ -107,10 +196,10 @@
     {
         configToUpdate = config;
 
-        await configGrid.EditRow(config);
+        await configGrid!.EditRow(config);
     }
 
-    async void OnUpdateRow(ConfigsDto config)
+    void OnUpdateRow(ConfigsDto config)
     {
         if (config == configToInsert)
         {
@@ -118,70 +207,23 @@
         }
 
         configToUpdate = null;
-
-        var result = await _service.UpdateConfigAsync(config);
-
-        if (result.IsSuccess && result.Value != null)
-        {
-            NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Info,
-                    Summary = "Config Update",
-                    Detail = $"{result.Value.Key} updated",
-                    Duration = 4000
-
-                });
-        }
-        else
-        {
-            NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Error,
-                    Summary = "Error Update",
-                    Detail = result.Error ?? "Config NOT updated",
-                    Duration = 4000
-
-                });
-        }
+        
+        Dispatcher.Dispatch(new UpdateConfigurationAction(config));
     }
 
-    async void OnCreateRow(ConfigsDto config)
+    void OnCreateRow(ConfigsDto config)
     {
-        var result = await _service.AddConfigAsync(config);
-
         configToInsert = null;
         
-        if (result.IsSuccess && result.Value != null)
-        {
-            NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Info,
-                    Summary = "New Config Created",
-                    Detail = $"{result.Value.Key} created",
-                    Duration = 4000
-
-                });
-        }
-        else
-        {
-            NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Error,
-                    Summary = "Error",
-                    Detail = result.Error ?? "Error adding New Config",
-                    Duration = 4000
-
-                });
-        }
-
-        await RefreshConfigList();
+        Dispatcher.Dispatch(new CreateConfigurationAction(config));
+        // Notifications are now handled by Fluxor effects
     }
-    async Task SaveRow(ConfigsDto config)
+    protected async Task SaveRow(ConfigsDto config)
     {
-        await configGrid.UpdateRow(config);
+        await configGrid!.UpdateRow(config);
     }
 
-    async void CancelEdit(ConfigsDto config)
+    protected void CancelEdit(ConfigsDto config)
     {
         if (config == configToInsert)
         {
@@ -190,25 +232,18 @@
 
         configToUpdate = null;
 
-        var result = await _service.GetConfigAsync(config.Id);
-        
-        if (result.IsSuccess && result.Value != null)
-        {
-            config = result.Value;
-        }
-
-        configGrid.CancelEditRow(config);
+        // Refresh configuration will be handled by Fluxor effect
+        configGrid!.CancelEditRow(config);
     }
 
     protected async Task InsertRow()
     {
         configToInsert = new ConfigsDto();
 
-        await configGrid.InsertRow(configToInsert);
-
+        await configGrid!.InsertRow(configToInsert);
     }
 
-    async Task DeleteRow(ConfigsDto config)
+    protected void DeleteRow(ConfigsDto config)
     {
         if (config == configToInsert)
         {
@@ -220,35 +255,10 @@
             configToUpdate = null;
         }
 
-        var result = await _service.DeleteConfigAsync(config);
-
-        if (result.IsSuccess && result.Value != null)
-        {
-            NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Info,
-                    Summary = "Config Deleted",
-                    Detail = $"{result.Value.Key} deleted",
-                    Duration = 4000
-
-                });
-        }
-        else
-        {
-            NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Error,
-                    Summary = "Error",
-                    Detail = result.Error ?? "Error deleting Config",
-                    Duration = 4000
-
-                });
-        }
-        await configGrid.Reload();
-        await RefreshConfigList();
+        Dispatcher.Dispatch(new DeleteConfigurationAction(config));
     }
 
-    void Reset()
+    protected void Reset()
     {
         configToInsert = null;
         configToUpdate = null;

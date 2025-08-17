@@ -31,6 +31,18 @@ public record LoadConfigurationsAction : FileAction;
 public record LoadConfigurationsSuccessAction(ImmutableList<ConfigsDto> Configurations) : FileAction;
 public record LoadConfigurationsFailureAction(string Error) : FileAction;
 
+public record UpdateConfigurationAction(ConfigsDto Configuration) : FileAction;
+public record UpdateConfigurationSuccessAction(ConfigsDto UpdatedConfiguration) : FileAction;
+public record UpdateConfigurationFailureAction(string Error) : FileAction;
+
+public record CreateConfigurationAction(ConfigsDto Configuration) : FileAction;
+public record CreateConfigurationSuccessAction(ConfigsDto CreatedConfiguration) : FileAction;
+public record CreateConfigurationFailureAction(string Error) : FileAction;
+
+public record DeleteConfigurationAction(ConfigsDto Configuration) : FileAction;
+public record DeleteConfigurationSuccessAction(ConfigsDto DeletedConfiguration) : FileAction;
+public record DeleteConfigurationFailureAction(string Error) : FileAction;
+
 // File Management Actions
 public record UpdateFileDetailAction(FilesDetailDto File) : FileAction;
 public record UpdateFileDetailSuccessAction(FilesDetailDto UpdatedFile) : FileAction;

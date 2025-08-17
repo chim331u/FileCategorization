@@ -50,4 +50,9 @@
         <ProjectReference Include="..\FileCategorization_Shared\FileCategorization_Shared.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Temp\Dest\" />
+      <Folder Include="Temp\Origin\" />
+    </ItemGroup>
+
 </Project>

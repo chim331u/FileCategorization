@@ -16,6 +16,7 @@ public record FileState
     public bool IsLoading { get; init; } = false;
     public bool IsRefreshing { get; init; } = false;
     public bool IsTraining { get; init; } = false;
+    public bool IsCategorizing { get; init; } = false;
     public string? Error { get; init; } = null;
     
     // Search and Filters

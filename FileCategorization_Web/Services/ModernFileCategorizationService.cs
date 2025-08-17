@@ -3,13 +3,16 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using FileCategorization_Shared.Common;
 using FileCategorization_Web.Data.Configuration;
-using FileCategorization_Shared.DTOs.FileManagement;using FileCategorization_Shared.DTOs.Configuration;using FileCategorization_Shared.Enums;
+using FileCategorization_Shared.DTOs.FileManagement;
+using FileCategorization_Shared.DTOs.Configuration;
+using FileCategorization_Shared.Enums;
+using FileCategorization_Web.Data.DTOs.Configuration;
 using FileCategorization_Web.Interfaces;
 using Microsoft.Extensions.Options;
 
 namespace FileCategorization_Web.Services;
 
-public class ModernFileCategorizationService : IFileCategorizationService
+public class ModernFileCategorizationService : IModernFileCategorizationService
 {
     private readonly HttpClient _httpClient;
     private readonly JsonSerializerOptions _serializerOptions;
@@ -21,9 +24,21 @@ public class ModernFileCategorizationService : IFileCategorizationService
         IOptions<FileCategorizationApiOptions> options,
         ILogger<ModernFileCategorizationService> logger)
     {
-        _httpClient = httpClient;
         _options = options.Value;
         _logger = logger;
+
+        // Debug: Log the configuration being used
+        _logger.LogInformation("=== ModernFileCategorizationService Constructor ===");
+        _logger.LogInformation("Options BaseUrl: {BaseUrl}", _options.BaseUrl);
+        _logger.LogInformation("Options Timeout: {Timeout}", _options.Timeout);
+        
+        // Configure HttpClient with runtime options
+        httpClient.BaseAddress = new Uri(_options.BaseUrl);
+        httpClient.Timeout = _options.Timeout;
+        _httpClient = httpClient;
+        
+        _logger.LogInformation("HttpClient BaseAddress AFTER CONFIG: {BaseAddress}", _httpClient.BaseAddress);
+        
 
         _serializerOptions = new JsonSerializerOptions
         {
@@ -42,7 +57,15 @@ public class ModernFileCategorizationService : IFileCategorizationService
         {
             _logger.LogInformation("Refreshing category data using v2 API");
             
-            var response = await _httpClient.PostAsync("api/v2/actions/refresh-files", null);
+            // Create request with default parameters
+            var refreshRequest = new FileCategorization_Web.Data.DTOs.Actions.RefreshFilesRequest
+            {
+                BatchSize = 100,
+                ForceRecategorization = false,
+                FileExtensionFilters = null // Process all files
+            };
+            
+            var response = await _httpClient.PostAsJsonAsync("api/v2/actions/refresh-files", refreshRequest, _serializerOptions);
             
             if (response.IsSuccessStatusCode)
             {
@@ -51,14 +74,37 @@ public class ModernFileCategorizationService : IFileCategorizationService
                 return Result.Success(result);
             }
 
-            var error = $"API v2 Error: {response.StatusCode}";
-            _logger.LogWarning("Failed to refresh category data using v2 API: {Error}", error);
-            return Result.Failure<string>(error);
+            // Read error details from response content
+            var errorContent = await response.Content.ReadAsStringAsync();
+            var detailedError = !string.IsNullOrEmpty(errorContent) ? errorContent : response.ReasonPhrase ?? "Unknown error";
+            
+            _logger.LogError("API v2 refresh failed - Status: {StatusCode}, Content: {ErrorContent}", 
+                response.StatusCode, errorContent);
+
+            var errorMessage = response.StatusCode switch
+            {
+                System.Net.HttpStatusCode.BadRequest => $"Refresh failed: {detailedError}",
+                System.Net.HttpStatusCode.NotFound => $"Refresh path not found: {detailedError}",
+                System.Net.HttpStatusCode.InternalServerError => $"Server error during refresh: {detailedError}",
+                _ => $"Refresh failed ({response.StatusCode}): {detailedError}"
+            };
+
+            return Result.Failure<string>(errorMessage);
+        }
+        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+        {
+            _logger.LogError(ex, "Refresh data timed out after 30 seconds");
+            return Result.Failure<string>("Refresh timed out. The operation may take longer than expected or there could be an issue with the data processing.");
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogError(ex, "Refresh data was cancelled");
+            return Result.Failure<string>("Refresh was cancelled due to timeout or cancellation request.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Exception occurred while refreshing category data using v2 API");
-            return Result.Failure<string>($"Network Error: {ex.Message}", ex);
+            return Result.Failure<string>($"Unexpected error during refresh: {ex.Message}");
         }
     }
 
@@ -68,7 +114,7 @@ public class ModernFileCategorizationService : IFileCategorizationService
         {
             _logger.LogInformation("Fetching category list using v2 API");
             
-            var response = await _httpClient.GetAsync("api/v2/files/categories");
+            var response = await _httpClient.GetAsync("api/v2/categories");
             
             if (response.IsSuccessStatusCode)
             {
@@ -131,14 +177,18 @@ public class ModernFileCategorizationService : IFileCategorizationService
             _logger.LogInformation("Updating file detail for ID: {Id} using v2 API", item.Id);
             
             // Create v2 update request object matching the API's expected format
-            var updateRequest = new
+            // Note: Only using properties that exist in FilesDetailDto
+            var updateRequest = new FileCategorization_Web.Data.DTOs.FileManagement.FilesDetailUpdateRequest
             {
-                name = item.Name,
-                fileCategory = item.FileCategory,
-                fileSize = item.FileSize,
-                isToCategorize = item.IsToCategorize,
-                isNew = item.IsNew,
-                isNotToMove = item.IsNotToMove
+                Name = item.Name,
+                Path = null, // Not available in FilesDetailDto
+                FileSize = item.FileSize,
+                LastUpdateFile = DateTime.Now, // Set to current time since not available in FilesDetailDto
+                FileCategory = item.FileCategory,
+                IsToCategorize = item.IsToCategorize,
+                IsNew = item.IsNew,
+                IsDeleted = false, // Default value since not available in FilesDetailDto
+                IsNotToMove = item.IsNotToMove
             };
             
             var response = await _httpClient.PutAsJsonAsync($"api/v2/files/{item.Id}", updateRequest, _serializerOptions);
@@ -181,18 +231,42 @@ public class ModernFileCategorizationService : IFileCategorizationService
         try
         {
             _logger.LogInformation("Fetching config list using v2 API");
+            _logger.LogInformation("HTTP Client Base Address: {BaseAddress}", _httpClient.BaseAddress);
+            _logger.LogInformation("Full Request URL: {RequestUrl}", $"{_httpClient.BaseAddress}api/v2/configs");
             
             var response = await _httpClient.GetAsync("api/v2/configs");
             
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
-                var configs = JsonSerializer.Deserialize<List<ConfigsDto>>(content, _serializerOptions) ?? new List<ConfigsDto>();
+                
+                // Debug: Log the actual content to see what we're receiving
+                _logger.LogDebug("API v2 configs response content: {Content}", content);
+                
+                // API v2 returns ConfigResponse[], we need to map to ConfigsDto[]
+                var configResponses = JsonSerializer.Deserialize<List<ConfigResponse>>(content, _serializerOptions) ?? new List<ConfigResponse>();
+                
+                // Map ConfigResponse to ConfigsDto
+                var configs = configResponses.Select(cr => new ConfigsDto
+                {
+                    Id = cr.Id,
+                    Key = cr.Key,
+                    Value = cr.Value,
+                    IsDev = cr.IsDev
+                }).ToList();
                 
                 _logger.LogInformation("Retrieved {Count} configs from v2 API", configs.Count);
                 return Result.Success(configs);
             }
 
+            // Debug: Log the actual response content for non-success status codes
+            var errorContent = await response.Content.ReadAsStringAsync();
+            _logger.LogError("=== API v2 configs ERROR RESPONSE ===");
+            _logger.LogError("Status Code: {StatusCode}", response.StatusCode);
+            _logger.LogError("Response Headers: {Headers}", string.Join(", ", response.Headers.Select(h => $"{h.Key}: {string.Join(", ", h.Value)}")));
+            _logger.LogError("Content Type: {ContentType}", response.Content.Headers.ContentType);
+            _logger.LogError("Content (first 500 chars): {Content}", errorContent.Length > 500 ? errorContent.Substring(0, 500) + "..." : errorContent);
+            
             var error = $"API v2 Error: {response.StatusCode}";
             _logger.LogWarning("Failed to get config list from v2 API: {Error}", error);
             return Result.Failure<List<ConfigsDto>>(error);
@@ -215,10 +289,19 @@ public class ModernFileCategorizationService : IFileCategorizationService
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
-                var config = JsonSerializer.Deserialize<ConfigsDto>(content, _serializerOptions);
                 
-                if (config != null)
+                // API v2 returns ConfigResponse, we need to map to ConfigsDto
+                var configResponse = JsonSerializer.Deserialize<ConfigResponse>(content, _serializerOptions);
+                
+                if (configResponse != null)
                 {
+                    var config = new ConfigsDto
+                    {
+                        Id = configResponse.Id,
+                        Key = configResponse.Key,
+                        Value = configResponse.Value
+                    };
+                    
                     _logger.LogInformation("Config retrieved successfully for ID: {Id} from v2 API", id);
                     return Result.Success(config);
                 }
@@ -248,11 +331,11 @@ public class ModernFileCategorizationService : IFileCategorizationService
             _logger.LogInformation("Updating config ID: {Id} using v2 API", item.Id);
             
             // Create v2 update request object
-            var updateRequest = new
+            var updateRequest = new ConfigUpdateRequest
             {
-                key = item.Key,
-                value = item.Value,
-                isDev = false // Default to production, can be enhanced later
+                Key = item.Key,
+                Value = item.Value,
+                IsDev = item.IsDev // Pass the actual IsDev value from the item
             };
             
             var response = await _httpClient.PutAsJsonAsync($"api/v2/configs/{item.Id}", updateRequest, _serializerOptions);
@@ -260,10 +343,20 @@ public class ModernFileCategorizationService : IFileCategorizationService
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
-                var updatedConfig = JsonSerializer.Deserialize<ConfigsDto>(content, _serializerOptions);
                 
-                if (updatedConfig != null)
+                // API v2 returns ConfigResponse, we need to map to ConfigsDto
+                var configResponse = JsonSerializer.Deserialize<ConfigResponse>(content, _serializerOptions);
+                
+                if (configResponse != null)
                 {
+                    var updatedConfig = new ConfigsDto
+                    {
+                        Id = configResponse.Id,
+                        Key = configResponse.Key,
+                        Value = configResponse.Value,
+                        IsDev = configResponse.IsDev // Use the IsDev value from the API response
+                    };
+                    
                     _logger.LogInformation("Config updated successfully using v2 API");
                     return Result.Success(updatedConfig);
                 }
@@ -299,11 +392,11 @@ public class ModernFileCategorizationService : IFileCategorizationService
             _logger.LogInformation("Adding new config using v2 API");
             
             // Create v2 create request object
-            var createRequest = new
+            var createRequest = new ConfigRequest
             {
-                key = item.Key,
-                value = item.Value,
-                isDev = false // Default to production, can be enhanced later
+                Key = item.Key ?? string.Empty,
+                Value = item.Value ?? string.Empty,
+                IsDev = item.IsDev // Pass the actual IsDev value from the item
             };
             
             var response = await _httpClient.PostAsJsonAsync("api/v2/configs", createRequest, _serializerOptions);
@@ -311,10 +404,20 @@ public class ModernFileCategorizationService : IFileCategorizationService
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
-                var addedConfig = JsonSerializer.Deserialize<ConfigsDto>(content, _serializerOptions);
                 
-                if (addedConfig != null)
+                // API v2 returns ConfigResponse, we need to map to ConfigsDto
+                var configResponse = JsonSerializer.Deserialize<ConfigResponse>(content, _serializerOptions);
+                
+                if (configResponse != null)
                 {
+                    var addedConfig = new ConfigsDto
+                    {
+                        Id = configResponse.Id,
+                        Key = configResponse.Key,
+                        Value = configResponse.Value,
+                        IsDev = configResponse.IsDev
+                    };
+                    
                     _logger.LogInformation("Config added successfully using v2 API");
                     return Result.Success(addedConfig);
                 }
@@ -454,14 +557,39 @@ public class ModernFileCategorizationService : IFileCategorizationService
                 return Result.Success(result);
             }
 
-            var error = $"API v2 Error: {response.StatusCode}";
-            _logger.LogWarning("Failed to train model using v2 API: {Error}", error);
-            return Result.Failure<string>(error);
+            // Read error details from response content
+            var errorContent = await response.Content.ReadAsStringAsync();
+            var detailedError = !string.IsNullOrEmpty(errorContent) ? errorContent : response.ReasonPhrase ?? "Unknown error";
+            
+            _logger.LogError("API v2 training failed - Status: {StatusCode}, Content: {ErrorContent}", 
+                response.StatusCode, errorContent);
+
+            // Handle specific HTTP error codes
+            var errorMessage = response.StatusCode switch
+            {
+                System.Net.HttpStatusCode.BadRequest => $"Training failed: {detailedError}",
+                System.Net.HttpStatusCode.NotFound => $"Training path not found: {detailedError}",
+                System.Net.HttpStatusCode.InternalServerError => $"Server error during training: {detailedError}",
+                System.Net.HttpStatusCode.Conflict => $"Training conflict: {detailedError}",
+                _ => $"Training failed ({response.StatusCode}): {detailedError}"
+            };
+
+            return Result.Failure<string>(errorMessage);
+        }
+        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+        {
+            _logger.LogError(ex, "Model training timed out after 30 seconds");
+            return Result.Failure<string>("Training timed out. The operation may take longer than expected or there could be an issue with the training data path.");
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogError(ex, "Model training was cancelled");
+            return Result.Failure<string>("Training was cancelled due to timeout or cancellation request.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Exception occurred while training model using v2 API");
-            return Result.Failure<string>($"Network Error: {ex.Message}", ex);
+            return Result.Failure<string>($"Unexpected error during training: {ex.Message}");
         }
     }
 
@@ -480,14 +608,39 @@ public class ModernFileCategorizationService : IFileCategorizationService
                 return Result.Success(result);
             }
 
-            var error = $"API v2 Error: {response.StatusCode}";
-            _logger.LogWarning("Failed to force categorization using v2 API: {Error}", error);
-            return Result.Failure<string>(error);
+            // Read error details from response content
+            var errorContent = await response.Content.ReadAsStringAsync();
+            var detailedError = !string.IsNullOrEmpty(errorContent) ? errorContent : response.ReasonPhrase ?? "Unknown error";
+            
+            _logger.LogError("API v2 force categorization failed - Status: {StatusCode}, Content: {ErrorContent}", 
+                response.StatusCode, errorContent);
+
+            // Handle specific HTTP error codes
+            var errorMessage = response.StatusCode switch
+            {
+                System.Net.HttpStatusCode.BadRequest => $"Categorization failed: {detailedError}",
+                System.Net.HttpStatusCode.NotFound => $"Categorization path not found: {detailedError}",
+                System.Net.HttpStatusCode.InternalServerError => $"Server error during categorization: {detailedError}",
+                System.Net.HttpStatusCode.Conflict => $"Categorization conflict: {detailedError}",
+                _ => $"Categorization failed ({response.StatusCode}): {detailedError}"
+            };
+
+            return Result.Failure<string>(errorMessage);
+        }
+        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+        {
+            _logger.LogError(ex, "Force categorization timed out after 30 seconds");
+            return Result.Failure<string>("Categorization timed out. The operation may take longer than expected or there could be an issue with the data processing.");
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogError(ex, "Force categorization was cancelled");
+            return Result.Failure<string>("Categorization was cancelled due to timeout or cancellation request.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Exception occurred while forcing categorization using v2 API");
-            return Result.Failure<string>($"Network Error: {ex.Message}", ex);
+            return Result.Failure<string>($"Unexpected error during categorization: {ex.Message}");
         }
     }
 

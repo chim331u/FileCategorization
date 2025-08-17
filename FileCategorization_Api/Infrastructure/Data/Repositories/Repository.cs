@@ -108,9 +108,14 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
             if (entity == null)
                 return Result<T>.Failure("Entity cannot be null");
 
+            _logger.LogInformation("Repository UpdateAsync called with entity ID: {EntityId}", entity.Id);
+            
             var existingEntity = await _dbSet.FindAsync(new object[] { entity.Id }, cancellationToken);
             if (existingEntity == null)
+            {
+                _logger.LogError("Existing entity not found with ID: {EntityId}", entity.Id);
                 return Result<T>.Failure($"Entity with ID {entity.Id} not found");
+            }
 
             // Update audit fields
             entity.LastUpdatedDate = DateTime.UtcNow;

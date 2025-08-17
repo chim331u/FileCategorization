@@ -1,12 +1,19 @@
 ﻿@page "/lastview"
+@using Fluxor
+@using FileCategorization_Web.Features.FileManagement.Actions
+@using FileCategorization_Web.Features.FileManagement.Store
+@using FileCategorization_Shared.DTOs.FileManagement
 @inject TooltipService tooltipService
 @inherits LayoutComponentBase
 @inject NotificationService NotificationService
+@inject IState<FileState> FileState
+@inject IDispatcher Dispatcher
+@implements IDisposable
 
 <RadzenLayout class="rz-shadow-3" Style="grid-template-columns: auto 1fr auto; grid-template-areas: 'rz-header rz-header rz-header' 'rz-sidebar rz-body rz-right-sidebar'">
 <div class="p-2">
 
-    @if (files == null)
+    @if (FileState.Value.IsLoading)
     {
         <p><em>Loading ...</em></p>
     }
@@ -19,7 +26,7 @@
         <br />
         <RadzenDataGrid @ref="grid" AllowFiltering="true" AllowPaging="true" PageSize="10" AllowSorting="true"
                         RowRender="@RowRender" ExpandMode="DataGridExpandMode.Single"
-                        Data="@files" TItem="FilesDetailDto" RowExpand="RowExpand">
+                        Data="@FilteredFiles" TItem="FilesDetailDto" RowExpand="RowExpand">
             <Template Context="file">
                 <RadzenDataGrid AllowFiltering="true" AllowPaging="true" AllowSorting="true" Data="@filesOthers" TItem="FilesDetailDto">
                     <Columns>
@@ -63,72 +70,48 @@
 </div>
 </RadzenLayout>
 @code {
-    [Inject]
-    public IFileCategorizationService _service { get; set; }
-
-    IEnumerable<FilesDetailDto>? filesFromApi;
-    IEnumerable<FilesDetailDto>? files;
-    IList<FilesDetailDto>? filesOthers;
+    // Legacy service removed - now using Fluxor state management
+    IList<FilesDetailDto>? filesOthers; // Keep for expanded row data
 
     RadzenDataGrid<FilesDetailDto>? grid;
     string? searchText;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync()
     {
-        await base.OnInitializedAsync();
-
-        await RefreshList();
+        // Subscribe to state changes
+        FileState.StateChanged += OnStateChanged;
+        
+        Dispatcher.Dispatch(new LoadFilesAction(1)); // Load all files for last view
+        return Task.CompletedTask;
     }
 
-    private async Task RefreshList()
+    private void OnStateChanged(object? sender, EventArgs e)
     {
-        var result = await _service.GetLastFilesListAsync();
-        
-        if (result.IsSuccess && result.Value != null)
-        {
-            filesFromApi = result.Value;
-            files = filesFromApi;
-        }
-        else
-        {
-            filesFromApi = new List<FilesDetailDto>();
-            files = filesFromApi;
-            
-            NotificationService.Notify(new NotificationMessage
-            {
-                Severity = NotificationSeverity.Error,
-                Summary = "Error Loading Files",
-                Detail = result.Error ?? "Failed to load last files list",
-                Duration = 4000
-            });
-        }
+        InvokeAsync(() => StateHasChanged());
+    }
+
+    public void Dispose()
+    {
+        // Unsubscribe from state changes
+        FileState.StateChanged -= OnStateChanged;
+    }
+
+    private void RefreshList()
+    {
+        Dispatcher.Dispatch(new LoadFilesAction(1)); // Refresh all files
     }
 
     void RowRender(RowRenderEventArgs<FilesDetailDto> args)
     {
     }
 
-    async void RowExpand(FilesDetailDto item)
+    void RowExpand(FilesDetailDto item)
     {
-        filesOthers = new List<FilesDetailDto>();
-
-        var result = await _service.GetAllFilesAsync(item.FileCategory);
-        
-        if (result.IsSuccess && result.Value != null)
-        {
-            filesOthers = result.Value;
-        }
-        else
-        {
-            NotificationService.Notify(new NotificationMessage
-            {
-                Severity = NotificationSeverity.Error,
-                Summary = "Error Loading Category Files",
-                Detail = result.Error ?? $"Failed to load files for category: {item.FileCategory}",
-                Duration = 4000
-            });
-        }
-
+        // Filter files by category from existing state instead of API call
+        filesOthers = FileState.Value.Files
+            .Where(f => f.FileCategory == item.FileCategory)
+            .ToList();
+            
         StateHasChanged();
     }
 
@@ -142,37 +125,13 @@
         //}
     }
 
-    protected async Task NotShowAgain(FilesDetailDto item)
+    protected void NotShowAgain(FilesDetailDto item)
     {
         item.IsToCategorize = false;
         item.IsNew = false;
         item.IsNotToMove = true;
 
-        var result = await _service.UpdateFileDetailAsync(item);
-        
-        if (result.IsSuccess && result.Value != null)
-        {
-            NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Info,
-                    Summary = "File Updated",
-                    Detail = $"File will not be shown again",
-                    Duration = 4000
-
-                });
-        }
-        else
-        {
-            NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Error,
-                    Summary = "File NOT Updated",
-                    Detail = result.Error ?? "Error in updating file: see log for detail",
-                    Duration = 4000
-
-                });
-        }
-        await RefreshList();
+        Dispatcher.Dispatch(new UpdateFileDetailAction(item));
     }
 
     void ShowTooltipNotShowAgain(ElementReference elementReference, TooltipOptions options = null) => tooltipService.Open(elementReference, "Not Show Again", options);
@@ -196,16 +155,18 @@
 
     void OnInput(Microsoft.AspNetCore.Components.ChangeEventArgs args)
     {
-        searchText = args.Value.ToString();
-        if (string.IsNullOrEmpty(searchText))
-        {
-            files = filesFromApi;
-        }
-        else
-        {
-            files = filesFromApi.Where(x => x.Name.ToUpper().Contains(searchText.ToUpper()) || x.FileCategory.ToUpper().Contains(searchText.ToUpper())).ToList();
-        }
-
+        searchText = args.Value?.ToString();
+        // Search filtering is now handled by FileState and computed properties
+        // The search can be implemented through selectors or local computed property
         StateHasChanged();
     }
+    
+    // Computed property for filtered files based on search
+    private IEnumerable<FilesDetailDto> FilteredFiles => 
+        string.IsNullOrEmpty(searchText) 
+            ? FileState.Value.Files
+            : FileState.Value.Files.Where(x => 
+                x.Name.ToUpper().Contains(searchText.ToUpper()) || 
+                x.FileCategory.ToUpper().Contains(searchText.ToUpper()));
+}
 }

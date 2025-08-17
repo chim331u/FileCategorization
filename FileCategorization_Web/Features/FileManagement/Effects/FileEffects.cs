@@ -12,11 +12,11 @@ namespace FileCategorization_Web.Features.FileManagement.Effects;
 
 public class FileEffects
 {
-    private readonly IFileCategorizationService _fileService;
+    private readonly IModernFileCategorizationService _fileService;
     private readonly ICacheService _cacheService;
     private readonly ILogger<FileEffects> _logger;
 
-    public FileEffects(IFileCategorizationService fileService, ICacheService cacheService, ILogger<FileEffects> logger)
+    public FileEffects(IModernFileCategorizationService fileService, ICacheService cacheService, ILogger<FileEffects> logger)
     {
         _fileService = fileService;
         _cacheService = cacheService;
@@ -33,7 +33,7 @@ public class FileEffects
             _logger.LogInformation("Loading files with search parameter: {SearchParameter}", action.SearchParameter);
             
             // Try to get from cache first
-            var cachedFiles = await _cacheService.GetAsync<IEnumerable<FilesDetailDto>>(cacheKey);
+            var cachedFiles = await _cacheService.GetAsync<List<FilesDetailDto>>(cacheKey);
             if (cachedFiles != null)
             {
                 dispatcher.Dispatch(new CacheHitAction(cacheKey, "FilesDetailDto[]"));
@@ -50,12 +50,12 @@ public class FileEffects
             {
                 var files = result.Value?.ToImmutableList() ?? ImmutableList<FilesDetailDto>.Empty;
                 
-                // Cache the result using predefined policy
-                if (result.Value != null)
+                // Cache the result using predefined policy - cache the List<FilesDetailDto> directly
+                if (result.Value != null && result.Value.Count > 0)
                 {
                     await _cacheService.SetAsync(cacheKey, result.Value, CachePolicy.FileList);
+                    dispatcher.Dispatch(new CacheSetAction(cacheKey, "FilesDetailDto[]", TimeSpan.FromMinutes(5)));
                 }
-                dispatcher.Dispatch(new CacheSetAction(cacheKey, "FilesDetailDto[]", TimeSpan.FromMinutes(5)));
                 
                 dispatcher.Dispatch(new LoadFilesSuccessAction(files));
                 dispatcher.Dispatch(new AddConsoleMessageAction("File List updated"));
@@ -115,7 +115,7 @@ public class FileEffects
             _logger.LogInformation("Loading categories");
             
             // Try to get from cache first
-            var cachedCategories = await _cacheService.GetAsync<IEnumerable<string>>(cacheKey);
+            var cachedCategories = await _cacheService.GetAsync<List<string>>(cacheKey);
             if (cachedCategories != null)
             {
                 dispatcher.Dispatch(new CacheHitAction(cacheKey, "string[]"));
@@ -131,12 +131,12 @@ public class FileEffects
             {
                 var categories = result.Value?.ToImmutableList() ?? ImmutableList<string>.Empty;
                 
-                // Cache the result using predefined policy
-                if (result.Value != null)
+                // Cache the result using predefined policy - cache the List<string> directly
+                if (result.Value != null && result.Value.Count > 0)
                 {
                     await _cacheService.SetAsync(cacheKey, result.Value, CachePolicy.Categories);
+                    dispatcher.Dispatch(new CacheSetAction(cacheKey, "string[]", TimeSpan.FromMinutes(30)));
                 }
-                dispatcher.Dispatch(new CacheSetAction(cacheKey, "string[]", TimeSpan.FromMinutes(30)));
                 
                 dispatcher.Dispatch(new LoadCategoriesSuccessAction(categories));
             }
@@ -162,7 +162,7 @@ public class FileEffects
             _logger.LogInformation("Loading configurations");
             
             // Try to get from cache first
-            var cachedConfigurations = await _cacheService.GetAsync<IEnumerable<ConfigsDto>>(cacheKey);
+            var cachedConfigurations = await _cacheService.GetAsync<List<ConfigsDto>>(cacheKey);
             if (cachedConfigurations != null)
             {
                 dispatcher.Dispatch(new CacheHitAction(cacheKey, "ConfigsDto[]"));
@@ -178,12 +178,12 @@ public class FileEffects
             {
                 var configurations = result.Value?.ToImmutableList() ?? ImmutableList<ConfigsDto>.Empty;
                 
-                // Cache the result using predefined policy
-                if (result.Value != null)
+                // Cache the result using predefined policy - cache the List<ConfigsDto> directly
+                if (result.Value != null && result.Value.Count > 0)
                 {
                     await _cacheService.SetAsync(cacheKey, result.Value, CachePolicy.Configurations);
+                    dispatcher.Dispatch(new CacheSetAction(cacheKey, "ConfigsDto[]", TimeSpan.FromHours(1)));
                 }
-                dispatcher.Dispatch(new CacheSetAction(cacheKey, "ConfigsDto[]", TimeSpan.FromHours(1)));
                 
                 dispatcher.Dispatch(new LoadConfigurationsSuccessAction(configurations));
             }
@@ -408,6 +408,157 @@ public class FileEffects
         {
             _logger.LogError(ex, "Error during cache warmup");
             dispatcher.Dispatch(new CacheWarmupFailureAction($"Cache warmup failed: {ex.Message}"));
+        }
+    }
+
+    // Configuration CRUD Effects
+    [EffectMethod]
+    public async Task HandleCreateConfigurationAction(CreateConfigurationAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            _logger.LogInformation("Creating configuration with key: {Key}", action.Configuration.Key);
+            
+            var result = await _fileService.AddConfigAsync(action.Configuration);
+            
+            if (result.IsSuccess)
+            {
+                // Invalidate configurations cache first
+                await _cacheService.InvalidateByTagAsync("configurations");
+                
+                dispatcher.Dispatch(new CreateConfigurationSuccessAction(result.Value!));
+                dispatcher.Dispatch(new AddConsoleMessageAction($"Configuration '{action.Configuration.Key}' created successfully"));
+                
+                // Force reload from API by bypassing cache
+                _logger.LogInformation("Force reloading configurations from API after create");
+                var refreshResult = await _fileService.GetConfigListAsync();
+                
+                if (refreshResult.IsSuccess)
+                {
+                    var configurations = refreshResult.Value?.ToImmutableList() ?? ImmutableList<ConfigsDto>.Empty;
+                    
+                    // Update cache with fresh data
+                    if (refreshResult.Value != null && refreshResult.Value.Count > 0)
+                    {
+                        await _cacheService.SetAsync("configurations", refreshResult.Value, CachePolicy.Configurations);
+                    }
+                    
+                    dispatcher.Dispatch(new LoadConfigurationsSuccessAction(configurations));
+                }
+                else
+                {
+                    dispatcher.Dispatch(new LoadConfigurationsFailureAction(refreshResult.Error ?? "Failed to reload configurations after create"));
+                }
+            }
+            else
+            {
+                dispatcher.Dispatch(new CreateConfigurationFailureAction(result.Error ?? "Failed to create configuration"));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating configuration");
+            dispatcher.Dispatch(new CreateConfigurationFailureAction($"Error creating configuration: {ex.Message}"));
+        }
+    }
+
+    [EffectMethod]
+    public async Task HandleUpdateConfigurationAction(UpdateConfigurationAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            _logger.LogInformation("Updating configuration with ID: {Id}", action.Configuration.Id);
+            
+            var result = await _fileService.UpdateConfigAsync(action.Configuration);
+            
+            if (result.IsSuccess)
+            {
+                // Invalidate configurations cache first
+                await _cacheService.InvalidateByTagAsync("configurations");
+                
+                dispatcher.Dispatch(new UpdateConfigurationSuccessAction(result.Value!));
+                dispatcher.Dispatch(new AddConsoleMessageAction($"Configuration '{action.Configuration.Key}' updated successfully"));
+                
+                // Force reload from API by bypassing cache
+                _logger.LogInformation("Force reloading configurations from API after update");
+                var refreshResult = await _fileService.GetConfigListAsync();
+                
+                if (refreshResult.IsSuccess)
+                {
+                    var configurations = refreshResult.Value?.ToImmutableList() ?? ImmutableList<ConfigsDto>.Empty;
+                    
+                    // Update cache with fresh data
+                    if (refreshResult.Value != null && refreshResult.Value.Count > 0)
+                    {
+                        await _cacheService.SetAsync("configurations", refreshResult.Value, CachePolicy.Configurations);
+                    }
+                    
+                    dispatcher.Dispatch(new LoadConfigurationsSuccessAction(configurations));
+                }
+                else
+                {
+                    dispatcher.Dispatch(new LoadConfigurationsFailureAction(refreshResult.Error ?? "Failed to reload configurations after update"));
+                }
+            }
+            else
+            {
+                dispatcher.Dispatch(new UpdateConfigurationFailureAction(result.Error ?? "Failed to update configuration"));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating configuration");
+            dispatcher.Dispatch(new UpdateConfigurationFailureAction($"Error updating configuration: {ex.Message}"));
+        }
+    }
+
+    [EffectMethod]
+    public async Task HandleDeleteConfigurationAction(DeleteConfigurationAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            _logger.LogInformation("Deleting configuration with ID: {Id}", action.Configuration.Id);
+            
+            var result = await _fileService.DeleteConfigAsync(action.Configuration);
+            
+            if (result.IsSuccess)
+            {
+                // Invalidate configurations cache first
+                await _cacheService.InvalidateByTagAsync("configurations");
+                
+                dispatcher.Dispatch(new DeleteConfigurationSuccessAction(action.Configuration));
+                dispatcher.Dispatch(new AddConsoleMessageAction($"Configuration '{action.Configuration.Key}' deleted successfully"));
+                
+                // Force reload from API by bypassing cache
+                _logger.LogInformation("Force reloading configurations from API after delete");
+                var refreshResult = await _fileService.GetConfigListAsync();
+                
+                if (refreshResult.IsSuccess)
+                {
+                    var configurations = refreshResult.Value?.ToImmutableList() ?? ImmutableList<ConfigsDto>.Empty;
+                    
+                    // Update cache with fresh data
+                    if (refreshResult.Value != null && refreshResult.Value.Count > 0)
+                    {
+                        await _cacheService.SetAsync("configurations", refreshResult.Value, CachePolicy.Configurations);
+                    }
+                    
+                    dispatcher.Dispatch(new LoadConfigurationsSuccessAction(configurations));
+                }
+                else
+                {
+                    dispatcher.Dispatch(new LoadConfigurationsFailureAction(refreshResult.Error ?? "Failed to reload configurations after delete"));
+                }
+            }
+            else
+            {
+                dispatcher.Dispatch(new DeleteConfigurationFailureAction(result.Error ?? "Failed to delete configuration"));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting configuration");
+            dispatcher.Dispatch(new DeleteConfigurationFailureAction($"Error deleting configuration: {ex.Message}"));
         }
     }
 }

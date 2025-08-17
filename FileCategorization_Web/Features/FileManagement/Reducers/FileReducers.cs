@@ -65,6 +65,37 @@ public static class FileReducers
     public static FileState ReduceLoadConfigurationsSuccessAction(FileState state, LoadConfigurationsSuccessAction action) =>
         state with { Configurations = action.Configurations };
 
+    [ReducerMethod]
+    public static FileState ReduceCreateConfigurationSuccessAction(FileState state, CreateConfigurationSuccessAction action) =>
+        state with { Configurations = state.Configurations.Add(action.CreatedConfiguration) };
+
+    [ReducerMethod]
+    public static FileState ReduceUpdateConfigurationSuccessAction(FileState state, UpdateConfigurationSuccessAction action)
+    {
+        var updatedConfigurations = state.Configurations.Select(c => 
+            c.Id == action.UpdatedConfiguration.Id ? action.UpdatedConfiguration : c).ToImmutableList();
+        return state with { Configurations = updatedConfigurations };
+    }
+
+    [ReducerMethod]
+    public static FileState ReduceDeleteConfigurationSuccessAction(FileState state, DeleteConfigurationSuccessAction action)
+    {
+        var filteredConfigurations = state.Configurations.Where(c => c.Id != action.DeletedConfiguration.Id).ToImmutableList();
+        return state with { Configurations = filteredConfigurations };
+    }
+
+    [ReducerMethod]
+    public static FileState ReduceCreateConfigurationFailureAction(FileState state, CreateConfigurationFailureAction action) =>
+        state with { Error = action.Error, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - ERROR: {action.Error}") };
+
+    [ReducerMethod]
+    public static FileState ReduceUpdateConfigurationFailureAction(FileState state, UpdateConfigurationFailureAction action) =>
+        state with { Error = action.Error, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - ERROR: {action.Error}") };
+
+    [ReducerMethod]
+    public static FileState ReduceDeleteConfigurationFailureAction(FileState state, DeleteConfigurationFailureAction action) =>
+        state with { Error = action.Error, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - ERROR: {action.Error}") };
+
     // File Management Reducers
     [ReducerMethod]
     public static FileState ReduceUpdateFileDetailSuccessAction(FileState state, UpdateFileDetailSuccessAction action)
@@ -112,15 +143,15 @@ public static class FileReducers
 
     [ReducerMethod]
     public static FileState ReduceForceCategoryAction(FileState state, ForceCategoryAction action) =>
-        state with { ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Starting Categorization...") };
+        state with { IsCategorizing = true, Error = null, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Starting Categorization...") };
 
     [ReducerMethod]
     public static FileState ReduceForceCategorySuccessAction(FileState state, ForceCategorySuccessAction action) =>
-        state with { ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - {action.Message}") };
+        state with { IsCategorizing = false, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - {action.Message}") };
 
     [ReducerMethod]
     public static FileState ReduceForceCategoryFailureAction(FileState state, ForceCategoryFailureAction action) =>
-        state with { Error = action.Error, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - ERROR: {action.Error}") };
+        state with { IsCategorizing = false, Error = action.Error, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - ERROR: {action.Error}") };
 
     // Move Files Reducers
     [ReducerMethod]

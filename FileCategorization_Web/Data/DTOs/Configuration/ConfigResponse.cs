@@ -1,7 +1,7 @@
-namespace FileCategorization_Api.Domain.Entities.Config;
+namespace FileCategorization_Web.Data.DTOs.Configuration;
 
 /// <summary>
-/// Represents a response Data Transfer Object (DTO) for configuration settings.
+/// Represents a response Data Transfer Object (DTO) for configuration settings from API v2.
 /// </summary>
 public class ConfigResponse
 {
