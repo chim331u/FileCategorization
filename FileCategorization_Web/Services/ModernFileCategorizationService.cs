@@ -6,7 +6,6 @@ using FileCategorization_Web.Data.Configuration;
 using FileCategorization_Shared.DTOs.FileManagement;
 using FileCategorization_Shared.DTOs.Configuration;
 using FileCategorization_Shared.Enums;
-using FileCategorization_Web.Data.DTOs.Configuration;
 using FileCategorization_Web.Interfaces;
 using Microsoft.Extensions.Options;
 

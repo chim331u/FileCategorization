@@ -1,5 +1,5 @@
 using AutoMapper;
-using FileCategorization_Api.Domain.Entities.Config;
+using FileCategorization_Shared.DTOs.Configuration;
 using FileCategorization_Api.Domain.Entities.FileCategorization;
 
 namespace FileCategorization_Api.Common;
