@@ -5,8 +5,6 @@ namespace FileCategorization_Api.Domain.Entities.DD_Web;
 
 public class DD_LinkEd2k: BaseEntity
 {
-    [Key]
-    public int Id { get; set; }
     public string Ed2kLink { get; set; }
     public string Title { get; set; }
 

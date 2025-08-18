@@ -33,7 +33,7 @@ public class FilesDetailRepository : Repository<FilesDetail>, IFilesDetailReposi
 
             var files = await _dbSet
                 .AsNoTracking()
-                .Where(f => f.IsActive && f.FileCategory == category)
+                .Where(f => f.IsActive && f.FileCategory == category && !f.IsNotToMove)
                 .OrderBy(f => f.Name)
                 .ToListAsync(cancellationToken);
 

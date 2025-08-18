@@ -106,6 +106,13 @@ public static class FilesManagementEndpoint
         [FromServices] ILogger logger,
         CancellationToken cancellationToken)
     {
+        // Validate ID parameter
+        if (id <= 0)
+        {
+            logger.LogWarning("Invalid file ID provided: {FileId}", id);
+            return Results.BadRequest($"Invalid file ID: {id}. ID must be a positive integer.");
+        }
+
         logger.LogInformation("Updating file record: {FileId}", id);
 
         // Get existing file
@@ -147,6 +154,13 @@ public static class FilesManagementEndpoint
         [FromServices] ILogger logger,
         CancellationToken cancellationToken)
     {
+        // Validate ID parameter
+        if (request.Id <= 0)
+        {
+            logger.LogWarning("Invalid file ID provided for move: {FileId}", request.Id);
+            return Results.BadRequest($"Invalid file ID: {request.Id}. ID must be a positive integer.");
+        }
+
         logger.LogInformation("Moving file {FileId} to category: {Category}", request.Id, request.FileCategory);
 
         // Update categorization
@@ -179,6 +193,13 @@ public static class FilesManagementEndpoint
         [FromServices] ILogger logger,
         CancellationToken cancellationToken)
     {
+        // Validate ID parameter
+        if (id <= 0)
+        {
+            logger.LogWarning("Invalid file ID provided for deletion: {FileId}", id);
+            return Results.BadRequest($"Invalid file ID: {id}. ID must be a positive integer.");
+        }
+
         logger.LogInformation("Deleting file record: {FileId}", id);
 
         var result = await repository.DeleteAsync(id, cancellationToken);

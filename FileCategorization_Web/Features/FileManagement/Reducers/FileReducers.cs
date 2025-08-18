@@ -38,6 +38,32 @@ public static class FileReducers
     public static FileState ReduceLoadFilesFailureAction(FileState state, LoadFilesFailureAction action) =>
         state with { IsLoading = false, Error = action.Error };
 
+    // Last View Files Reducers
+    [ReducerMethod]
+    public static FileState ReduceLoadLastViewFilesAction(FileState state, LoadLastViewFilesAction action) =>
+        state with { IsLoading = true, Error = null };
+
+    [ReducerMethod]
+    public static FileState ReduceLoadLastViewFilesSuccessAction(FileState state, LoadLastViewFilesSuccessAction action) =>
+        state with { Files = action.Files, IsLoading = false, Error = null };
+
+    [ReducerMethod]
+    public static FileState ReduceLoadLastViewFilesFailureAction(FileState state, LoadLastViewFilesFailureAction action) =>
+        state with { IsLoading = false, Error = action.Error };
+
+    // Load Files by Category Reducers
+    [ReducerMethod]
+    public static FileState ReduceLoadFilesByCategoryAction(FileState state, LoadFilesByCategoryAction action) =>
+        state with { IsLoading = true, Error = null, ExpandedCategory = action.Category };
+
+    [ReducerMethod]
+    public static FileState ReduceLoadFilesByCategorySuccessAction(FileState state, LoadFilesByCategorySuccessAction action) =>
+        state with { ExpandedCategoryFiles = action.Files, ExpandedCategory = action.Category, IsLoading = false, Error = null };
+
+    [ReducerMethod]
+    public static FileState ReduceLoadFilesByCategoryFailureAction(FileState state, LoadFilesByCategoryFailureAction action) =>
+        state with { IsLoading = false, Error = action.Error, ExpandedCategoryFiles = ImmutableList<FilesDetailDto>.Empty, ExpandedCategory = null };
+
     // Refresh Data Reducers
     [ReducerMethod]
     public static FileState ReduceRefreshDataAction(FileState state, RefreshDataAction action) =>
@@ -123,9 +149,18 @@ public static class FileReducers
     [ReducerMethod]
     public static FileState ReduceNotShowAgainFileAction(FileState state, NotShowAgainFileAction action)
     {
-        var updatedFiles = state.Files.Select(f => f.Id == action.FileId ? 
+        var updatedFiles = state.Files.Select(f => f.Id == action.File.Id ? 
             new FilesDetailDto { Id = f.Id, Name = f.Name, FileSize = f.FileSize, FileCategory = f.FileCategory, IsToCategorize = false, IsNew = false, IsNotToMove = true } : f).ToImmutableList();
-        return state with { Files = updatedFiles };
+        
+        // Also update ExpandedCategoryFiles if the file belongs to the currently expanded category
+        var updatedExpandedFiles = state.ExpandedCategoryFiles;
+        if (state.ExpandedCategory == action.File.FileCategory)
+        {
+            // Remove the file from expanded list since it's now IsNotToMove = true
+            updatedExpandedFiles = state.ExpandedCategoryFiles.Where(f => f.Id != action.File.Id).ToImmutableList();
+        }
+        
+        return state with { Files = updatedFiles, ExpandedCategoryFiles = updatedExpandedFiles };
     }
 
     // ML Model Reducers

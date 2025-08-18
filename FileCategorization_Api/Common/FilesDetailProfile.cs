@@ -45,7 +45,7 @@ public class FilesDetailProfile : Profile
 
         // Update Request DTO to Entity mapping
         CreateMap<FilesDetailUpdateRequest, FilesDetail>()
-            .ForMember(dest => dest.Id, opt => opt.Ignore()) // ID should not be updated
+            .ForMember(dest => dest.Id, opt => opt.Ignore()) // ID preserved from target entity
             .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Name))
             .ForMember(dest => dest.Path, opt => opt.MapFrom(src => src.Path))
             .ForMember(dest => dest.FileCategory, opt => opt.MapFrom(src => src.FileCategory))

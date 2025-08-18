@@ -9,6 +9,8 @@ namespace FileCategorization_Web.Features.FileManagement.Store;
 public record FileState
 {
     public ImmutableList<FilesDetailDto> Files { get; init; } = ImmutableList<FilesDetailDto>.Empty;
+    public ImmutableList<FilesDetailDto> ExpandedCategoryFiles { get; init; } = ImmutableList<FilesDetailDto>.Empty;
+    public string? ExpandedCategory { get; init; } = null;
     public ImmutableList<string> Categories { get; init; } = ImmutableList<string>.Empty;
     public ImmutableList<ConfigsDto> Configurations { get; init; } = ImmutableList<ConfigsDto>.Empty;
     

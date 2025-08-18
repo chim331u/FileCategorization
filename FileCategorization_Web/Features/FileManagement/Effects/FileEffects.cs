@@ -23,6 +23,104 @@ public class FileEffects
         _logger = logger;
     }
 
+    // Load Last View Files Effect
+    [EffectMethod]
+    public async Task HandleLoadLastViewFilesAction(LoadLastViewFilesAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            var cacheKey = "lastview_files";
+            _logger.LogInformation("Loading last view files using v2 API");
+            
+            // Try to get from cache first
+            var cachedFiles = await _cacheService.GetAsync<List<FilesDetailDto>>(cacheKey);
+            if (cachedFiles != null)
+            {
+                dispatcher.Dispatch(new CacheHitAction(cacheKey, "FilesDetailDto[]"));
+                dispatcher.Dispatch(new LoadLastViewFilesSuccessAction(cachedFiles.ToImmutableList()));
+                dispatcher.Dispatch(new AddConsoleMessageAction("Last View files loaded from cache"));
+                return;
+            }
+
+            dispatcher.Dispatch(new CacheMissAction(cacheKey, "FilesDetailDto[]"));
+            
+            var result = await _fileService.GetLastFilesListAsync();
+            
+            if (result.IsSuccess)
+            {
+                var files = result.Value?.ToImmutableList() ?? ImmutableList<FilesDetailDto>.Empty;
+                
+                // Cache the result using predefined policy
+                if (result.Value != null && result.Value.Count > 0)
+                {
+                    await _cacheService.SetAsync(cacheKey, result.Value, CachePolicy.FileList);
+                    dispatcher.Dispatch(new CacheSetAction(cacheKey, "FilesDetailDto[]", TimeSpan.FromMinutes(5)));
+                }
+                
+                dispatcher.Dispatch(new LoadLastViewFilesSuccessAction(files));
+                dispatcher.Dispatch(new AddConsoleMessageAction("Last View files loaded"));
+            }
+            else
+            {
+                dispatcher.Dispatch(new LoadLastViewFilesFailureAction(result.Error ?? "Failed to load last view files"));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading last view files");
+            dispatcher.Dispatch(new LoadLastViewFilesFailureAction($"Error loading last view files: {ex.Message}"));
+        }
+    }
+
+    // Load Files by Category Effect
+    [EffectMethod]
+    public async Task HandleLoadFilesByCategoryAction(LoadFilesByCategoryAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            var cacheKey = $"files_category_{action.Category}";
+            _logger.LogInformation("Loading files for category: {Category} using v2 API", action.Category);
+            
+            // Try to get from cache first
+            var cachedFiles = await _cacheService.GetAsync<List<FilesDetailDto>>(cacheKey);
+            if (cachedFiles != null)
+            {
+                dispatcher.Dispatch(new CacheHitAction(cacheKey, "FilesDetailDto[]"));
+                dispatcher.Dispatch(new LoadFilesByCategorySuccessAction(cachedFiles.ToImmutableList(), action.Category));
+                dispatcher.Dispatch(new AddConsoleMessageAction($"Files for category '{action.Category}' loaded from cache"));
+                return;
+            }
+
+            dispatcher.Dispatch(new CacheMissAction(cacheKey, "FilesDetailDto[]"));
+            
+            var result = await _fileService.GetAllFilesAsync(action.Category);
+            
+            if (result.IsSuccess)
+            {
+                var files = result.Value?.ToImmutableList() ?? ImmutableList<FilesDetailDto>.Empty;
+                
+                // Cache the result using predefined policy
+                if (result.Value != null && result.Value.Count > 0)
+                {
+                    await _cacheService.SetAsync(cacheKey, result.Value, CachePolicy.FileList);
+                    dispatcher.Dispatch(new CacheSetAction(cacheKey, "FilesDetailDto[]", TimeSpan.FromMinutes(5)));
+                }
+                
+                dispatcher.Dispatch(new LoadFilesByCategorySuccessAction(files, action.Category));
+                dispatcher.Dispatch(new AddConsoleMessageAction($"Files for category '{action.Category}' loaded"));
+            }
+            else
+            {
+                dispatcher.Dispatch(new LoadFilesByCategoryFailureAction(result.Error ?? $"Failed to load files for category '{action.Category}'"));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading files for category: {Category}", action.Category);
+            dispatcher.Dispatch(new LoadFilesByCategoryFailureAction($"Error loading files for category '{action.Category}': {ex.Message}"));
+        }
+    }
+
     // Load Files Effect
     [EffectMethod]
     public async Task HandleLoadFilesAction(LoadFilesAction action, IDispatcher dispatcher)
@@ -323,12 +421,37 @@ public class FileEffects
     {
         try
         {
-            // This is handled by the reducer, but we need to update the backend
-            // We'll need to find the file and update it
-            _logger.LogInformation("Marking file {FileId} as not to show again", action.FileId);
+            _logger.LogInformation("Marking file {FileId} as not to show again", action.File.Id);
             
-            // For now, just add a console message
-            dispatcher.Dispatch(new AddConsoleMessageAction($"File will not show again"));
+            // Create a file update DTO with the "not show again" settings
+            // Preserve all existing file data and only update the specific flags
+            var fileUpdate = new FilesDetailDto
+            {
+                Id = action.File.Id,
+                Name = action.File.Name,
+                FileSize = action.File.FileSize,
+                FileCategory = action.File.FileCategory,
+                IsToCategorize = false,  // Mark as categorized (not to categorize)
+                IsNew = false,          // Mark as not new (already seen)
+                IsNotToMove = true      // Mark as not to move
+            };
+            
+            var result = await _fileService.UpdateFileDetailAsync(fileUpdate);
+            
+            if (result.IsSuccess && result.Value != null)
+            {
+                // Invalidate files cache after update
+                await _cacheService.InvalidateByTagAsync("files");
+                
+                dispatcher.Dispatch(new AddConsoleMessageAction($"File '{action.File.Name}' marked as 'not show again' successfully"));
+                _logger.LogInformation("File {FileId} marked as not to show again successfully", action.File.Id);
+            }
+            else
+            {
+                // Log the error and dispatch failure action
+                dispatcher.Dispatch(new SetErrorAction(result.Error ?? "Failed to update file as 'not show again'"));
+                _logger.LogError("Failed to mark file {FileId} as not to show again: {Error}", action.File.Id, result.Error);
+            }
         }
         catch (Exception ex)
         {

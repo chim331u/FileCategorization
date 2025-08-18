@@ -35,9 +35,16 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
     {
         try
         {
+            // Validate ID parameter
+            if (id <= 0)
+            {
+                _logger.LogWarning("Invalid ID provided: {Id}", id);
+                return Result<T?>.Success(null); // Return null for invalid IDs
+            }
+
             var entity = await _dbSet
                 .AsNoTracking()
-                .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+                .FirstOrDefaultAsync(e => e.Id == id && e.IsActive, cancellationToken);
 
             return Result<T?>.Success(entity);
         }

@@ -17,6 +17,14 @@ public record LoadFilesAction(int SearchParameter) : FileAction;
 public record LoadFilesSuccessAction(ImmutableList<FilesDetailDto> Files) : FileAction;
 public record LoadFilesFailureAction(string Error) : FileAction;
 
+public record LoadLastViewFilesAction : FileAction;
+public record LoadLastViewFilesSuccessAction(ImmutableList<FilesDetailDto> Files) : FileAction;
+public record LoadLastViewFilesFailureAction(string Error) : FileAction;
+
+public record LoadFilesByCategoryAction(string Category) : FileAction;
+public record LoadFilesByCategorySuccessAction(ImmutableList<FilesDetailDto> Files, string Category) : FileAction;
+public record LoadFilesByCategoryFailureAction(string Error) : FileAction;
+
 public record RefreshDataAction : FileAction;
 public record RefreshDataSuccessAction(string Message) : FileAction;
 public record RefreshDataFailureAction(string Error) : FileAction;
@@ -50,7 +58,7 @@ public record UpdateFileDetailFailureAction(string Error) : FileAction;
 
 public record ScheduleFileAction(int FileId) : FileAction;
 public record RevertFileAction(int FileId) : FileAction;
-public record NotShowAgainFileAction(int FileId) : FileAction;
+public record NotShowAgainFileAction(FilesDetailDto File) : FileAction;
 
 // ML Actions
 public record TrainModelAction : FileAction;

@@ -28,7 +28,15 @@
                         RowRender="@RowRender" ExpandMode="DataGridExpandMode.Single"
                         Data="@FilteredFiles" TItem="FilesDetailDto" RowExpand="RowExpand">
             <Template Context="file">
-                <RadzenDataGrid AllowFiltering="true" AllowPaging="true" AllowSorting="true" Data="@filesOthers" TItem="FilesDetailDto">
+                @if (FileState.Value.IsLoading && FileState.Value.ExpandedCategory == file.FileCategory)
+                {
+                    <div class="p-3">
+                        <p><em>Loading files for category "@file.FileCategory"...</em></p>
+                    </div>
+                }
+                else if (FileState.Value.ExpandedCategory == file.FileCategory && FileState.Value.ExpandedCategoryFiles.Any())
+                {
+                    <RadzenDataGrid AllowFiltering="true" AllowPaging="true" AllowSorting="true" Data="@FileState.Value.ExpandedCategoryFiles" TItem="FilesDetailDto">
                     <Columns>
                         <RadzenDataGridColumn TItem="FilesDetailDto" Property="FileCategory" Title="Category" Filterable="false" />
                         <RadzenDataGridColumn TItem="FilesDetailDto" Property="Name" Title="Name" />
@@ -42,17 +50,32 @@
                                               TextAlign="TextAlign.Center" Width="10%">
 
                             <Template Context="detail">
-                                <RadzenButton ButtonStyle="ButtonStyle.Primary" Icon="visibility_off" Variant="Variant.Flat"
-                                              Shade="Shade.Lighter" Size="ButtonSize.Medium" Class="my-1 ms-1"
-                                              Click="@(args => NotShowAgain(detail))" @onclick:stopPropagation="true"
-                                              MouseEnter="@(args => ShowTooltipNotShowAgain(args, new TooltipOptions()
-                                                                        { Position = TooltipPosition.Left }))">
-                                </RadzenButton>
-
+                                @if (!detail.IsNotToMove)
+                                {
+                                    <RadzenButton ButtonStyle="ButtonStyle.Primary" Icon="visibility_off" Variant="Variant.Flat"
+                                                  Shade="Shade.Lighter" Size="ButtonSize.Medium" Class="my-1 ms-1"
+                                                  Click="@(args => NotShowAgain(detail))" @onclick:stopPropagation="true"
+                                                  MouseEnter="@(args => ShowTooltipNotShowAgain(args, new TooltipOptions()
+                                                                            { Position = TooltipPosition.Left }))">
+                                    </RadzenButton>
+                                }
                             </Template>
                         </RadzenDataGridColumn>
                     </Columns>
-                </RadzenDataGrid>
+                    </RadzenDataGrid>
+                }
+                else if (FileState.Value.ExpandedCategory == file.FileCategory && !FileState.Value.ExpandedCategoryFiles.Any())
+                {
+                    <div class="p-3">
+                        <p><em>No files found for category "@file.FileCategory"</em></p>
+                    </div>
+                }
+                else
+                {
+                    <div class="p-3">
+                        <p><em>Click to load files for category "@file.FileCategory"</em></p>
+                    </div>
+                }
             </Template>
             <Columns>
                 <RadzenDataGridColumn TItem="FilesDetailDto" Property="FileCategory" Title="Category" Width="20%" Filterable="false" Sortable="false" />
@@ -71,23 +94,45 @@
 </RadzenLayout>
 @code {
     // Legacy service removed - now using Fluxor state management
-    IList<FilesDetailDto>? filesOthers; // Keep for expanded row data
-
     RadzenDataGrid<FilesDetailDto>? grid;
     string? searchText;
+    private FilesDetailDto? currentlyExpandedRow = null;
 
     protected override Task OnInitializedAsync()
     {
         // Subscribe to state changes
         FileState.StateChanged += OnStateChanged;
         
-        Dispatcher.Dispatch(new LoadFilesAction(1)); // Load all files for last view
+        Dispatcher.Dispatch(new LoadLastViewFilesAction()); // Load last view files via v2/files/lastview
         return Task.CompletedTask;
     }
 
     private void OnStateChanged(object? sender, EventArgs e)
     {
-        InvokeAsync(() => StateHasChanged());
+        InvokeAsync(async () => 
+        {
+            StateHasChanged();
+            
+            // If we have a row that should be expanded and we just loaded data for its category
+            if (currentlyExpandedRow != null && 
+                FileState.Value.ExpandedCategory == currentlyExpandedRow.FileCategory &&
+                FileState.Value.ExpandedCategoryFiles.Any() &&
+                !FileState.Value.IsLoading &&
+                grid != null)
+            {
+                // Small delay to ensure the grid is rendered
+                await Task.Delay(100);
+                try
+                {
+                    await grid.ExpandRow(currentlyExpandedRow);
+                }
+                catch (Exception ex)
+                {
+                    // Log but don't crash if expansion fails
+                    Console.WriteLine($"Failed to expand row: {ex.Message}");
+                }
+            }
+        });
     }
 
     public void Dispose()
@@ -98,7 +143,7 @@
 
     private void RefreshList()
     {
-        Dispatcher.Dispatch(new LoadFilesAction(1)); // Refresh all files
+        Dispatcher.Dispatch(new LoadLastViewFilesAction()); // Refresh last view files
     }
 
     void RowRender(RowRenderEventArgs<FilesDetailDto> args)
@@ -107,12 +152,19 @@
 
     void RowExpand(FilesDetailDto item)
     {
-        // Filter files by category from existing state instead of API call
-        filesOthers = FileState.Value.Files
-            .Where(f => f.FileCategory == item.FileCategory)
-            .ToList();
-            
-        StateHasChanged();
+        // Track which row should be expanded
+        currentlyExpandedRow = item;
+        
+        // Check if we already have data for this category and it's the currently expanded one
+        if (FileState.Value.ExpandedCategory == item.FileCategory && FileState.Value.ExpandedCategoryFiles.Any())
+        {
+            // Data already loaded, just ensure the row stays expanded
+            StateHasChanged();
+            return;
+        }
+        
+        // Call API v2 to get all files for the category
+        Dispatcher.Dispatch(new LoadFilesByCategoryAction(item.FileCategory));
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -127,11 +179,7 @@
 
     protected void NotShowAgain(FilesDetailDto item)
     {
-        item.IsToCategorize = false;
-        item.IsNew = false;
-        item.IsNotToMove = true;
-
-        Dispatcher.Dispatch(new UpdateFileDetailAction(item));
+        Dispatcher.Dispatch(new NotShowAgainFileAction(item));
     }
 
     void ShowTooltipNotShowAgain(ElementReference elementReference, TooltipOptions options = null) => tooltipService.Open(elementReference, "Not Show Again", options);

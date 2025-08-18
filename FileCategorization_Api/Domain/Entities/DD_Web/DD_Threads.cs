@@ -5,8 +5,6 @@ namespace FileCategorization_Api.Domain.Entities.DD_Web;
 
 public class DD_Threads : BaseEntity
 {
-    [Key]
-    public int Id { get; set; }
     public string Url { get; set; }
     public string? MainTitle { get; set; }
     public string? Type { get; set; }
