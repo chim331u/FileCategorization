@@ -62,6 +62,16 @@ public static class FilesManagementEndpoint
             .Produces(StatusCodes.Status404NotFound)
             .Produces(StatusCodes.Status500InternalServerError);
 
+        // Mark file as "not show again"
+        group.MapPatch("/files/{id:int}/not-show-again", NotShowAgainAsync)
+            .WithName("NotShowAgain_v2")
+            .WithSummary("[v2] Marks a file as not to show again")
+            .WithDescription("[v2 - Repository Pattern] Updates file LastUpdate to current time and sets IsNotToMove to false")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status500InternalServerError);
+
         return group;
     }
 
@@ -216,5 +226,42 @@ public static class FilesManagementEndpoint
         }
         
         return Results.NoContent();
+    }
+
+    /// <summary>
+    /// Marks a file as "not to show again" by updating LastUpdate and setting IsNotToMove to false.
+    /// </summary>
+    private static async Task<IResult> NotShowAgainAsync(
+        [FromRoute] int id,
+        [FromServices] IFilesDetailRepository repository,
+        [FromServices] ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        // Validate ID parameter
+        if (id <= 0)
+        {
+            logger.LogWarning("Invalid file ID provided for NotShowAgain: {FileId}", id);
+            return Results.BadRequest($"Invalid file ID: {id}. ID must be a positive integer.");
+        }
+
+        logger.LogInformation("Marking file as not to show again: {FileId}", id);
+
+        // Update file using repository method
+        var result = await repository.UpdateNotShowAgainAsync(id, cancellationToken);
+        
+        if (result.IsFailure)
+        {
+            logger.LogError("Failed to update file {FileId} for NotShowAgain: {Error}", id, result.Error);
+            return Results.Problem(result.Error, statusCode: 500);
+        }
+
+        if (!result.Value)
+        {
+            logger.LogWarning("File with ID {FileId} not found for NotShowAgain operation", id);
+            return Results.NotFound($"File with ID {id} not found");
+        }
+        
+        logger.LogInformation("Successfully marked file {FileId} as not to show again", id);
+        return Results.Ok(new { message = "File marked as not to show again", fileId = id });
     }
 }

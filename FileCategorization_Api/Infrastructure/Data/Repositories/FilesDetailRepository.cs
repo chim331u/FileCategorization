@@ -249,4 +249,42 @@ public class FilesDetailRepository : Repository<FilesDetail>, IFilesDetailReposi
             return Result<IEnumerable<FilesDetail>>.FromException(ex);
         }
     }
+
+    /// <summary>
+    /// Updates a file's LastUpdate to current time and sets IsNotToMove to false.
+    /// </summary>
+    public async Task<Result<bool>> UpdateNotShowAgainAsync(int fileId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Validate ID parameter
+            if (fileId <= 0)
+            {
+                return Result<bool>.Failure($"Invalid file ID: {fileId}. ID must be a positive integer.");
+            }
+
+            var file = await _dbSet.FindAsync(new object[] { fileId }, cancellationToken);
+            if (file == null)
+            {
+                _logger.LogWarning("File with ID {FileId} not found for NotShowAgain operation", fileId);
+                return Result<bool>.Success(false);
+            }
+
+            // Update the file properties as specified
+            file.IsNotToMove = false;
+            file.LastUpdatedDate = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Updated file {FileId} for NotShowAgain: LastUpdateFile={LastUpdateFile}, IsNotToMove={IsNotToMove}", 
+                fileId, file.LastUpdateFile, file.IsNotToMove);
+
+            return Result<bool>.Success(true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating file {FileId} for NotShowAgain operation", fileId);
+            return Result<bool>.FromException(ex);
+        }
+    }
 }

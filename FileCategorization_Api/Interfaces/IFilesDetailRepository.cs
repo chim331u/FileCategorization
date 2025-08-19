@@ -76,4 +76,12 @@ public interface IFilesDetailRepository : IRepository<FilesDetail>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Collection of files matching the pattern.</returns>
     Task<Result<IEnumerable<FilesDetail>>> SearchByNameAsync(string namePattern, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates a file's LastUpdate to current time and sets IsNotToMove to false.
+    /// </summary>
+    /// <param name="fileId">The file identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if updated successfully, false if file not found.</returns>
+    Task<Result<bool>> UpdateNotShowAgainAsync(int fileId, CancellationToken cancellationToken = default);
 }
