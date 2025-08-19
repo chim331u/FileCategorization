@@ -394,23 +394,46 @@ protected void TriggerNewFeature() => Dispatcher.Dispatch(new NewFeatureAction(p
 - **Component Testing**: UI interaction and state subscription validation
 - **Integration Testing**: Full data flow from action to state update
 
-## Recent Enhancements (December 2024)
+## Recent Enhancements (August 2024)
 
-### ✅ LastView Button Visibility Fix
+### ✅ Global Console System Implementation (August 2024)
+- **Global Console Component**: Moved console from page-specific to MainLayout for system-wide visibility
+- **Dark Theme Integration**: Professional dark terminal styling with monospace fonts and proper contrast
+- **Message Order Optimization**: Recent messages display at top for immediate visibility
+- **Smart Visibility Logic**: Page-specific console display rules for optimal UX
+- **Application Ready Message**: Fixed to show only on first app load, not on page navigation
+
+### ✅ Advanced Message Formatting (August 2024)
+- **TrainModel JSON Parsing**: Transforms raw JSON responses into readable format
+  - **Before**: `{"success":true,"message":"Model training completed successfully..."}`
+  - **After**: `19/08/2025 19:45:58 - Success - Model training completed successfully. Training Duration: 00:00:16.8862980 - Model Version: 20250819174558`
+- **Force Categorization Formatting**: Clean job status messages
+  - **Format**: `19/08/2025 19:55:45 - JobId: 067d1740-4c93-4842-9e77-1644036f0c8d - Status: Running`
+- **Fallback Handling**: Graceful degradation to original messages if JSON parsing fails
+
+### ✅ LastView Button Visibility Fix (December 2024)
 - **Issue**: "Not show again" button always visible regardless of file status
 - **Solution**: Added proper conditional rendering `@if (!detail.IsNotToMove)`
 - **Backend Fix**: Updated `GetByCategoryAsync` to filter `!f.IsNotToMove` records
 - **State Management**: Enhanced reducer to update both `Files` and `ExpandedCategoryFiles`
 
-### ✅ Real-Time List Updates
+### ✅ Real-Time List Updates (December 2024)
 - **Issue**: Expanded category list not updating after "not show again" action
 - **Solution**: Modified `ReduceNotShowAgainFileAction` to remove files from expanded list
 - **Result**: Immediate UI updates without manual refresh required
+
+### ✅ Console System Architecture (August 2024)
+- **Location**: `/Layout/Components/GlobalConsole.razor`
+- **Styling**: Dark terminal theme (`#212529` background, `#f8f9fa` text)
+- **Message Handling**: Real-time Fluxor state integration with auto-refresh
+- **Display Logic**: Smart visibility based on current route
+- **Performance**: Limits to last 50 messages for optimal memory usage
 
 ### ✅ Architectural Documentation
 - **Comprehensive Event Flow Schema**: Complete mapping of UI → Action → Effect → API → State → UI
 - **Performance Metrics**: Detailed cache hit/miss ratios and memory usage statistics
 - **Real-Time Integration**: SignalR event flow documentation with automatic state updates
+- **Console Integration**: Global console system with dark theme and intelligent message formatting
 
 ## Future Development Roadmap
 

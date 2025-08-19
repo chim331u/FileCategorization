@@ -1,0 +1,80 @@
+@using Fluxor
+@using FileCategorization_Web.Features.FileManagement.Store
+@inject IState<FileState> FileState
+@implements IDisposable
+
+@if (IsVisible && HasMessages)
+{
+    <div class="global-console-wrapper">
+        <RadzenTextArea Value="@ConsoleText" 
+                       ReadOnly="true" 
+                       Rows="3" 
+                       Class="console-textarea"
+                       Style="width: 100%;"
+                       Placeholder="System messages will appear here..." />
+    </div>
+}
+
+@code {
+    private bool _isVisible = true;
+
+    [Parameter] public bool IsVisible 
+    { 
+        get => _isVisible; 
+        set => _isVisible = value; 
+    }
+
+    protected override void OnInitialized()
+    {
+        // Subscribe to state changes for real-time updates
+        FileState.StateChanged += OnStateChanged;
+    }
+
+    private void OnStateChanged(object? sender, EventArgs e)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        // Unsubscribe from state changes
+        FileState.StateChanged -= OnStateChanged;
+    }
+
+    // Computed properties
+    protected string ConsoleText => string.Join("\n", FileState.Value.ConsoleMessages.TakeLast(50).Reverse()); // Limit to last 50 messages, newest first
+    protected bool HasMessages => FileState.Value.ConsoleMessages.Any();
+}
+
+<style>
+    .global-console-wrapper {
+        margin: 12px 0;
+        opacity: 1 !important;
+        z-index: 100;
+        position: relative;
+        visibility: visible !important;
+        display: block !important;
+    }
+
+    .console-textarea {
+        background-color: #212529 !important;
+        color: #f8f9fa !important;
+        border: 1px solid #495057 !important;
+        font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', Monaco, monospace !important;
+        font-size: 13px !important;
+        line-height: 1.4 !important;
+        border-radius: 6px !important;
+        opacity: 1 !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+
+    .console-textarea::placeholder {
+        color: #adb5bd !important;
+        opacity: 0.7 !important;
+    }
+
+    /* Override any potential theme issues */
+    .global-console-wrapper * {
+        box-sizing: border-box;
+    }
+</style>

@@ -38,7 +38,7 @@ public class FileEffects
             {
                 dispatcher.Dispatch(new CacheHitAction(cacheKey, "FilesDetailDto[]"));
                 dispatcher.Dispatch(new LoadLastViewFilesSuccessAction(cachedFiles.ToImmutableList()));
-                dispatcher.Dispatch(new AddConsoleMessageAction("Last View files loaded from cache"));
+                // Silently load from cache
                 return;
             }
 
@@ -58,7 +58,7 @@ public class FileEffects
                 }
                 
                 dispatcher.Dispatch(new LoadLastViewFilesSuccessAction(files));
-                dispatcher.Dispatch(new AddConsoleMessageAction("Last View files loaded"));
+                // Files loaded successfully
             }
             else
             {
@@ -87,7 +87,7 @@ public class FileEffects
             {
                 dispatcher.Dispatch(new CacheHitAction(cacheKey, "FilesDetailDto[]"));
                 dispatcher.Dispatch(new LoadFilesByCategorySuccessAction(cachedFiles.ToImmutableList(), action.Category));
-                dispatcher.Dispatch(new AddConsoleMessageAction($"Files for category '{action.Category}' loaded from cache"));
+                // Category files loaded from cache
                 return;
             }
 
@@ -107,7 +107,7 @@ public class FileEffects
                 }
                 
                 dispatcher.Dispatch(new LoadFilesByCategorySuccessAction(files, action.Category));
-                dispatcher.Dispatch(new AddConsoleMessageAction($"Files for category '{action.Category}' loaded"));
+                // Category files loaded successfully
             }
             else
             {
@@ -136,7 +136,7 @@ public class FileEffects
             {
                 dispatcher.Dispatch(new CacheHitAction(cacheKey, "FilesDetailDto[]"));
                 dispatcher.Dispatch(new LoadFilesSuccessAction(cachedFiles.ToImmutableList()));
-                dispatcher.Dispatch(new AddConsoleMessageAction("File List loaded from cache"));
+                // File list loaded from cache
                 return;
             }
 
@@ -156,7 +156,7 @@ public class FileEffects
                 }
                 
                 dispatcher.Dispatch(new LoadFilesSuccessAction(files));
-                dispatcher.Dispatch(new AddConsoleMessageAction("File List updated"));
+                // File list updated successfully
             }
             else
             {
@@ -421,41 +421,33 @@ public class FileEffects
     {
         try
         {
-            _logger.LogInformation("Marking file {FileId} as not to show again", action.File.Id);
+            _logger.LogInformation("Calling NotShowAgain v2 API for file {FileId}", action.File.Id);
             
-            // Create a file update DTO with the "not show again" settings
-            // Preserve all existing file data and only update the specific flags
-            var fileUpdate = new FilesDetailDto
+            // Call the new v2 NotShowAgain API endpoint
+            var result = await _fileService.NotShowAgainAsync(action.File.Id);
+            
+            if (result.IsSuccess)
             {
-                Id = action.File.Id,
-                Name = action.File.Name,
-                FileSize = action.File.FileSize,
-                FileCategory = action.File.FileCategory,
-                IsToCategorize = false,  // Mark as categorized (not to categorize)
-                IsNew = false,          // Mark as not new (already seen)
-                IsNotToMove = true      // Mark as not to move
-            };
-            
-            var result = await _fileService.UpdateFileDetailAsync(fileUpdate);
-            
-            if (result.IsSuccess && result.Value != null)
-            {
-                // Invalidate files cache after update
+                // Invalidate files cache after successful update
                 await _cacheService.InvalidateByTagAsync("files");
                 
+                // Dispatch success message to console
                 dispatcher.Dispatch(new AddConsoleMessageAction($"File '{action.File.Name}' marked as 'not show again' successfully"));
-                _logger.LogInformation("File {FileId} marked as not to show again successfully", action.File.Id);
+                _logger.LogInformation("File {FileId} marked as not to show again successfully via v2 API", action.File.Id);
+                
+                // The file should be removed from the UI immediately - this is handled by the reducer
+                // which will update both Files and ExpandedCategoryFiles collections
             }
             else
             {
                 // Log the error and dispatch failure action
-                dispatcher.Dispatch(new SetErrorAction(result.Error ?? "Failed to update file as 'not show again'"));
-                _logger.LogError("Failed to mark file {FileId} as not to show again: {Error}", action.File.Id, result.Error);
+                dispatcher.Dispatch(new SetErrorAction(result.Error ?? "Failed to mark file as 'not show again'"));
+                _logger.LogError("Failed to mark file {FileId} as not to show again via v2 API: {Error}", action.File.Id, result.Error);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error marking file as not to show again");
+            _logger.LogError(ex, "Error calling NotShowAgain v2 API for file {FileId}", action.File.Id);
             dispatcher.Dispatch(new SetErrorAction($"Error updating file: {ex.Message}"));
         }
     }

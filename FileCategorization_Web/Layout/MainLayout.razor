@@ -1,6 +1,10 @@
 ﻿@inherits LayoutComponentBase
 @inject NavigationManager UriHelper
 @inject IJSRuntime JSRuntime
+@inject IDispatcher Dispatcher
+@using Fluxor
+@using FileCategorization_Web.Layout.Components
+@using FileCategorization_Web.Features.FileManagement.Actions
 
 <RadzenDialog />
 <RadzenNotification />
@@ -45,6 +49,9 @@
     <RadzenBody @ref="@body0" @bind-Expanded="@bodyExpanded">
         <ChildContent>
             <RadzenContentContainer Name="main">
+                @* Global Console Component - Positioned at top, after header, before page content *@
+                <GlobalConsole IsVisible="@IsConsoleVisible" />
+                
                 <RadzenRow Gap="0rem" >
                     <RadzenColumn Size="12">
                         <RadzenRow Class="rz-mx-auto" >
@@ -91,6 +98,9 @@
     protected override void OnInitialized()
     {
         System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("it-IT");
+        
+        // Show application ready message only once at app startup
+        Dispatcher.Dispatch(new AddConsoleMessageAction("Application ready!"));
     }
 
     protected override void OnAfterRender(bool firstRender)
@@ -98,6 +108,26 @@
         if (firstRender)
         {
             rendered = true;
+        }
+    }
+
+    // Console visibility logic - can be enhanced to hide on specific pages
+    protected bool IsConsoleVisible
+    {
+        get
+        {
+            var currentPath = UriHelper.ToAbsoluteUri(UriHelper.Uri).AbsolutePath;
+            
+            // Show console on pages that might need it
+            return currentPath switch
+            {
+                "/" => false,  // Hide on home page
+                "/filecategorizationindex" => true,  // Show on main file categorization page
+                "/lastview" => true,  // Show on last view page
+                "/config" => true,  // Show on config page
+                "/webscrum" => false,  // Hide on webscrum page (has its own console)
+                _ => true  // Show by default on other pages
+            };
         }
     }
 }

@@ -149,14 +149,14 @@ public static class FileReducers
     [ReducerMethod]
     public static FileState ReduceNotShowAgainFileAction(FileState state, NotShowAgainFileAction action)
     {
-        var updatedFiles = state.Files.Select(f => f.Id == action.File.Id ? 
-            new FilesDetailDto { Id = f.Id, Name = f.Name, FileSize = f.FileSize, FileCategory = f.FileCategory, IsToCategorize = false, IsNew = false, IsNotToMove = true } : f).ToImmutableList();
+        // Remove the file completely from Files collection as it should no longer be visible
+        var updatedFiles = state.Files.Where(f => f.Id != action.File.Id).ToImmutableList();
         
-        // Also update ExpandedCategoryFiles if the file belongs to the currently expanded category
+        // Also remove from ExpandedCategoryFiles if the file belongs to the currently expanded category
         var updatedExpandedFiles = state.ExpandedCategoryFiles;
         if (state.ExpandedCategory == action.File.FileCategory)
         {
-            // Remove the file from expanded list since it's now IsNotToMove = true
+            // Remove the file from expanded list since it should no longer be visible
             updatedExpandedFiles = state.ExpandedCategoryFiles.Where(f => f.Id != action.File.Id).ToImmutableList();
         }
         
@@ -170,7 +170,51 @@ public static class FileReducers
 
     [ReducerMethod]
     public static FileState ReduceTrainModelSuccessAction(FileState state, TrainModelSuccessAction action) =>
-        state with { IsTraining = false, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - {action.Message}") };
+        state with { IsTraining = false, ConsoleMessages = state.ConsoleMessages.Add(FormatTrainModelMessage(action.Message)) };
+
+    private static string FormatTrainModelMessage(string jsonMessage)
+    {
+        try
+        {
+            // Parse the JSON response to extract key information
+            var json = System.Text.Json.JsonDocument.Parse(jsonMessage);
+            var root = json.RootElement;
+            
+            var success = root.GetProperty("success").GetBoolean();
+            var message = root.GetProperty("message").GetString() ?? "Training completed";
+            var trainingDuration = root.TryGetProperty("trainingDuration", out var durationProp) ? durationProp.GetString() : "Unknown";
+            var modelVersion = root.TryGetProperty("modelVersion", out var versionProp) ? versionProp.GetString() : "Unknown";
+            
+            var status = success ? "Success" : "Error";
+            
+            return $"{DateTime.Now:G} - {status} - {message}. Training Duration: {trainingDuration} - Model Version: {modelVersion}";
+        }
+        catch
+        {
+            // Fallback to original message if JSON parsing fails
+            return $"{DateTime.Now:G} - {jsonMessage}";
+        }
+    }
+
+    private static string FormatForceCategoryMessage(string jsonMessage)
+    {
+        try
+        {
+            // Parse the JSON response to extract job information
+            var json = System.Text.Json.JsonDocument.Parse(jsonMessage);
+            var root = json.RootElement;
+            
+            var jobId = root.TryGetProperty("jobId", out var jobProp) ? jobProp.GetString() : "Unknown";
+            var status = root.TryGetProperty("status", out var statusProp) ? statusProp.GetString() : "Running";
+            
+            return $"{DateTime.Now:G} - JobId: {jobId} - Status: {status}";
+        }
+        catch
+        {
+            // Fallback to original message if JSON parsing fails
+            return $"{DateTime.Now:G} - {jsonMessage}";
+        }
+    }
 
     [ReducerMethod]
     public static FileState ReduceTrainModelFailureAction(FileState state, TrainModelFailureAction action) =>
@@ -182,7 +226,7 @@ public static class FileReducers
 
     [ReducerMethod]
     public static FileState ReduceForceCategorySuccessAction(FileState state, ForceCategorySuccessAction action) =>
-        state with { IsCategorizing = false, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - {action.Message}") };
+        state with { IsCategorizing = false, ConsoleMessages = state.ConsoleMessages.Add(FormatForceCategoryMessage(action.Message)) };
 
     [ReducerMethod]
     public static FileState ReduceForceCategoryFailureAction(FileState state, ForceCategoryFailureAction action) =>
@@ -249,27 +293,27 @@ public static class FileReducers
     // Cache Reducers
     [ReducerMethod]
     public static FileState ReduceCacheWarmupAction(FileState state, CacheWarmupAction action) =>
-        state with { IsCacheWarming = true, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Starting cache warmup...") };
+        state with { IsCacheWarming = true };
 
     [ReducerMethod]
     public static FileState ReduceCacheWarmupSuccessAction(FileState state, CacheWarmupSuccessAction action) =>
-        state with { IsCacheWarming = false, LastCacheUpdate = DateTime.UtcNow, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Cache warmup completed") };
+        state with { IsCacheWarming = false, LastCacheUpdate = DateTime.UtcNow };
 
     [ReducerMethod]
     public static FileState ReduceCacheWarmupFailureAction(FileState state, CacheWarmupFailureAction action) =>
-        state with { IsCacheWarming = false, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Cache warmup failed: {action.Error}") };
+        state with { IsCacheWarming = false };
 
     [ReducerMethod]
     public static FileState ReduceCacheClearAction(FileState state, CacheClearAction action) =>
-        state with { ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Clearing cache...") };
+        state; // Silently start cache clear
 
     [ReducerMethod]
     public static FileState ReduceCacheClearSuccessAction(FileState state, CacheClearSuccessAction action) =>
-        state with { CacheStatistics = null, LastCacheUpdate = DateTime.UtcNow, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Cache cleared successfully") };
+        state with { CacheStatistics = null, LastCacheUpdate = DateTime.UtcNow };
 
     [ReducerMethod]
     public static FileState ReduceCacheInvalidateSuccessAction(FileState state, CacheInvalidateSuccessAction action) =>
-        state with { LastCacheUpdate = DateTime.UtcNow, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Cache invalidated: {action.Strategy}") };
+        state with { LastCacheUpdate = DateTime.UtcNow };
 
     [ReducerMethod]
     public static FileState ReduceCacheStatsUpdateAction(FileState state, CacheStatsUpdateAction action) =>
@@ -277,9 +321,9 @@ public static class FileReducers
 
     [ReducerMethod]
     public static FileState ReduceCacheHitAction(FileState state, CacheHitAction action) =>
-        state with { ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Cache HIT: {action.Key} ({action.DataType})") };
+        state; // Silently track cache hits without console output
 
     [ReducerMethod]
     public static FileState ReduceCacheMissAction(FileState state, CacheMissAction action) =>
-        state with { ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Cache MISS: {action.Key} ({action.DataType})") };
+        state; // Silently track cache misses without console output
 }

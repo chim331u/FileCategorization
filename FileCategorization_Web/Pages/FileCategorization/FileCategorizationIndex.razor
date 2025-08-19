@@ -40,7 +40,7 @@
         BusyText="Categorizing ..." />
 
 
-        <RadzenButton ButtonStyle="ButtonStyle.Primary" Icon="drive_file_move" Variant="Variant.Flat" Text="Move"
+        <RadzenButton ButtonStyle="ButtonStyle.Dark" Icon="drive_file_move" Text="Move"
         Shade="Shade.Default" Size="ButtonSize.Medium" Class="my-1 ms-1" Click="MoveFiles">
         </RadzenButton>
     </RadzenRow>
@@ -50,9 +50,7 @@
     }
     else
     {
-        <RadzenRow class="row p-2">
-            <RadzenTextArea Value="@ConsoleText" ReadOnly="true" Rows="3"></RadzenTextArea>
-        </RadzenRow>
+        @* Console moved to MainLayout - now globally visible *@
         @*  @if (_progressIsVisible)
         {
             <RadzenRow class="mb-2">
@@ -168,8 +166,7 @@
 
     // SignalR is now handled by INotificationService - no direct HubConnection needed
 
-    // Console text computed from Fluxor state
-    protected string ConsoleText => string.Join("\n", FileState.Value.ConsoleMessages);
+    // Console moved to MainLayout GlobalConsole component - no longer needed here
 
 
     private string? lastErrorMessage = null;
@@ -185,7 +182,7 @@
             // SignalR is automatically handled by INotificationService which integrates with Fluxor
             Dispatcher.Dispatch(new LoadCategoriesAction());
             Dispatcher.Dispatch(new LoadFilesAction(FileState.Value.SearchParameter));
-            Dispatcher.Dispatch(new AddConsoleMessageAction("Application ready!"));
+            // Application ready message moved to MainLayout to show only on first app load
             
             _categorization = false;
         }

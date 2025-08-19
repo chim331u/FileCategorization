@@ -748,6 +748,45 @@ public class ModernFileCategorizationService : IModernFileCategorizationService
         }
     }
 
+    public async Task<Result<string>> NotShowAgainAsync(int fileId)
+    {
+        try
+        {
+            _logger.LogInformation("Calling NotShowAgain for file ID {FileId} using v2 API", fileId);
+            
+            var response = await _httpClient.PatchAsync($"api/v2/files/{fileId}/not-show-again", null);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<dynamic>(_serializerOptions);
+                _logger.LogInformation("File {FileId} marked as 'not show again' successfully using v2 API", fileId);
+                return Result.Success("File marked as 'not show again' successfully");
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                _logger.LogWarning("File with ID {FileId} not found for NotShowAgain operation", fileId);
+                return Result.Failure<string>($"File with ID {fileId} not found");
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("Bad request for NotShowAgain operation: {Error}", errorContent);
+                return Result.Failure<string>($"Invalid request: {errorContent}");
+            }
+
+            var error = $"API v2 Error: {response.StatusCode}";
+            _logger.LogWarning("Failed to execute NotShowAgain using v2 API: {Error}", error);
+            return Result.Failure<string>(error);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception occurred while executing NotShowAgain for file {FileId} using v2 API", fileId);
+            return Result.Failure<string>($"Network Error: {ex.Message}", ex);
+        }
+    }
+
     #endregion
 
 }
