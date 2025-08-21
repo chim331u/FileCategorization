@@ -23,5 +23,10 @@ public enum MoveFilesResults
     /// <summary>
     /// Indicates that the file move operation was completed.
     /// </summary>
-    Completed = 3
+    Completed = 3,
+
+    /// <summary>
+    /// Indicates that a job or operation is currently processing.
+    /// </summary>
+    Processing = 4
 }

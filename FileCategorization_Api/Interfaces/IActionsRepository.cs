@@ -50,4 +50,20 @@ public interface IActionsRepository
     /// <param name="cancellationToken">Cancellation token for async operation</param>
     /// <returns>Number of entries written</returns>
     Task<Result<int>> BatchAppendTrainingDataAsync(List<string> trainingEntries, string trainingFilePath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all uncategorized files that need ML categorization.
+    /// Returns files where FileCategory is null, empty, or indicates they need categorization.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token for async operation</param>
+    /// <returns>List of uncategorized files</returns>
+    Task<Result<List<FilesDetail>>> GetUncategorizedFilesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates multiple files in batch with optimized database operations.
+    /// </summary>
+    /// <param name="files">List of files to update</param>
+    /// <param name="cancellationToken">Cancellation token for async operation</param>
+    /// <returns>Number of updated records</returns>
+    Task<Result<int>> UpdateFilesBatchAsync(List<FilesDetail> files, CancellationToken cancellationToken = default);
 }

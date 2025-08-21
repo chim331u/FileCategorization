@@ -6,6 +6,7 @@ using FileCategorization_Api.Domain.Entities.FileCategorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using System.Text.Json;
 
 namespace FileCategorization_Api.Services
 {
@@ -19,10 +20,11 @@ namespace FileCategorization_Api.Services
         private readonly IConfigsService _configsService;
         private readonly IUtilityServices _utility;
         private readonly IMachineLearningService _machineLearningService;
+        private readonly IActionsRepository _actionsRepository;
 
         public HangFireJobService(ILogger<HangFireJobService> logger, ApplicationContext context, IConfiguration config,
             IHubContext<NotificationHub> hubContext, IFilesDetailService serviceData, IUtilityServices utility,
-            IConfigsService configsService, IMachineLearningService machineLearningService)
+            IConfigsService configsService, IMachineLearningService machineLearningService, IActionsRepository actionsRepository)
 
         {
             _context = context;
@@ -33,6 +35,7 @@ namespace FileCategorization_Api.Services
             _utility = utility;
             _configsService = configsService;
             _machineLearningService = machineLearningService;
+            _actionsRepository = actionsRepository;
         }
 
         /// This method is called by Hangfire to test signlalR
@@ -293,6 +296,222 @@ namespace FileCategorization_Api.Services
             await _notificationHub.Clients.All.SendAsync("jobNotifications",
                 $"Refresh Files job Completed in [{jobExecutionTime}] - Added {fileAdded} files, total files in folder: {totalFilesInFolder}",
                 0);
+        }
+
+        /// <summary>
+        /// Background job for force categorization of uncategorized files with progress tracking.
+        /// Executes ML categorization for files that haven't been categorized yet and provides detailed feedback via SignalR.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token for job cancellation</param>
+        public async Task ForceCategorizeJob(CancellationToken cancellationToken)
+        {
+            var jobStartTime = DateTime.Now;
+            _logger.LogInformation("Starting force categorization background job");
+
+            try
+            {
+                await _notificationHub.Clients.All.SendAsync("jobNotifications", 
+                    "Starting force categorization of uncategorized files...", 0, cancellationToken);
+
+                // Get uncategorized files
+                _logger.LogInformation("Retrieving uncategorized files");
+                var uncategorizedFilesResult = await _actionsRepository.GetUncategorizedFilesAsync(cancellationToken);
+                
+                if (uncategorizedFilesResult.IsFailure)
+                {
+                    var errorMsg = $"Failed to retrieve uncategorized files: {uncategorizedFilesResult.Error}";
+                    _logger.LogError(errorMsg);
+                    await _notificationHub.Clients.All.SendAsync("jobNotifications", errorMsg, MoveFilesResults.Failed, cancellationToken);
+                    return;
+                }
+
+                var uncategorizedFiles = uncategorizedFilesResult.Value ?? new List<FilesDetail>();
+                var totalFiles = uncategorizedFiles.Count;
+                
+                if (totalFiles == 0)
+                {
+                    var noFilesMsg = "No uncategorized files found to process";
+                    _logger.LogInformation(noFilesMsg);
+                    await _notificationHub.Clients.All.SendAsync("jobNotifications", noFilesMsg, MoveFilesResults.Processing, cancellationToken);
+                    return;
+                }
+
+                _logger.LogInformation("Found {TotalFiles} uncategorized files to process", totalFiles);
+                await _notificationHub.Clients.All.SendAsync("jobNotifications", 
+                    $"Found {totalFiles} uncategorized files to categorize", 0, cancellationToken);
+
+                // Process files in batches for performance
+                var batchSize = 50; // Process in smaller batches for better responsiveness
+                var categorizedCount = 0;
+                var errorCount = 0;
+
+                for (int i = 0; i < totalFiles; i += batchSize)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var batchFiles = uncategorizedFiles.Skip(i).Take(batchSize).ToList();
+                    var batchNumber = (i / batchSize) + 1;
+                    var totalBatches = (int)Math.Ceiling((double)totalFiles / batchSize);
+
+                    _logger.LogInformation("Processing batch {BatchNumber}/{TotalBatches} ({BatchSize} files)", 
+                        batchNumber, totalBatches, batchFiles.Count);
+
+                    await _notificationHub.Clients.All.SendAsync("jobNotifications", 
+                        $"Processing batch {batchNumber}/{totalBatches} ({batchFiles.Count} files)...", 0, cancellationToken);
+
+                    try
+                    {
+                        // Categorize this batch
+                        var categorizationResult = await _machineLearningService.PredictFileCategoriesAsync(batchFiles, cancellationToken);
+                        
+                        if (categorizationResult.IsFailure)
+                        {
+                            errorCount += batchFiles.Count;
+                            _logger.LogError("Failed to categorize batch {BatchNumber}: {Error}", batchNumber, categorizationResult.Error);
+                            await _notificationHub.Clients.All.SendAsync("jobNotifications", 
+                                $"Error categorizing batch {batchNumber}: {categorizationResult.Error}", 0, cancellationToken);
+                            continue;
+                        }
+
+                        var categorizedFiles = categorizationResult.Value!;
+                        
+                        // Update files in database
+                        var updateResult = await _actionsRepository.UpdateFilesBatchAsync(categorizedFiles, cancellationToken);
+                        
+                        if (updateResult.IsFailure)
+                        {
+                            errorCount += batchFiles.Count;
+                            _logger.LogError("Failed to update batch {BatchNumber} in database: {Error}", batchNumber, updateResult.Error);
+                            await _notificationHub.Clients.All.SendAsync("jobNotifications", 
+                                $"Error updating batch {batchNumber}: {updateResult.Error}", 0, cancellationToken);
+                            continue;
+                        }
+
+                        categorizedCount += batchFiles.Count;
+                        var progress = (int)((double)(i + batchFiles.Count) / totalFiles * 100);
+                        
+                        _logger.LogInformation("Successfully categorized batch {BatchNumber}, progress: {Progress}%", 
+                            batchNumber, progress);
+                        
+                        await _notificationHub.Clients.All.SendAsync("jobNotifications", 
+                            $"Categorized batch {batchNumber}/{totalBatches} - Progress: {progress}%", progress, cancellationToken);
+                    }
+                    catch (Exception batchEx)
+                    {
+                        errorCount += batchFiles.Count;
+                        _logger.LogError(batchEx, "Exception processing batch {BatchNumber}", batchNumber);
+                        await _notificationHub.Clients.All.SendAsync("jobNotifications", 
+                            $"Exception in batch {batchNumber}: {batchEx.Message}", 0, cancellationToken);
+                    }
+                }
+
+                var jobExecutionTime = DateTime.Now - jobStartTime;
+                var successMessage = JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    message = "Force categorization completed successfully",
+                    totalFiles = totalFiles,
+                    categorizedFiles = categorizedCount,
+                    errorFiles = errorCount,
+                    duration = jobExecutionTime,
+                    completedAt = DateTime.UtcNow
+                });
+
+                _logger.LogInformation("Force categorization job completed - Total: {Total}, Success: {Success}, Errors: {Errors}, Duration: {Duration}", 
+                    totalFiles, categorizedCount, errorCount, jobExecutionTime);
+
+                await _notificationHub.Clients.All.SendAsync("jobNotifications", successMessage, MoveFilesResults.Completed, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                var cancelledMessage = "Force categorization job was cancelled";
+                _logger.LogWarning(cancelledMessage);
+                await _notificationHub.Clients.All.SendAsync("jobNotifications", cancelledMessage, MoveFilesResults.Failed, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                var jobExecutionTime = DateTime.Now - jobStartTime;
+                var errorMessage = JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    message = "Force categorization job failed",
+                    error = ex.Message,
+                    duration = jobExecutionTime,
+                    failedAt = DateTime.UtcNow
+                });
+
+                _logger.LogError(ex, "Force categorization job failed after {Duration}", jobExecutionTime);
+                await _notificationHub.Clients.All.SendAsync("jobNotifications", errorMessage, MoveFilesResults.Failed, cancellationToken);
+            }
+        }
+
+        /// <summary>
+        /// Background job for machine learning model training with comprehensive progress tracking.
+        /// Executes ML model training asynchronously and provides detailed feedback via SignalR.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token for job cancellation</param>
+        public async Task TrainModelJob(CancellationToken cancellationToken)
+        {
+            var jobStartTime = DateTime.Now;
+            _logger.LogInformation("Starting ML model training background job");
+            
+            try
+            {
+                // Notify job start
+                await _notificationHub.Clients.All.SendAsync("jobNotifications", 
+                    "Starting machine learning model training...", MoveFilesResults.Processing, cancellationToken);
+
+                // Execute model training
+                _logger.LogInformation("Executing ML model training");
+                var trainResult = await _machineLearningService.TrainAndSaveModelAsync(cancellationToken);
+
+                if (trainResult.IsFailure)
+                {
+                    _logger.LogError("ML model training failed: {Error}", trainResult.Error);
+                    await _notificationHub.Clients.All.SendAsync("jobNotifications", 
+                        $"❌ Model training failed: {trainResult.Error}", MoveFilesResults.Failed, cancellationToken);
+                    return;
+                }
+
+                var jobExecutionTime = await _utility.TimeDiff(jobStartTime, DateTime.Now);
+                _logger.LogInformation("ML model training completed successfully in {Duration}", jobExecutionTime);
+
+                // Get additional model information for detailed feedback
+                var modelInfoResult = await _machineLearningService.GetModelInfoAsync(cancellationToken);
+                var modelInfo = modelInfoResult.IsSuccess ? modelInfoResult.Value : "Model information unavailable";
+
+                // Prepare detailed success message with JSON structure for parsing
+                var successMessage = new
+                {
+                    success = true,
+                    message = $"Model training completed successfully. Training Duration: {jobExecutionTime} - Model Version: {DateTime.UtcNow:yyyyMMddHHmmss}",
+                    trainingDuration = jobExecutionTime,
+                    modelVersion = DateTime.UtcNow.ToString("yyyyMMddHHmmss"),
+                    modelInfo = modelInfo,
+                    completedAt = DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm:ss")
+                };
+
+                // Send structured success notification (will be parsed by frontend GlobalConsole)
+                await _notificationHub.Clients.All.SendAsync("jobNotifications", 
+                    System.Text.Json.JsonSerializer.Serialize(successMessage), MoveFilesResults.Completed, cancellationToken);
+
+                _logger.LogInformation("ML model training job completed successfully: [{JobExecutionTime}]", jobExecutionTime);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("ML model training job was cancelled");
+                await _notificationHub.Clients.All.SendAsync("jobNotifications", 
+                    "⚠️ Model training was cancelled", MoveFilesResults.Failed, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                var jobExecutionTime = await _utility.TimeDiff(jobStartTime, DateTime.Now);
+                _logger.LogError(ex, "ML model training job failed after {Duration}: {ErrorMessage}", 
+                    jobExecutionTime, ex.Message);
+                
+                await _notificationHub.Clients.All.SendAsync("jobNotifications", 
+                    $"❌ Model training failed after {jobExecutionTime}: {ex.Message}", MoveFilesResults.Failed, cancellationToken);
+            }
         }
 
     }

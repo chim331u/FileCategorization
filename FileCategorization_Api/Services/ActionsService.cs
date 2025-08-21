@@ -128,30 +128,31 @@ public class ActionsService : IActionsService
     {
         try
         {
-            _logger.LogInformation("Starting force categorization operation");
+            _logger.LogInformation("Starting force categorization background job");
 
-            // This would typically be implemented as a background job as well
-            // For now, we'll execute it directly since it's not in the original job service
-            var jobId = Guid.NewGuid().ToString();
+            // Enqueue background job for force categorization
+            var jobId = BackgroundJob.Enqueue<IHangFireJobService>(job =>
+                job.ForceCategorizeJob(cancellationToken));
+
+            _logger.LogInformation("Force categorization job queued with ID: {JobId}", jobId);
 
             var response = new ActionJobResponse
             {
                 JobId = jobId,
-                Status = "Running",
+                Status = "Queued",
                 StartTime = DateTime.UtcNow,
                 Metadata = new Dictionary<string, object>
                 {
-                    ["Operation"] = "ForceCategorize"
+                    ["Operation"] = "ForceCategorize",
+                    ["Description"] = "Force categorization of uncategorized files using ML prediction"
                 }
             };
-
-            _logger.LogInformation("Force categorization started with ID: {JobId}", jobId);
 
             return Result<ActionJobResponse>.Success(response);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to start force categorization");
+            _logger.LogError(ex, "Failed to queue force categorization job");
             return Result<ActionJobResponse>.FromException(ex);
         }
     }
@@ -161,61 +162,32 @@ public class ActionsService : IActionsService
     {
         try
         {
-            _logger.LogInformation("Starting ML model training");
+            _logger.LogInformation("Starting ML model training background job");
 
-            var startTime = DateTime.UtcNow;
-            var trainResult = await _machineLearningService.TrainAndSaveModelAsync(cancellationToken);
+            // Enqueue background job for ML model training
+            var jobId = BackgroundJob.Enqueue<IHangFireJobService>(job =>
+                job.TrainModelJob(cancellationToken));
 
-            if (trainResult.IsFailure)
-            {
-                return Result<TrainModelResponse>.Failure($"Model training failed: {trainResult.Error}");
-            }
+            _logger.LogInformation("ML model training job queued with ID: {JobId}", jobId);
 
-            var endTime = DateTime.UtcNow;
-            var duration = endTime - startTime;
-
-            // Get model info for additional details
-            var modelInfoResult = await _machineLearningService.GetModelInfoAsync(cancellationToken);
-            
             var response = new TrainModelResponse
             {
                 Success = true,
-                Message = trainResult.Value ?? "Model training completed successfully",
-                TrainingDuration = duration,
+                Message = "Model training job has been queued and will execute in background",
+                JobId = jobId,
                 ModelVersion = DateTime.UtcNow.ToString("yyyyMMddHHmmss"),
+                TrainingDuration = TimeSpan.Zero, // Will be updated when job completes
                 Metrics = new Dictionary<string, double>
                 {
-                    ["TrainingDurationSeconds"] = duration.TotalSeconds
+                    ["JobQueued"] = 1
                 }
             };
-
-            // Parse model info if available
-            if (modelInfoResult.IsSuccess && !string.IsNullOrEmpty(modelInfoResult.Value))
-            {
-                var modelInfo = modelInfoResult.Value;
-                if (modelInfo.Contains("Size:"))
-                {
-                    // Try to extract model size from the info string
-                    var sizePart = modelInfo.Split("Size:")[1].Split(" bytes")[0].Trim();
-                    if (long.TryParse(sizePart, out var modelSize))
-                    {
-                        response.ModelSizeBytes = modelSize;
-                    }
-                }
-                
-                if (modelInfo.Contains("Model exists at:"))
-                {
-                    response.ModelPath = modelInfo.Split("Model exists at:")[1].Split(",")[0].Trim();
-                }
-            }
-
-            _logger.LogInformation("Model training completed successfully in {Duration}", duration);
 
             return Result<TrainModelResponse>.Success(response);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to train ML model");
+            _logger.LogError(ex, "Failed to queue ML model training job");
             return Result<TrainModelResponse>.FromException(ex);
         }
     }
@@ -232,19 +204,87 @@ public class ActionsService : IActionsService
 
             _logger.LogDebug("Getting status for job: {JobId}", jobId);
 
-            // In a real implementation, we would query Hangfire's job storage
-            // For now, return a basic response
+            // Get job status from Hangfire JobStorage
+            var jobStorage = JobStorage.Current;
+            if (jobStorage == null)
+            {
+                _logger.LogWarning("Hangfire JobStorage is not initialized");
+                return Result<ActionJobResponse>.Failure("Current JobStorage instance has not been initialized");
+            }
+
+            using var connection = jobStorage.GetConnection();
+            var jobData = connection.GetJobData(jobId);
+
+            if (jobData == null)
+            {
+                _logger.LogWarning("Job {JobId} not found in Hangfire storage", jobId);
+                return Result<ActionJobResponse>.Failure($"Job with ID '{jobId}' not found");
+            }
+
+            // Get job state information
+            var stateData = connection.GetStateData(jobId);
+
+            // Build response with real Hangfire data
             var response = new ActionJobResponse
             {
                 JobId = jobId,
-                Status = "Unknown",
-                StartTime = DateTime.UtcNow.AddMinutes(-5), // Placeholder
+                Status = MapHangfireStateToStatus(stateData?.Name),
+                StartTime = jobData.CreatedAt,
                 Metadata = new Dictionary<string, object>
                 {
-                    ["Note"] = "Job status tracking would be implemented with Hangfire job storage"
+                    ["JobType"] = jobData.Job?.Type?.Name ?? "Unknown",
+                    ["JobMethod"] = jobData.Job?.Method?.Name ?? "Unknown",
+                    ["StateReason"] = stateData?.Reason ?? "No reason provided",
+                    ["StateData"] = stateData?.Data ?? new Dictionary<string, string>(),
+                    ["Arguments"] = jobData.Job?.Args?.Select(arg => arg?.ToString() ?? "null").ToArray() ?? Array.Empty<string>()
                 }
             };
 
+            // Add progress information if available from state data
+            if (stateData?.Data != null)
+            {
+                // Look for progress indicators in state data
+                if (stateData.Data.TryGetValue("Progress", out var progressValue) && 
+                    int.TryParse(progressValue, out var progress))
+                {
+                    response.ProcessedItems = progress;
+                    response.TotalItems = 100; // Assuming percentage-based progress
+                }
+
+                // Look for processed items count
+                if (stateData.Data.TryGetValue("ProcessedItems", out var processedValue) &&
+                    int.TryParse(processedValue, out var processed))
+                {
+                    response.ProcessedItems = processed;
+                }
+
+                // Look for total items count
+                if (stateData.Data.TryGetValue("TotalItems", out var totalValue) &&
+                    int.TryParse(totalValue, out var total))
+                {
+                    response.TotalItems = total;
+                }
+
+                // Add completion time if available
+                if (stateData.Data.TryGetValue("CompletedAt", out var completedAtValue) &&
+                    DateTime.TryParse(completedAtValue, out var completedAt))
+                {
+                    response.EndTime = completedAt;
+                    response.Metadata["CompletedAt"] = completedAt.ToString("O");
+                }
+            }
+
+            // Calculate duration if job is completed or failed
+            if (response.EndTime.HasValue)
+            {
+                response.Metadata["Duration"] = (response.EndTime.Value - response.StartTime).ToString();
+            }
+            else if (response.Status is "Processing" or "Running")
+            {
+                response.Metadata["RunningDuration"] = (DateTime.UtcNow - response.StartTime).ToString();
+            }
+
+            _logger.LogInformation("Retrieved status for job {JobId}: {Status}", jobId, response.Status);
             return Result<ActionJobResponse>.Success(response);
         }
         catch (Exception ex)
@@ -252,5 +292,24 @@ public class ActionsService : IActionsService
             _logger.LogError(ex, "Failed to get job status for {JobId}", jobId);
             return Result<ActionJobResponse>.FromException(ex);
         }
+    }
+
+    /// <summary>
+    /// Maps Hangfire job states to our standardized status strings.
+    /// </summary>
+    private static string MapHangfireStateToStatus(string? hangfireState)
+    {
+        return hangfireState?.ToLowerInvariant() switch
+        {
+            "enqueued" => "Queued",
+            "processing" => "Running",
+            "succeeded" => "Completed",
+            "failed" => "Failed",
+            "deleted" => "Cancelled",
+            "scheduled" => "Scheduled",
+            "awaiting" => "Waiting",
+            null => "Unknown",
+            _ => hangfireState
+        };
     }
 }

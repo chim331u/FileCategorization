@@ -194,4 +194,57 @@ public class ActionsRepository : IActionsRepository
             return Result<int>.FromException(ex);
         }
     }
+
+    /// <inheritdoc/>
+    public async Task<Result<List<FilesDetail>>> GetUncategorizedFilesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug("Retrieving uncategorized files");
+
+            var uncategorizedFiles = await _context.FilesDetail
+                .Where(f => string.IsNullOrEmpty(f.FileCategory) || 
+                           f.FileCategory == "UNCATEGORIZED" || 
+                           f.IsToCategorize)
+                .OrderBy(f => f.Name)
+                .ToListAsync(cancellationToken);
+
+            _logger.LogInformation("Found {Count} uncategorized files", uncategorizedFiles.Count);
+
+            return Result<List<FilesDetail>>.Success(uncategorizedFiles);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve uncategorized files");
+            return Result<List<FilesDetail>>.FromException(ex);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<Result<int>> UpdateFilesBatchAsync(List<FilesDetail> files, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (files == null || !files.Any())
+            {
+                return Result<int>.Success(0);
+            }
+
+            _logger.LogDebug("Batch updating {Count} files", files.Count);
+
+            // Update files using Entity Framework batch operation
+            _context.FilesDetail.UpdateRange(files);
+            
+            var updatedCount = await _context.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Successfully updated {Count} files in batch operation", updatedCount);
+
+            return Result<int>.Success(updatedCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to batch update {Count} files", files?.Count ?? 0);
+            return Result<int>.FromException(ex);
+        }
+    }
 }

@@ -196,6 +196,48 @@ public static class FileReducers
         }
     }
 
+    private static string FormatJobCompletionMessage(string message)
+    {
+        // Try to detect if this is a JSON message from TrainModel or ForceCategorize
+        if (message.TrimStart().StartsWith("{") && message.TrimEnd().EndsWith("}"))
+        {
+            try
+            {
+                var json = System.Text.Json.JsonDocument.Parse(message);
+                var root = json.RootElement;
+                
+                // Check if this is a TrainModel completion message
+                if (root.TryGetProperty("trainingDuration", out _) && root.TryGetProperty("modelVersion", out _))
+                {
+                    return FormatTrainModelMessage(message);
+                }
+                
+                // Check if this is a ForceCategorize completion message
+                if (root.TryGetProperty("totalFiles", out _) && root.TryGetProperty("categorizedFiles", out _))
+                {
+                    return FormatForceCategoryMessage(message);
+                }
+                
+                // Generic JSON job completion
+                if (root.TryGetProperty("success", out var successProp) && root.TryGetProperty("message", out var messageProp))
+                {
+                    var success = successProp.GetBoolean();
+                    var jobMessage = messageProp.GetString() ?? "Job completed";
+                    var status = success ? "Success" : "Error";
+                    
+                    return $"{DateTime.Now:G} - {status} - {jobMessage}";
+                }
+            }
+            catch
+            {
+                // Fall through to simple message formatting
+            }
+        }
+        
+        // Simple message - just add timestamp
+        return $"{DateTime.Now:G} - {message}";
+    }
+
     private static string FormatForceCategoryMessage(string jsonMessage)
     {
         try
@@ -288,7 +330,7 @@ public static class FileReducers
 
     [ReducerMethod]
     public static FileState ReduceSignalRJobCompletedAction(FileState state, SignalRJobCompletedAction action) =>
-        state with { ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - {action.ResultText}") };
+        state with { ConsoleMessages = state.ConsoleMessages.Add(FormatJobCompletionMessage(action.ResultText)) };
 
     // Cache Reducers
     [ReducerMethod]

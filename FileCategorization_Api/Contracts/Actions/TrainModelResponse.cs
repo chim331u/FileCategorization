@@ -16,6 +16,11 @@ public class TrainModelResponse
     public string Message { get; set; } = string.Empty;
 
     /// <summary>
+    /// Background job ID for tracking training progress (when executed asynchronously).
+    /// </summary>
+    public string? JobId { get; set; }
+
+    /// <summary>
     /// Path where the trained model was saved.
     /// </summary>
     public string? ModelPath { get; set; }
