@@ -70,7 +70,7 @@ public class SignalRNotificationService : INotificationService
             {
                 await _hubConnection.StartAsync();
                 _logger.LogInformation("SignalR connection established. Connection ID: {ConnectionId}", _hubConnection.ConnectionId);
-                
+                _dispatcher.Dispatch(new AddConsoleMessageAction($"SignalR connection established. Connection ID: {ConnectionId}"));
                 // Dispatch Fluxor action and raise event
                 _dispatcher.Dispatch(new SignalRConnectedAction(_hubConnection.ConnectionId ?? "Unknown"));
                 ConnectionEstablished?.Invoke(_hubConnection.ConnectionId ?? "Unknown");

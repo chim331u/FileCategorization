@@ -2,9 +2,11 @@
 @inject NavigationManager UriHelper
 @inject IJSRuntime JSRuntime
 @inject IDispatcher Dispatcher
+@inject INotificationService NotificationService
 @using Fluxor
 @using FileCategorization_Web.Layout.Components
 @using FileCategorization_Web.Features.FileManagement.Actions
+@using FileCategorization_Web.Services.SignalR
 
 <RadzenDialog />
 <RadzenNotification />
@@ -95,9 +97,19 @@
     bool bodyExpanded = false;
     bool rendered;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("it-IT");
+        
+        // Initialize SignalR connection
+        try
+        {
+            await NotificationService.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Dispatcher.Dispatch(new AddConsoleMessageAction($"Failed to initialize SignalR: {ex.Message}"));
+        }
         
         // Show application ready message only once at app startup
         Dispatcher.Dispatch(new AddConsoleMessageAction("Application ready!"));

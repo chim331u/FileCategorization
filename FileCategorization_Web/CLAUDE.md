@@ -435,6 +435,130 @@ protected void TriggerNewFeature() => Dispatcher.Dispatch(new NewFeatureAction(p
 - **Real-Time Integration**: SignalR event flow documentation with automatic state updates
 - **Console Integration**: Global console system with dark theme and intelligent message formatting
 
+## SignalR Console Message Schema
+
+### Console Message Flow for Each Event Type
+
+#### 🔄 **Refresh Categories Event**
+```
+User Action: Click "Refresh" button
+Console Messages:
+1. "22/08/2025 20:33:47 - Start refresh categories..."
+2. "22/08/2025 20:33:47 - In Progress - Refresh categories job has been queued and will execute in background"
+3. "22/08/2025 20:35:15 - Success - Categories refreshed successfully"
+
+SignalR Events: No direct SignalR events (API-only operation)
+```
+
+#### 🧠 **Train Model Event**
+```
+User Action: Click "Train Model" button
+Console Messages:
+1. (No initial message - removed per requirements)
+2. "22/08/2025 19:45:30 - In Progress - Model training job has been queued and will execute in background"
+3. "22/08/2025 19:46:15 - Success - Model training completed successfully. Training Duration: 00:00:16.8862980 - Model Version: 20250822194615"
+
+SignalR Events:
+- jobNotifications: {"success":true,"message":"Model training completed...","trainingDuration":"00:00:16.8862980","modelVersion":"20250822194615"}
+
+JSON Parsing:
+- Queue Response: {"success":true,"message":"Model training job has been queued...","trainingDuration":"00:00:00","modelVersion":"20250822194530"}
+- Completion Response: {"success":true,"message":"Model training completed successfully","trainingDuration":"00:00:16.8862980","modelVersion":"20250822194615"}
+```
+
+#### 🎯 **Force Category Event**
+```
+User Action: Click "Force Categories" button
+Console Messages:
+1. (No initial message - removed per requirements)
+2. "22/08/2025 19:55:45 - JobId: 067d1740-4c93-4842-9e77-1644036f0c8d - Status: Running"
+3. "22/08/2025 19:56:30 - Success - Force categorization completed. Total Files: 150, Categorized: 145, Failed: 5"
+
+SignalR Events:
+- jobNotifications: {"totalFiles":150,"categorizedFiles":145,"failedFiles":5,"errors":["File1 error","File2 error"],"duration":"00:00:45"}
+
+API Response Filtering:
+- API responses NOT sent to console (filtered out in Effects)
+- Only SignalR job completion messages displayed
+```
+
+#### 📁 **Move Files Event**
+```
+User Action: Click "Move" button or schedule files
+Console Messages:
+1. "22/08/2025 20:10:15 - Scheduled job n 12345"
+
+SignalR Events:
+- moveFilesNotifications: Real-time file movement updates
+- Automatic file removal from UI list when moved
+- No additional console messages for individual file moves
+```
+
+#### 📝 **Configuration CRUD Events**
+```
+User Actions: Create/Update/Delete configurations
+Console Messages:
+1. "22/08/2025 18:30:45 - Configuration 'DESTDIR' created successfully"
+2. "22/08/2025 18:31:20 - Configuration 'MAXFILES' updated successfully"  
+3. "22/08/2025 18:32:10 - Configuration 'TEMPDIR' deleted successfully"
+
+SignalR Events: None (direct API operations)
+UI Notifications: Radzen toast notifications for all CRUD operations
+```
+
+### Message Formatting Functions
+
+#### **FormatTrainModelMessage()**
+- **Input**: Raw JSON from API/SignalR
+- **Queue Detection**: `trainingDuration === "00:00:00"` or `message.Contains("queued")`
+- **Output Queue**: `"In Progress - Model training job has been queued and will execute in background"`
+- **Output Complete**: `"Success - Model training completed successfully. Training Duration: 00:00:16.8862980 - Model Version: 20250822194615"`
+
+#### **FormatForceCategoryMessage()**
+- **Input**: JSON with `totalFiles`, `categorizedFiles`, `failedFiles`
+- **Output**: `"Success - Force categorization completed. Total Files: 150, Categorized: 145, Failed: 5"`
+- **API Filter**: Direct API responses blocked in Effects layer
+
+#### **FormatRefreshMessage()**
+- **Input**: JSON with `jobId`, `status` or generic success/message
+- **Queue Output**: `"In Progress - Refresh categories job has been queued and will execute in background"`
+- **Complete Output**: `"Success - Categories refreshed successfully"`
+
+### Console Message Types
+
+#### **Initial Action Messages**
+- ✅ **Refresh**: `"Start refresh categories..."`
+- ❌ **Train Model**: Removed (no initial message)
+- ❌ **Force Category**: Removed (no initial message)
+
+#### **Queue/Progress Messages**
+- **Format**: `"In Progress - [Operation] job has been queued and will execute in background"`
+- **No Toast Notification**: Only console output for queue messages
+
+#### **Completion Messages**
+- **Format**: `"Success/Error - [Details with metrics]"`
+- **Toast Notification**: Shown for actual completion only
+- **Button State Reset**: Only on actual completion, not queue responses
+
+#### **Error Messages**
+- **Format**: `"ERROR: [Error details]"`
+- **Toast Notification**: Error severity with 6-second duration
+- **Button State Reset**: Immediate on error
+
+### Real-Time Integration
+
+#### **SignalR Event Processing**
+```
+SignalR Hub → NotificationService → Fluxor Actions → Reducers → Console
+                                                    ↓
+                                              UI Updates (automatic)
+```
+
+#### **State Management Flow**
+- **Queue Response**: Button stays in "busy" state, show progress message
+- **Completion Response**: Button reset, show completion message + toast
+- **Error Response**: Button reset, show error message + error toast
+
 ## Future Development Roadmap
 
 ### Short-Term Enhancements

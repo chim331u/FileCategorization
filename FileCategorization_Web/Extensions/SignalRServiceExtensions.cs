@@ -6,8 +6,8 @@ public static class SignalRServiceExtensions
 {
     public static IServiceCollection AddSignalRNotifications(this IServiceCollection services)
     {
-        // Register as singleton to maintain connection across the application
-        services.AddSingleton<INotificationService, SignalRNotificationService>();
+        // Register as scoped to allow injection of scoped services like IDispatcher
+        services.AddScoped<INotificationService, SignalRNotificationService>();
         
         return services;
     }

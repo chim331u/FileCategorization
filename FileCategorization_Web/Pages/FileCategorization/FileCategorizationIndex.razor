@@ -216,7 +216,10 @@
                     });
                     lastErrorMessage = lastMessage;
                 }
-                else if (lastMessage.Contains("categorization completed") || lastMessage.Contains("Force categorization"))
+                else if ((lastMessage.Contains("categorization completed") || 
+                         lastMessage.Contains("Force categorization completed") ||
+                         (lastMessage.Contains("Success") && lastMessage.Contains("Processed") && lastMessage.Contains("files"))) &&
+                         !lastMessage.Contains("In Progress"))
                 {
                     NotificationService.Notify(new NotificationMessage
                     {
@@ -227,7 +230,9 @@
                     });
                     lastErrorMessage = lastMessage;
                 }
-                else if (lastMessage.Contains("training completed") || lastMessage.Contains("Model training"))
+                else if ((lastMessage.Contains("training completed") || lastMessage.Contains("Model training")) && 
+                         !lastMessage.Contains("In Progress") && 
+                         !lastMessage.Contains("queued"))
                 {
                     NotificationService.Notify(new NotificationMessage
                     {

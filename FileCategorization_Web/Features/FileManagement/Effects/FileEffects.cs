@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using FileCategorization_Web.Features.FileManagement.Actions;
+using FileCategorization_Web.Features.FileManagement.Store;
 using FileCategorization_Web.Interfaces;
 using FileCategorization_Web.Services.Caching;
 using FileCategorization_Web.Data.Caching;
@@ -15,12 +16,14 @@ public class FileEffects
     private readonly IModernFileCategorizationService _fileService;
     private readonly ICacheService _cacheService;
     private readonly ILogger<FileEffects> _logger;
+    private readonly IState<FileState> _state;
 
-    public FileEffects(IModernFileCategorizationService fileService, ICacheService cacheService, ILogger<FileEffects> logger)
+    public FileEffects(IModernFileCategorizationService fileService, ICacheService cacheService, ILogger<FileEffects> logger, IState<FileState> state)
     {
         _fileService = fileService;
         _cacheService = cacheService;
         _logger = logger;
+        _state = state;
     }
 
     // Load Last View Files Effect
@@ -203,6 +206,27 @@ public class FileEffects
         }
     }
 
+    // Handle refresh data success - reload files with current search parameter
+    [EffectMethod]
+    public async Task HandleRefreshDataSuccessAction(RefreshDataSuccessAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            // Get current state to use the current search parameter
+            var currentState = _state.Value;
+            var searchParameter = currentState.SearchParameter;
+            
+            _logger.LogInformation("Reloading files after refresh with search parameter: {SearchParameter}", searchParameter);
+            
+            // Dispatch LoadFilesAction with current search parameter to refresh the grid
+            dispatcher.Dispatch(new LoadFilesAction(searchParameter));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error reloading files after refresh");
+        }
+    }
+
     // Load Categories Effect
     [EffectMethod]
     public async Task HandleLoadCategoriesAction(LoadCategoriesAction action, IDispatcher dispatcher)
@@ -368,7 +392,9 @@ public class FileEffects
                 // Invalidate files cache after categorization
                 await _cacheService.InvalidateByTagAsync("files");
                 
-                dispatcher.Dispatch(new ForceCategorySuccessAction(result.Value ?? "Force categorization completed"));
+                // Don't send API response to console - only SignalR messages should appear
+                // dispatcher.Dispatch(new ForceCategorySuccessAction(result.Value ?? "Force categorization completed"));
+                
                 // Reload files after categorization
                 dispatcher.Dispatch(new LoadFilesAction(3)); // Default to "To Categorize"
             }

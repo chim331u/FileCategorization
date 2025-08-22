@@ -67,11 +67,14 @@ public static class FileReducers
     // Refresh Data Reducers
     [ReducerMethod]
     public static FileState ReduceRefreshDataAction(FileState state, RefreshDataAction action) =>
-        state with { IsRefreshing = true, Error = null };
+        state with { IsRefreshing = true, Error = null, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Start refresh categories...") };
 
     [ReducerMethod]
-    public static FileState ReduceRefreshDataSuccessAction(FileState state, RefreshDataSuccessAction action) =>
-        state with { IsRefreshing = false, Error = null, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - {action.Message}") };
+    public static FileState ReduceRefreshDataSuccessAction(FileState state, RefreshDataSuccessAction action)
+    {
+        var formattedMessage = FormatRefreshMessage(action.Message);
+        return state with { IsRefreshing = false, Error = null, ConsoleMessages = state.ConsoleMessages.Add(formattedMessage) };
+    }
 
     [ReducerMethod]
     public static FileState ReduceRefreshDataFailureAction(FileState state, RefreshDataFailureAction action) =>
@@ -166,11 +169,35 @@ public static class FileReducers
     // ML Model Reducers
     [ReducerMethod]
     public static FileState ReduceTrainModelAction(FileState state, TrainModelAction action) =>
-        state with { IsTraining = true, Error = null, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Start Model Train...") };
+        state with { IsTraining = true, Error = null };
 
     [ReducerMethod]
-    public static FileState ReduceTrainModelSuccessAction(FileState state, TrainModelSuccessAction action) =>
-        state with { IsTraining = false, ConsoleMessages = state.ConsoleMessages.Add(FormatTrainModelMessage(action.Message)) };
+    public static FileState ReduceTrainModelSuccessAction(FileState state, TrainModelSuccessAction action)
+    {
+        var formattedMessage = FormatTrainModelMessage(action.Message);
+        
+        // Only reset IsTraining if this is an actual completion, not just a queue message
+        var isActualCompletion = IsTrainingActualCompletion(action.Message);
+        
+        return state with 
+        { 
+            IsTraining = isActualCompletion ? false : state.IsTraining, // Keep current state if just queued
+            ConsoleMessages = state.ConsoleMessages.Add(formattedMessage) 
+        };
+    }
+    
+    private static bool IsTrainingActualCompletion(string message)
+    {
+        // Check if this is actual training completion vs just queue response
+        if (message.Contains("queued") || message.Contains("In Progress"))
+            return false;
+            
+        // Check for completion indicators
+        return message.Contains("completed") || 
+               message.Contains("failed") || 
+               message.Contains("cancelled") ||
+               (message.Contains("trainingDuration") && !message.Contains("00:00:00"));
+    }
 
     private static string FormatTrainModelMessage(string jsonMessage)
     {
@@ -185,7 +212,24 @@ public static class FileReducers
             var trainingDuration = root.TryGetProperty("trainingDuration", out var durationProp) ? durationProp.GetString() : "Unknown";
             var modelVersion = root.TryGetProperty("modelVersion", out var versionProp) ? versionProp.GetString() : "Unknown";
             
-            var status = success ? "Success" : "Error";
+            // Check if this is a queued job (TrainingDuration = 00:00:00) vs completed job
+            var isQueued = trainingDuration == "00:00:00" || message.Contains("queued");
+            
+            string status;
+            if (!success)
+            {
+                status = "Error";
+            }
+            else if (isQueued)
+            {
+                status = "In Progress";
+                // Modify message for queued jobs to remove duration and version info
+                return $"{DateTime.Now:G} - {status} - Model training job has been queued and will execute in background";
+            }
+            else
+            {
+                status = "Success";
+            }
             
             return $"{DateTime.Now:G} - {status} - {message}. Training Duration: {trainingDuration} - Model Version: {modelVersion}";
         }
@@ -246,10 +290,25 @@ public static class FileReducers
             var json = System.Text.Json.JsonDocument.Parse(jsonMessage);
             var root = json.RootElement;
             
-            var jobId = root.TryGetProperty("jobId", out var jobProp) ? jobProp.GetString() : "Unknown";
-            var status = root.TryGetProperty("status", out var statusProp) ? statusProp.GetString() : "Running";
+            // Check if this is a job completion message (has totalFiles/categorizedFiles)
+            if (root.TryGetProperty("totalFiles", out var totalFilesProp) && root.TryGetProperty("categorizedFiles", out var categorizedFilesProp))
+            {
+                var success = root.TryGetProperty("success", out var successProp) && successProp.GetBoolean();
+                var message = root.TryGetProperty("message", out var messageProp) ? messageProp.GetString() : "Force categorization completed";
+                var totalFiles = totalFilesProp.GetInt32();
+                var categorizedFiles = categorizedFilesProp.GetInt32();
+                var errorFiles = root.TryGetProperty("errorFiles", out var errorProp) ? errorProp.GetInt32() : 0;
+                var duration = root.TryGetProperty("duration", out var durationProp) ? durationProp.GetString() : "Unknown";
+                
+                var status = success ? "Success" : "Error";
+                return $"{DateTime.Now:G} - {status} - {message}. Processed: {totalFiles} files, Success: {categorizedFiles}, Errors: {errorFiles}, Duration: {duration}";
+            }
             
-            return $"{DateTime.Now:G} - JobId: {jobId} - Status: {status}";
+            // Fallback: try to extract jobId and status (for API response messages)
+            var jobId = root.TryGetProperty("jobId", out var jobProp) ? jobProp.GetString() : "Unknown";
+            var jobStatus = root.TryGetProperty("status", out var statusProp) ? statusProp.GetString() : "Running";
+            
+            return $"{DateTime.Now:G} - JobId: {jobId} - Status: {jobStatus}";
         }
         catch
         {
@@ -264,7 +323,7 @@ public static class FileReducers
 
     [ReducerMethod]
     public static FileState ReduceForceCategoryAction(FileState state, ForceCategoryAction action) =>
-        state with { IsCategorizing = true, Error = null, ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Starting Categorization...") };
+        state with { IsCategorizing = true, Error = null };
 
     [ReducerMethod]
     public static FileState ReduceForceCategorySuccessAction(FileState state, ForceCategorySuccessAction action) =>
@@ -329,8 +388,51 @@ public static class FileReducers
     }
 
     [ReducerMethod]
-    public static FileState ReduceSignalRJobCompletedAction(FileState state, SignalRJobCompletedAction action) =>
-        state with { ConsoleMessages = state.ConsoleMessages.Add(FormatJobCompletionMessage(action.ResultText)) };
+    public static FileState ReduceSignalRJobCompletedAction(FileState state, SignalRJobCompletedAction action)
+    {
+        var formattedMessage = FormatJobCompletionMessage(action.ResultText);
+        var newState = state with { ConsoleMessages = state.ConsoleMessages.Add(formattedMessage) };
+        
+        // Reset operation states when jobs are ACTUALLY completed (not just queued)
+        if (IsActualJobCompletionMessage(action.ResultText))
+        {
+            // Check if this is a training completion (has actual completion indicators)
+            if (action.ResultText.Contains("trainingDuration") || 
+                (action.ResultText.Contains("training") && (action.ResultText.Contains("completed") || action.ResultText.Contains("failed"))))
+            {
+                newState = newState with { IsTraining = false };
+            }
+            
+            // Check if this is a force categorization completion  
+            if (action.ResultText.Contains("totalFiles") || 
+                (action.ResultText.Contains("categorization") && (action.ResultText.Contains("completed") || action.ResultText.Contains("failed"))))
+            {
+                newState = newState with { IsCategorizing = false };
+            }
+        }
+        
+        return newState;
+    }
+    
+    private static bool IsActualJobCompletionMessage(string message)
+    {
+        // Check if this is an ACTUAL job completion (not just queue/progress)
+        // Must be either a JSON completion message with specific completion fields,
+        // or contain explicit completion/failure/cancellation words
+        
+        if (message.TrimStart().StartsWith("{") && message.TrimEnd().EndsWith("}"))
+        {
+            // JSON messages with completion-specific fields (trainingDuration, totalFiles, etc.)
+            return message.Contains("trainingDuration") || 
+                   message.Contains("totalFiles") ||
+                   message.Contains("completedAt");
+        }
+        
+        // Text messages with explicit completion status
+        return message.Contains("completed") ||
+               message.Contains("failed") ||
+               message.Contains("cancelled");
+    }
 
     // Cache Reducers
     [ReducerMethod]
@@ -368,4 +470,52 @@ public static class FileReducers
     [ReducerMethod]
     public static FileState ReduceCacheMissAction(FileState state, CacheMissAction action) =>
         state; // Silently track cache misses without console output
+
+    private static string FormatRefreshMessage(string jsonMessage)
+    {
+        try
+        {
+            // Try to parse as JSON first
+            if (jsonMessage.TrimStart().StartsWith("{") && jsonMessage.TrimEnd().EndsWith("}"))
+            {
+                var json = System.Text.Json.JsonDocument.Parse(jsonMessage);
+                var root = json.RootElement;
+                
+                // Check if this is a refresh job status message (queue response)
+                if (root.TryGetProperty("jobId", out var jobIdProp) && 
+                    root.TryGetProperty("status", out var statusProp))
+                {
+                    var jobId = jobIdProp.GetString() ?? "Unknown";
+                    var status = statusProp.GetString() ?? "Unknown";
+                    
+                    // Check if it's a queued job (like train model formatting)
+                    if (status.Equals("Queued", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return $"{DateTime.Now:G} - In Progress - Refresh categories job has been queued and will execute in background";
+                    }
+                    
+                    // Other status formats
+                    return $"{DateTime.Now:G} - JobId: {jobId} - Status: {status}";
+                }
+                
+                // Check if this is a generic success/message JSON
+                if (root.TryGetProperty("success", out var successProp) && 
+                    root.TryGetProperty("message", out var messageProp))
+                {
+                    var success = successProp.GetBoolean();
+                    var message = messageProp.GetString() ?? "Refresh completed";
+                    var status = success ? "Success" : "Error";
+                    
+                    return $"{DateTime.Now:G} - {status} - {message}";
+                }
+            }
+        }
+        catch
+        {
+            // Fall through to simple message formatting
+        }
+        
+        // Simple message - just add timestamp
+        return $"{DateTime.Now:G} - {jsonMessage}";
+    }
 }
