@@ -59,135 +59,245 @@ namespace FileCategorization_Api.Services
         {
             var jobStartTime = DateTime.Now;
             int fileMoved = 0;
+            int fileFailed = 0;
             var processedFiles = new List<(FileMoveDto moveDto, FilesDetail dbFile, string status, string message)>();
             var trainingDataEntries = new List<string>();
 
-            var _originDir = await _configsService.GetConfigValue("ORIGINDIR");
-            var _destDir = await _configsService.GetConfigValue("DESTDIR");
-
-            // Batch load all files from database to avoid N+1 queries
-            var fileIds = filesToMove.Select(f => f.Id).ToList();
-            var dbFiles = await _context.FilesDetail
-                .Where(f => fileIds.Contains(f.Id))
-                .ToDictionaryAsync(f => f.Id, cancellationToken);
-
-            foreach (var file in filesToMove)
-            {
-                try
-                {
-                    if (!dbFiles.TryGetValue(file.Id, out var _file))
-                    {
-                        _logger.LogWarning($"File with id {file.Id} is not present.");
-                        processedFiles.Add((file, null!, "IdNotPresent", $"fileName with id {file.Id} not present"));
-                        continue;
-                    }
-
-                    var fileOrigin = Path.Combine(_originDir, _file.Name);
-                    var folderDest = Path.Combine(_destDir, file.FileCategory);
-                    var fileDest = Path.Combine(folderDest, _file.Name);
-
-                    // Determine whether the directory exists.
-                    if (!Directory.Exists(folderDest))
-                    {
-                        DirectoryInfo di = Directory.CreateDirectory(folderDest);
-                        _logger.LogInformation($"Destination folder {folderDest} created");
-                    }
-
-                    // Move the file.
-                    File.Move(fileOrigin, fileDest);
-                    _logger.LogInformation($"{fileOrigin} moved to {fileDest}.");
-                    fileMoved++;
-                    
-                    // Update database record
-                    _file.FileCategory = file.FileCategory;
-                    _file.IsToCategorize = false;
-                    _file.IsNew = false;
-                    _file.IsNotToMove = false;
-
-                    // Collect training data entry for batch write
-                    trainingDataEntries.Add($"{_file.Id};{_file.FileCategory};{_file.Name}");
-                    
-                    processedFiles.Add((file, _file, "Completed", $"fileName = {_file.Name} completed"));
-                    _logger.LogInformation($"File {_file.Name} processed successfully");
-                }
-                catch (Exception e)
-                {
-                    _logger.LogError($"Move File process failed: {e.Message}");
-                    processedFiles.Add((file, null!, "Failed", $"Error in moving fileName with id {file.Id}: {e.Message}"));
-                }
-            }
-
-            // Batch update database records
-            var successfulFiles = processedFiles
-                .Where(pf => pf.status == "Completed" && pf.dbFile != null)
-                .Select(pf => pf.dbFile)
-                .ToList();
-
-            if (successfulFiles.Any())
-            {
-                try
-                {
-                    _context.FilesDetail.UpdateRange(successfulFiles);
-                    await _context.SaveChangesAsync(cancellationToken);
-                    _logger.LogInformation($"Batch updated {successfulFiles.Count} database records");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Failed to batch update database: {ex.Message}");
-                }
-            }
-
-            // Batch write training data
-            if (trainingDataEntries.Any())
-            {
-                try
-                {
-                    var trainDataPath = await _configsService.GetConfigValue("TRAINDATAPATH");
-                    var trainDataName = await _configsService.GetConfigValue("TRAINDATANAME");
-                    var fullPath = Path.Combine(trainDataPath, trainDataName);
-                    
-                    await File.AppendAllLinesAsync(fullPath, trainingDataEntries, cancellationToken);
-                    _logger.LogInformation($"Batch wrote {trainingDataEntries.Count} training data entries");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Failed to batch write training data: {ex.Message}");
-                }
-            }
-
-            // Send batch notifications
             try
             {
-                foreach (var batch in processedFiles.Chunk(10)) // Send in chunks of 10
-                {
-                    foreach (var processedFile in batch)
-                    {
-                        var resultType = processedFile.status switch
-                        {
-                            "IdNotPresent" => MoveFilesResults.IdNotPresent,
-                            "Completed" => MoveFilesResults.Completed,
-                            "Failed" => MoveFilesResults.Failed,
-                            _ => MoveFilesResults.Failed
-                        };
+                // 1. Messaggio iniziale - Job preso in carico con numero totale file
+                _logger.LogInformation("Starting MoveFiles job for {TotalFiles} files", filesToMove.Count);
+                await _notificationHub.Clients.All.SendAsync("moveFilesNotifications", 
+                    $"📂 Starting file movement job for {filesToMove.Count} files...", 
+                    MoveFilesResults.Processing, cancellationToken);
 
-                        await _notificationHub.Clients.All.SendAsync("moveFilesNotifications", 
-                            processedFile.dbFile?.Id ?? processedFile.moveDto.Id,
-                            processedFile.message, resultType, cancellationToken);
-                    }
-                    
-                    // Small delay between batches to avoid overwhelming clients
-                    await Task.Delay(100, cancellationToken);
+                // Validate configuration paths
+                var _originDir = await _configsService.GetConfigValue("ORIGINDIR");
+                var _destDir = await _configsService.GetConfigValue("DESTDIR");
+                
+                if (string.IsNullOrEmpty(_originDir))
+                {
+                    var errorMsg = "ORIGINDIR configuration is missing or empty";
+                    _logger.LogError(errorMsg);
+                    await _notificationHub.Clients.All.SendAsync("jobNotifications", 
+                        JsonSerializer.Serialize(new {
+                            success = false,
+                            message = "Move files job failed: " + errorMsg,
+                            totalFiles = filesToMove.Count,
+                            movedFiles = 0,
+                            failedFiles = filesToMove.Count,
+                            duration = TimeSpan.Zero.ToString(),
+                            completedAt = DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm:ss")
+                        }), MoveFilesResults.Failed, filesToMove.Count, 0, filesToMove.Count, cancellationToken);
+                    return;
                 }
+                
+                if (string.IsNullOrEmpty(_destDir))
+                {
+                    var errorMsg = "DESTDIR configuration is missing or empty";
+                    _logger.LogError(errorMsg);
+                    await _notificationHub.Clients.All.SendAsync("jobNotifications", 
+                        JsonSerializer.Serialize(new {
+                            success = false,
+                            message = "Move files job failed: " + errorMsg,
+                            totalFiles = filesToMove.Count,
+                            movedFiles = 0,
+                            failedFiles = filesToMove.Count,
+                            duration = TimeSpan.Zero.ToString(),
+                            completedAt = DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm:ss")
+                        }), MoveFilesResults.Failed, filesToMove.Count, 0, filesToMove.Count, cancellationToken);
+                    return;
+                }
+
+                // Batch load all files from database to avoid N+1 queries
+                var fileIds = filesToMove.Select(f => f.Id).ToList();
+                var dbFiles = await _context.FilesDetail
+                    .Where(f => fileIds.Contains(f.Id))
+                    .ToDictionaryAsync(f => f.Id, cancellationToken);
+
+                // Process each file with individual notifications
+                foreach (var file in filesToMove)
+                {
+                    var fileStartTime = DateTime.Now;
+                    try
+                    {
+                        if (!dbFiles.TryGetValue(file.Id, out var _file))
+                        {
+                            fileFailed++;
+                            var errorMsg = $"File with id {file.Id} not found in database";
+                            _logger.LogWarning(errorMsg);
+                            processedFiles.Add((file, null!, "IdNotPresent", errorMsg));
+                            
+                            // 2. Messaggio per singolo file - FAIL
+                            await _notificationHub.Clients.All.SendAsync("moveFilesNotifications", 
+                                file.Id, "Unknown File", "", errorMsg,
+                                MoveFilesResults.IdNotPresent, cancellationToken);
+                            continue;
+                        }
+
+                        var fileOrigin = Path.Combine(_originDir, _file.Name);
+                        var folderDest = Path.Combine(_destDir, file.FileCategory);
+                        var fileDest = Path.Combine(folderDest, _file.Name);
+
+                        // Check if source file exists
+                        if (!File.Exists(fileOrigin))
+                        {
+                            fileFailed++;
+                            var errorMsg = $"Source file not found: {fileOrigin}";
+                            _logger.LogError(errorMsg);
+                            processedFiles.Add((file, _file, "Failed", errorMsg));
+                            
+                            // 2. Messaggio per singolo file - FAIL
+                            await _notificationHub.Clients.All.SendAsync("moveFilesNotifications", 
+                                file.Id, _file.Name, "", "Source file not found",
+                                MoveFilesResults.Failed, cancellationToken);
+                            continue;
+                        }
+
+                        // Create destination directory if it doesn't exist
+                        if (!Directory.Exists(folderDest))
+                        {
+                            Directory.CreateDirectory(folderDest);
+                            _logger.LogInformation($"Created destination folder: {folderDest}");
+                        }
+
+                        // Move the file
+                        File.Move(fileOrigin, fileDest);
+                        var fileProcessTime = DateTime.Now - fileStartTime;
+                        fileMoved++;
+                        
+                        // Update database record
+                        _file.FileCategory = file.FileCategory;
+                        _file.IsToCategorize = false;
+                        _file.IsNew = false;
+                        _file.IsNotToMove = false;
+
+                        // Collect training data entry for batch write
+                        trainingDataEntries.Add($"{_file.Id};{_file.FileCategory};{_file.Name}");
+                        
+                        processedFiles.Add((file, _file, "Completed", $"File {_file.Name} moved successfully"));
+                        _logger.LogInformation($"File {_file.Name} moved to {file.FileCategory} in {fileProcessTime.TotalMilliseconds:F0}ms");
+
+                        // 2. Messaggio per singolo file - SUCCESS
+                        var destinationPath = Path.Combine(_destDir, file.FileCategory);
+                        await _notificationHub.Clients.All.SendAsync("moveFilesNotifications", 
+                            file.Id, _file.Name, destinationPath, $"Moved successfully in {fileProcessTime.TotalMilliseconds:F0}ms",
+                            MoveFilesResults.Completed, cancellationToken);
+                    }
+                    catch (Exception e)
+                    {
+                        fileFailed++;
+                        var fileProcessTime = DateTime.Now - fileStartTime;
+                        var errorMsg = $"Error moving file with id {file.Id}: {e.Message}";
+                        _logger.LogError(e, errorMsg);
+                        processedFiles.Add((file, dbFiles.GetValueOrDefault(file.Id), "Failed", errorMsg));
+                        
+                        // 2. Messaggio per singolo file - FAIL con errore
+                        var fileName = dbFiles.GetValueOrDefault(file.Id)?.Name ?? $"Unknown File";
+                        await _notificationHub.Clients.All.SendAsync("moveFilesNotifications", 
+                            file.Id, fileName, "", $"{e.Message} ({fileProcessTime.TotalMilliseconds:F0}ms)",
+                            MoveFilesResults.Failed, cancellationToken);
+                    }
+                }
+
+                // Batch update database records
+                var successfulFiles = processedFiles
+                    .Where(pf => pf.status == "Completed" && pf.dbFile != null)
+                    .Select(pf => pf.dbFile)
+                    .ToList();
+
+                if (successfulFiles.Any())
+                {
+                    try
+                    {
+                        _context.FilesDetail.UpdateRange(successfulFiles);
+                        await _context.SaveChangesAsync(cancellationToken);
+                        _logger.LogInformation($"Batch updated {successfulFiles.Count} database records");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to batch update database: {Message}", ex.Message);
+                    }
+                }
+
+                // Batch write training data
+                if (trainingDataEntries.Any())
+                {
+                    try
+                    {
+                        var trainDataPath = await _configsService.GetConfigValue("TRAINDATAPATH");
+                        var trainDataName = await _configsService.GetConfigValue("TRAINDATANAME");
+                        
+                        if (!string.IsNullOrEmpty(trainDataPath) && !string.IsNullOrEmpty(trainDataName))
+                        {
+                            var fullPath = Path.Combine(trainDataPath, trainDataName);
+                            await File.AppendAllLinesAsync(fullPath, trainingDataEntries, cancellationToken);
+                            _logger.LogInformation($"Batch wrote {trainingDataEntries.Count} training data entries");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to batch write training data: {Message}", ex.Message);
+                    }
+                }
+
+                // Calculate execution time
+                var jobExecutionTime = DateTime.Now - jobStartTime;
+                var executionTimeString = jobExecutionTime.TotalSeconds < 60 
+                    ? $"{jobExecutionTime.TotalSeconds:F1}s" 
+                    : $"{jobExecutionTime.TotalMinutes:F1}m";
+
+                // 3. Messaggio finale - Job completato con resoconto
+                var isSuccess = fileFailed == 0;
+                var completionMessage = JsonSerializer.Serialize(new
+                {
+                    success = isSuccess,
+                    message = isSuccess 
+                        ? $"Move files job completed successfully in {executionTimeString}"
+                        : $"Move files job completed with errors in {executionTimeString}",
+                    totalFiles = filesToMove.Count,
+                    movedFiles = fileMoved,
+                    failedFiles = fileFailed,
+                    duration = executionTimeString,
+                    completedAt = DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm:ss")
+                });
+
+                _logger.LogInformation("MoveFiles job completed - Total: {Total}, Moved: {Moved}, Failed: {Failed}, Duration: {Duration}", 
+                    filesToMove.Count, fileMoved, fileFailed, executionTimeString);
+
+                // 3. Invio messaggio finale completamento job
+                await _notificationHub.Clients.All.SendAsync("jobNotifications", 
+                    completionMessage, 
+                    isSuccess ? MoveFilesResults.Completed : MoveFilesResults.Failed, 
+                    filesToMove.Count, fileMoved, fileFailed,
+                    cancellationToken);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Failed to send batch notifications: {ex.Message}");
-            }
+                // Job fallito completamente
+                var jobExecutionTime = DateTime.Now - jobStartTime;
+                var executionTimeString = $"{jobExecutionTime.TotalSeconds:F1}s";
+                
+                var errorMessage = JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    message = $"Move files job failed: {ex.Message}",
+                    totalFiles = filesToMove.Count,
+                    movedFiles = fileMoved,
+                    failedFiles = filesToMove.Count - fileMoved,
+                    duration = executionTimeString,
+                    error = ex.Message,
+                    completedAt = DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm:ss")
+                });
 
-            var jobExecutionTime = await _utility.TimeDiff(jobStartTime, DateTime.Now);
-            _logger.LogInformation($"Job Completed: [{jobExecutionTime}] - Moved {fileMoved} files");
-            await _notificationHub.Clients.All.SendAsync("jobNotifications",
-                $"Completed Job in [{jobExecutionTime}] - Moved {fileMoved} files", MoveFilesResults.Completed);
+                _logger.LogError(ex, "MoveFiles job failed after {Duration}", executionTimeString);
+                
+                await _notificationHub.Clients.All.SendAsync("jobNotifications", 
+                    errorMessage, 
+                    MoveFilesResults.Failed, 
+                    filesToMove.Count, fileMoved, fileFailed,
+                    cancellationToken);
+            }
         }
 
         public async Task RefreshFiles(CancellationToken cancellationToken)

@@ -34,7 +34,7 @@ public class FilesDetailRepository : Repository<FilesDetail>, IFilesDetailReposi
             var files = await _dbSet
                 .AsNoTracking()
                 .Where(f => f.IsActive && f.FileCategory == category && !f.IsNotToMove)
-                .OrderBy(f => f.Name)
+                .OrderByDescending(f => f.Name)
                 .ToListAsync(cancellationToken);
 
             return Result<IEnumerable<FilesDetail>>.Success(files);
@@ -101,7 +101,7 @@ public class FilesDetailRepository : Repository<FilesDetail>, IFilesDetailReposi
         {
             var files = await _dbSet
                 .AsNoTracking()
-                .Where(f => f.IsActive && f.IsNew)
+                .Where(f => f.IsActive && f.IsNew && !f.IsNotToMove)
                 .OrderByDescending(f => f.CreatedDate)
                 .ToListAsync(cancellationToken);
 
@@ -121,7 +121,7 @@ public class FilesDetailRepository : Repository<FilesDetail>, IFilesDetailReposi
     {
         try
         {
-            var query = _dbSet.AsNoTracking().Where(f => f.IsActive);
+            var query = _dbSet.AsNoTracking().Where(f => f.IsActive && !f.IsNotToMove);
 
             query = filterType switch
             {
@@ -271,7 +271,7 @@ public class FilesDetailRepository : Repository<FilesDetail>, IFilesDetailReposi
             }
 
             // Update the file properties as specified
-            file.IsNotToMove = false;
+            file.IsNotToMove = true;
             file.LastUpdatedDate = DateTime.UtcNow;
 
             await _context.SaveChangesAsync(cancellationToken);

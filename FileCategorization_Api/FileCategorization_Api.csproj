@@ -52,7 +52,6 @@
 
     <ItemGroup>
       <Folder Include="Temp\Dest\" />
-      <Folder Include="Temp\Origin\" />
     </ItemGroup>
 
 </Project>

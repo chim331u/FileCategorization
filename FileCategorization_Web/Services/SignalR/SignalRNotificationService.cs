@@ -140,20 +140,31 @@ public class SignalRNotificationService : INotificationService
         });
 
         // File move notifications
-        _hubConnection.On<int, string, MoveFilesResults>("moveFilesNotifications", (fileId, resultText, result) =>
+        _hubConnection.On<int, string, string, string, MoveFilesResults>("moveFilesNotifications", (fileId, fileName, destinationPath, resultText, result) =>
         {
-            _logger.LogInformation("File move notification: File {FileId} - {ResultText} - {Result}", fileId, resultText, result);
+            _logger.LogInformation("File move notification: File {FileId} '{FileName}' → '{DestinationPath}' - {ResultText} - {Result}", 
+                fileId, fileName, destinationPath, resultText, result);
             
-            _dispatcher.Dispatch(new SignalRFileMovedAction(fileId, resultText, result));
+            _dispatcher.Dispatch(new SignalRFileMovedAction(fileId, fileName, destinationPath, resultText, result));
             MoveFileNotificationReceived?.Invoke(fileId, resultText, result);
         });
 
-        // Job notifications  
+        // Job notifications with statistics (move files job completion)
+        _hubConnection.On<string, MoveFilesResults, int, int, int>("jobNotifications", (resultText, result, totalFiles, successfulFiles, failedFiles) =>
+        {
+            _logger.LogInformation("Job notification with stats received: {ResultText} - {Result} - Total: {Total}, Success: {Success}, Failed: {Failed}", 
+                resultText, result, totalFiles, successfulFiles, failedFiles);
+            
+            _dispatcher.Dispatch(new SignalRJobCompletedAction(resultText, result, totalFiles, successfulFiles, failedFiles));
+            JobNotificationReceived?.Invoke(resultText, result);
+        });
+        
+        // Job notifications without statistics (backward compatibility for other jobs like training, categorization)
         _hubConnection.On<string, MoveFilesResults>("jobNotifications", (resultText, result) =>
         {
             _logger.LogInformation("Job notification received: {ResultText} - {Result}", resultText, result);
             
-            _dispatcher.Dispatch(new SignalRJobCompletedAction(resultText, result));
+            _dispatcher.Dispatch(new SignalRJobCompletedAction(resultText, result, 0, 0, 0));
             JobNotificationReceived?.Invoke(resultText, result);
         });
 
