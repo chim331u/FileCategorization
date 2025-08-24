@@ -88,5 +88,17 @@ public record AddNewCategoryAction(string Category) : FileAction;
 // SignalR Actions
 public record SignalRConnectedAction(string ConnectionId) : FileAction;
 public record SignalRDisconnectedAction : FileAction;
-public record SignalRFileMovedAction(int FileId, string ResultText, MoveFilesResults Result) : FileAction;
-public record SignalRJobCompletedAction(string ResultText, MoveFilesResults Result) : FileAction;
+
+public record SignalRFileMovedAction(int FileId, string ResultText, MoveFilesResults Result) : FileAction
+{
+    // Extended constructor for SignalR service compatibility (ignores extra parameters)
+    public SignalRFileMovedAction(int FileId, string FileName, string DestinationPath, string ResultText, MoveFilesResults Result) 
+        : this(FileId, ResultText, Result) { }
+}
+
+public record SignalRJobCompletedAction(string ResultText, MoveFilesResults Result) : FileAction
+{
+    // Extended constructor for SignalR service compatibility (ignores extra parameters)  
+    public SignalRJobCompletedAction(string ResultText, MoveFilesResults Result, int TotalFiles, int SuccessfulFiles, int FailedFiles)
+        : this(ResultText, Result) { }
+}

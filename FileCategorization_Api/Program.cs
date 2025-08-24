@@ -1,4 +1,6 @@
 using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using FileCategorization_Api.Infrastructure.Data;
 using FileCategorization_Api.Domain.Entities.Identity;
 using FileCategorization_Api.Endpoints;
@@ -6,6 +8,7 @@ using FileCategorization_Shared.Common;
 using FileCategorization_Api.Services;
 using FileCategorization_Api.Common;
 using Hangfire;
+using Hangfire.Dashboard;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -18,7 +21,12 @@ builder.AddApplicationServices();
 
 builder.Services.AddEndpointsApiExplorer();
 
-builder.Services.AddSignalR();
+builder.Services.AddSignalR()
+    .AddJsonProtocol(options =>
+    {
+        options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    });
 
 builder.Services.AddHangfire(config =>
 {
@@ -44,11 +52,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", policy =>
     {
-        policy.WithOrigins("*")
+        policy.WithOrigins("http://localhost:5045", "https://localhost:7275", "http://localhost:5046", "https://localhost:7276") // Specific origins for SignalR credentials
             .AllowAnyMethod()
             .AllowAnyHeader()
-            //.AllowCredentials()
-            ;
+            .AllowCredentials(); // Required for SignalR
     });
 });
 
@@ -75,6 +82,12 @@ var app = builder.Build();
 //     .AddDefaultTokenProviders();
 
 app.UseCors("CorsPolicy");
+
+// Configure Hangfire middleware with permissive authorization
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new HangfireAuthorizationFilter() }
+});
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -136,6 +149,17 @@ app.MapActionsV2Endpoints();
 app.MapDDEndpointsV2();
 
 app.Run();
+
+// Hangfire Authorization Filter for Development
+public class HangfireAuthorizationFilter : IDashboardAuthorizationFilter
+{
+    public bool Authorize(DashboardContext context)
+    {
+        // Allow all requests in development/demo environment
+        // In production, you should implement proper authentication
+        return true;
+    }
+}
 
 // Make Program class public for testing
 public partial class Program { }

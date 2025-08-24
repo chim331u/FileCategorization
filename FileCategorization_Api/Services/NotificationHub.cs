@@ -18,8 +18,15 @@ namespace FileCategorization_Api.Services
         public override async Task OnConnectedAsync()
         {
             string connectionId = Context.ConnectionId;
-            _logger.LogInformation($"Signalr client connected with id: {connectionId}");
+            _logger.LogInformation("🔗 DEBUG: SignalR client connected with ID: {ConnectionId}", connectionId);
             await base.OnConnectedAsync();
+        }
+        
+        public override async Task OnDisconnectedAsync(Exception? exception)
+        {
+            _logger.LogWarning("🔌 DEBUG: SignalR client disconnected. ID: {ConnectionId}, Error: {Error}", 
+                Context.ConnectionId, exception?.Message);
+            await base.OnDisconnectedAsync(exception);
         }
     }
 }

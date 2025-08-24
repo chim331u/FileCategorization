@@ -242,6 +242,9 @@ public static class FileReducers
 
     private static string FormatJobCompletionMessage(string message)
     {
+        // DEBUG: Log all incoming messages to trace TrainModel completion
+        Console.WriteLine($"🔍 DEBUG: FormatJobCompletionMessage received: {message}");
+        
         // Try to detect if this is a JSON message from TrainModel or ForceCategorize
         if (message.TrimStart().StartsWith("{") && message.TrimEnd().EndsWith("}"))
         {
@@ -253,6 +256,7 @@ public static class FileReducers
                 // Check if this is a TrainModel completion message
                 if (root.TryGetProperty("trainingDuration", out _) && root.TryGetProperty("modelVersion", out _))
                 {
+                    Console.WriteLine($"🎯 DEBUG: TrainModel completion message detected, formatting...");
                     return FormatTrainModelMessage(message);
                 }
                 
@@ -390,6 +394,9 @@ public static class FileReducers
     [ReducerMethod]
     public static FileState ReduceSignalRJobCompletedAction(FileState state, SignalRJobCompletedAction action)
     {
+        // DEBUG: Check if SignalR messages reach reducer
+        Console.WriteLine($"🔄 DEBUG: Reducer received SignalR message: {action.ResultText}");
+        
         var formattedMessage = FormatJobCompletionMessage(action.ResultText);
         var newState = state with { ConsoleMessages = state.ConsoleMessages.Add(formattedMessage) };
         

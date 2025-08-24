@@ -545,14 +545,14 @@ public class ModernFileCategorizationService : IModernFileCategorizationService
     {
         try
         {
-            _logger.LogInformation("Starting model training using v2 API");
+            _logger.LogInformation("Model Train API request started to API v2");
             
             var response = await _httpClient.PostAsync("api/v2/actions/train-model", null);
             
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation("Model training completed successfully using v2 API");
+                _logger.LogInformation("Model Train API response successfully from API - Status: {StatusCode}", response.StatusCode);
                 return Result.Success(result);
             }
 
@@ -560,7 +560,7 @@ public class ModernFileCategorizationService : IModernFileCategorizationService
             var errorContent = await response.Content.ReadAsStringAsync();
             var detailedError = !string.IsNullOrEmpty(errorContent) ? errorContent : response.ReasonPhrase ?? "Unknown error";
             
-            _logger.LogError("API v2 training failed - Status: {StatusCode}, Content: {ErrorContent}", 
+            _logger.LogError("Model Train API response failed from API - Status: {StatusCode}, Content: {ErrorContent}", 
                 response.StatusCode, errorContent);
 
             // Handle specific HTTP error codes

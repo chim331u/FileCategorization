@@ -108,7 +108,10 @@
                         else
                         {
                             <RadzenRow JustifyContent="JustifyContent.Stretch">
-                                @category.FileCategory
+                                @if (!category.IsToCategorize)
+                                {
+                                    @category.FileCategory
+                                }
                                 @if (category.IsToCategorize)
                                 {
                                     <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="To Move" IsPill="true" />

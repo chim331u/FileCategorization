@@ -563,13 +563,17 @@ namespace FileCategorization_Api.Services
         public async Task TrainModelJob(CancellationToken cancellationToken)
         {
             var jobStartTime = DateTime.Now;
+            _logger.LogInformation("HangfireJobService.TrainModelJob() STARTED");
             _logger.LogInformation("Starting ML model training background job");
             
             try
             {
                 // Notify job start
+                _logger.LogInformation("🔔 DEBUG: Sending SignalR jobNotifications - Starting training");
+                _logger.LogInformation("🔔 DEBUG: Message content: 'Starting machine learning model training...', Result: {Result}", MoveFilesResults.Processing);
                 await _notificationHub.Clients.All.SendAsync("jobNotifications", 
-                    "Starting machine learning model training...", MoveFilesResults.Processing, cancellationToken);
+                    "Starting machine learning model training...", MoveFilesResults.Processing);
+                _logger.LogInformation("🔔 DEBUG: SignalR message sent successfully");
 
                 // Execute model training
                 _logger.LogInformation("Executing ML model training");
@@ -579,7 +583,7 @@ namespace FileCategorization_Api.Services
                 {
                     _logger.LogError("ML model training failed: {Error}", trainResult.Error);
                     await _notificationHub.Clients.All.SendAsync("jobNotifications", 
-                        $"❌ Model training failed: {trainResult.Error}", MoveFilesResults.Failed, cancellationToken);
+                        $"❌ Model training failed: {trainResult.Error}", MoveFilesResults.Failed);
                     return;
                 }
 
@@ -602,8 +606,13 @@ namespace FileCategorization_Api.Services
                 };
 
                 // Send structured success notification (will be parsed by frontend GlobalConsole)
+                _logger.LogInformation("🔔 DEBUG: Sending SignalR jobNotifications - Training completed");
+                var serializedMessage = System.Text.Json.JsonSerializer.Serialize(successMessage);
+                _logger.LogInformation("🔔 DEBUG: Serialized message: {SerializedMessage}", serializedMessage);
+                _logger.LogInformation("🔔 DEBUG: Result enum: {Result}", MoveFilesResults.Completed);
                 await _notificationHub.Clients.All.SendAsync("jobNotifications", 
-                    System.Text.Json.JsonSerializer.Serialize(successMessage), MoveFilesResults.Completed, cancellationToken);
+                    serializedMessage, MoveFilesResults.Completed);
+                _logger.LogInformation("🔔 DEBUG: SignalR completion message sent successfully");
 
                 _logger.LogInformation("ML model training job completed successfully: [{JobExecutionTime}]", jobExecutionTime);
             }
@@ -611,7 +620,7 @@ namespace FileCategorization_Api.Services
             {
                 _logger.LogInformation("ML model training job was cancelled");
                 await _notificationHub.Clients.All.SendAsync("jobNotifications", 
-                    "⚠️ Model training was cancelled", MoveFilesResults.Failed, CancellationToken.None);
+                    "⚠️ Model training was cancelled", MoveFilesResults.Failed);
             }
             catch (Exception ex)
             {
@@ -620,7 +629,7 @@ namespace FileCategorization_Api.Services
                     jobExecutionTime, ex.Message);
                 
                 await _notificationHub.Clients.All.SendAsync("jobNotifications", 
-                    $"❌ Model training failed after {jobExecutionTime}: {ex.Message}", MoveFilesResults.Failed, cancellationToken);
+                    $"❌ Model training failed after {jobExecutionTime}: {ex.Message}", MoveFilesResults.Failed);
             }
         }
 
