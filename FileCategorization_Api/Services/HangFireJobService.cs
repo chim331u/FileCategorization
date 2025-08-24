@@ -69,7 +69,7 @@ namespace FileCategorization_Api.Services
                 _logger.LogInformation("Starting MoveFiles job for {TotalFiles} files", filesToMove.Count);
                 await _notificationHub.Clients.All.SendAsync("moveFilesNotifications", 
                     $"📂 Starting file movement job for {filesToMove.Count} files...", 
-                    MoveFilesResults.Processing, cancellationToken);
+                    MoveFilesResults.Processing);
 
                 // Validate configuration paths
                 var _originDir = await _configsService.GetConfigValue("ORIGINDIR");
@@ -131,7 +131,7 @@ namespace FileCategorization_Api.Services
                             // 2. Messaggio per singolo file - FAIL
                             await _notificationHub.Clients.All.SendAsync("moveFilesNotifications", 
                                 file.Id, "Unknown File", "", errorMsg,
-                                MoveFilesResults.IdNotPresent, cancellationToken);
+                                MoveFilesResults.IdNotPresent);
                             continue;
                         }
 
@@ -150,7 +150,7 @@ namespace FileCategorization_Api.Services
                             // 2. Messaggio per singolo file - FAIL
                             await _notificationHub.Clients.All.SendAsync("moveFilesNotifications", 
                                 file.Id, _file.Name, "", "Source file not found",
-                                MoveFilesResults.Failed, cancellationToken);
+                                MoveFilesResults.Failed);
                             continue;
                         }
 
@@ -182,7 +182,7 @@ namespace FileCategorization_Api.Services
                         var destinationPath = Path.Combine(_destDir, file.FileCategory);
                         await _notificationHub.Clients.All.SendAsync("moveFilesNotifications", 
                             file.Id, _file.Name, destinationPath, $"Moved successfully in {fileProcessTime.TotalMilliseconds:F0}ms",
-                            MoveFilesResults.Completed, cancellationToken);
+                            MoveFilesResults.Completed);
                     }
                     catch (Exception e)
                     {
@@ -196,7 +196,7 @@ namespace FileCategorization_Api.Services
                         var fileName = dbFiles.GetValueOrDefault(file.Id)?.Name ?? $"Unknown File";
                         await _notificationHub.Clients.All.SendAsync("moveFilesNotifications", 
                             file.Id, fileName, "", $"{e.Message} ({fileProcessTime.TotalMilliseconds:F0}ms)",
-                            MoveFilesResults.Failed, cancellationToken);
+                            MoveFilesResults.Failed);
                     }
                 }
 
@@ -269,8 +269,7 @@ namespace FileCategorization_Api.Services
                 await _notificationHub.Clients.All.SendAsync("jobNotifications", 
                     completionMessage, 
                     isSuccess ? MoveFilesResults.Completed : MoveFilesResults.Failed, 
-                    filesToMove.Count, fileMoved, fileFailed,
-                    cancellationToken);
+                    filesToMove.Count, fileMoved, fileFailed);
             }
             catch (Exception ex)
             {

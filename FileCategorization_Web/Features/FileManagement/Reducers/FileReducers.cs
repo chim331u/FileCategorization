@@ -240,6 +240,55 @@ public static class FileReducers
         }
     }
 
+    private static string FormatFileMovedMessage(int fileId, string fileName, string destinationPath, string resultText, MoveFilesResults result)
+    {
+        return $"{DateTime.Now:G} - File move notification: File {fileId} '{fileName}' → '{destinationPath}' - {resultText} - {result}";
+    }
+
+    private static string FormatMoveFilesCompletionMessage(string jsonResponse)
+    {
+        try
+        {
+            var json = System.Text.Json.JsonDocument.Parse(jsonResponse);
+            var root = json.RootElement;
+            
+            var success = root.TryGetProperty("success", out var successProp) && successProp.GetBoolean();
+            var totalFiles = root.TryGetProperty("totalFiles", out var totalProp) ? totalProp.GetInt32() : 0;
+            var movedFiles = root.TryGetProperty("movedFiles", out var movedProp) ? movedProp.GetInt32() : 0;
+            var failedFiles = root.TryGetProperty("failedFiles", out var failedProp) ? failedProp.GetInt32() : 0;
+            var duration = root.TryGetProperty("duration", out var durationProp) ? durationProp.GetString() : "Unknown";
+            
+            var status = success ? "Success" : "Fail";
+            
+            return $"{DateTime.Now:G} - Job Completion Summary - Status: {status} - Total Files: {totalFiles} - Success: {movedFiles} - Failed: {failedFiles} - Duration: {duration}";
+        }
+        catch
+        {
+            // Fallback if JSON parsing fails
+            return $"{DateTime.Now:G} - Move files job completed: {jsonResponse}";
+        }
+    }
+
+    private static string FormatMoveFilesMessage(string jsonResponse)
+    {
+        try
+        {
+            var json = System.Text.Json.JsonDocument.Parse(jsonResponse);
+            var root = json.RootElement;
+            
+            var jobId = root.TryGetProperty("jobId", out var jobIdProp) ? jobIdProp.GetString() : "Unknown";
+            var status = root.TryGetProperty("status", out var statusProp) ? statusProp.GetString() : "Unknown";
+            var totalItems = root.TryGetProperty("totalItems", out var totalProp) ? totalProp.GetInt32() : 0;
+            
+            return $"{DateTime.Now:G} - Scheduled Job {jobId} - Status: {status} - Total Item(s): {totalItems}";
+        }
+        catch
+        {
+            // Fallback if JSON parsing fails
+            return $"{DateTime.Now:G} - Scheduled job: {jsonResponse}";
+        }
+    }
+
     private static string FormatJobCompletionMessage(string message)
     {
         // DEBUG: Log all incoming messages to trace TrainModel completion
@@ -258,6 +307,12 @@ public static class FileReducers
                 {
                     Console.WriteLine($"🎯 DEBUG: TrainModel completion message detected, formatting...");
                     return FormatTrainModelMessage(message);
+                }
+                
+                // Check if this is a MoveFiles completion message
+                if (root.TryGetProperty("totalFiles", out _) && root.TryGetProperty("movedFiles", out _))
+                {
+                    return FormatMoveFilesCompletionMessage(message);
                 }
                 
                 // Check if this is a ForceCategorize completion message
@@ -339,8 +394,11 @@ public static class FileReducers
 
     // Move Files Reducers
     [ReducerMethod]
-    public static FileState ReduceMoveFilesSuccessAction(FileState state, MoveFilesSuccessAction action) =>
-        state with { ConsoleMessages = state.ConsoleMessages.Add($"{DateTime.Now:G} - Scheduled job n {action.JobId}") };
+    public static FileState ReduceMoveFilesSuccessAction(FileState state, MoveFilesSuccessAction action)
+    {
+        var formattedMessage = FormatMoveFilesMessage(action.JobId);
+        return state with { ConsoleMessages = state.ConsoleMessages.Add(formattedMessage) };
+    }
 
     [ReducerMethod]
     public static FileState ReduceMoveFilesFailureAction(FileState state, MoveFilesFailureAction action) =>
@@ -376,7 +434,7 @@ public static class FileReducers
     [ReducerMethod]
     public static FileState ReduceSignalRFileMovedAction(FileState state, SignalRFileMovedAction action)
     {
-        var message = $"{DateTime.Now:G} - File {action.ResultText}: {action.Result}";
+        var message = FormatFileMovedMessage(action.FileId, action.FileName, action.DestinationPath, action.ResultText, action.Result);
         var updatedMessages = state.ConsoleMessages.Add(message);
         
         // Remove file from list if completed

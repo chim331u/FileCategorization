@@ -718,14 +718,17 @@ public class ModernFileCategorizationService : IModernFileCategorizationService
                 return Result.Success("No files to move");
             }
 
-            // Create v2 batch request object
+            // Create v2 batch request object matching MoveFilesRequest contract
             var moveRequest = new
             {
-                files = filesToMove.Select(file => new 
+                filesToMove = filesToMove.Select(file => new 
                 { 
                     id = file.Id, 
                     fileCategory = file.FileCategory 
-                }).ToArray()
+                }).ToArray(),
+                continueOnError = true,
+                validateCategories = true,
+                createDirectories = true
             };
 
             var response = await _httpClient.PostAsJsonAsync("api/v2/actions/move-files", moveRequest, _serializerOptions);

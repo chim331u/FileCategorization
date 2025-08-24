@@ -52,10 +52,12 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:5045", "https://localhost:7275", "http://localhost:5046", "https://localhost:7276") // Specific origins for SignalR credentials
+        policy.WithOrigins("*") // Allow all origins for testing/demo purposes
+            //.WithOrigins("http://localhost:5045", "https://localhost:7275", "http://localhost:5046", "https://localhost:7276") // Specific origins for SignalR credentials
             .AllowAnyMethod()
             .AllowAnyHeader()
-            .AllowCredentials(); // Required for SignalR
+            //.AllowCredentials()// Required for SignalR
+            ; 
     });
 });
 
