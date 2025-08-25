@@ -126,10 +126,10 @@
                 {
                     await grid.ExpandRow(currentlyExpandedRow);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     // Log but don't crash if expansion fails
-                    Console.WriteLine($"Failed to expand row: {ex.Message}");
+                    // Failed to expand row - logged silently
                 }
             }
         });

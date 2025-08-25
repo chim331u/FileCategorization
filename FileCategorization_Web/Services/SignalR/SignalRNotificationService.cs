@@ -71,15 +71,12 @@ public class SignalRNotificationService : INotificationService
             SetupEventHandlers();
 
             // Start connection
-            Console.WriteLine($"🔌 DEBUG: Attempting SignalR connection to: {_baseUrl}notifications");
             _logger.LogInformation("🔌 DEBUG: Attempting SignalR connection to: {Url}", _baseUrl + "notifications");
             
             if (_hubConnection.State == HubConnectionState.Disconnected)
             {
                 await _hubConnection.StartAsync();
                 _logger.LogInformation("🔗 DEBUG: SignalR connection established. Connection ID: {ConnectionId}", _hubConnection.ConnectionId);
-                Console.WriteLine($"🔗 DEBUG: SignalR connected with ID: {_hubConnection.ConnectionId}");
-                Console.WriteLine($"🔗 DEBUG: SignalR connection state: {_hubConnection.State}");
                 _dispatcher.Dispatch(new AddConsoleMessageAction($"SignalR connection established. Connection ID: {_hubConnection.ConnectionId}"));
                 // Dispatch Fluxor action and raise event
                 _dispatcher.Dispatch(new SignalRConnectedAction(_hubConnection.ConnectionId ?? "Unknown"));
@@ -89,9 +86,6 @@ public class SignalRNotificationService : INotificationService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to start SignalR connection");
-            Console.WriteLine($"❌ DEBUG: SignalR connection failed: {ex.Message}");
-            Console.WriteLine($"❌ DEBUG: SignalR exception type: {ex.GetType().Name}");
-            Console.WriteLine($"❌ DEBUG: SignalR inner exception: {ex.InnerException?.Message}");
             _dispatcher.Dispatch(new AddConsoleMessageAction($"SignalR Error connection: {ex.Message}"));
             ErrorOccurred?.Invoke($"SignalR Error connection: {ex.Message}");
             throw;
@@ -168,7 +162,7 @@ public class SignalRNotificationService : INotificationService
         _hubConnection.On<string, MoveFilesResults>("jobNotifications", (resultText, result) =>
         {
             _logger.LogInformation("🔔 DEBUG: SignalR Job notification received: {ResultText} - {Result}", resultText, result);
-            Console.WriteLine($"🔔 DEBUG: SignalR Job notification: {resultText} - {result}");
+            _logger.LogDebug("🔔 DEBUG: SignalR Job notification: {ResultText} - {Result}", resultText, result);
             
             _dispatcher.Dispatch(new SignalRJobCompletedAction(resultText, result));
             JobNotificationReceived?.Invoke(resultText, result);
@@ -188,7 +182,7 @@ public class SignalRNotificationService : INotificationService
         _hubConnection.On("jobNotifications", (object[] args) =>
         {
             _logger.LogInformation("🔥 DEBUG: RAW jobNotifications received with {ArgCount} arguments", args?.Length ?? 0);
-            Console.WriteLine($"🔥 DEBUG: RAW jobNotifications args: {string.Join(", ", args ?? Array.Empty<object>())}");
+            _logger.LogDebug("🔥 DEBUG: RAW jobNotifications args: {Args}", string.Join(", ", args ?? Array.Empty<object>()));
         });
 
         // Connection lifecycle events

@@ -52,12 +52,6 @@
     else
     {
         @* Console moved to MainLayout - now globally visible *@
-        @*  @if (_progressIsVisible)
-        {
-            <RadzenRow class="mb-2">
-                <RadzenProgressBar Style="width: 500px" ProgressBarStyle="ProgressBarStyle.Success" @bind-Value="@_progressPercentage" />
-            </RadzenRow>
-        } *@
 
         <RadzenDataGrid AllowFiltering="true" AllowColumnResize="true" AllowAlternatingRows="true" Density="Density.Compact"
         FilterMode="FilterMode.Advanced" AllowSorting="true" PageSize="9" AllowPaging="true"
@@ -164,13 +158,7 @@
     protected bool _categorization = false;
     protected string newCategory = string.Empty;
     protected int addCategory = 0;
-    // private bool _progressIsVisible = false;
-    // private double _progressPercentage = 0;
-    // private double totalSize;
 
-    // SignalR is now handled by INotificationService - no direct HubConnection needed
-
-    // Console moved to MainLayout GlobalConsole component - no longer needed here
 
 
     private string? lastErrorMessage = null;
@@ -387,41 +375,10 @@
         Dispatcher.Dispatch(new ForceCategoryAction());
     }
 
-    // protected async Task MoveFile()
-    // {
-    //     _progressIsVisible = true;
-    //     var filesToMove = await _service.GetFileToMove();
-    //     _progressPercentage = 0;
-    //     totalSize = (from x in filesToMove select x.FileSize).Sum(); // totSize : 100 = movedSize : x
-
-    //     await Task.Run(() => WriteConsole($"{DateTime.Now} - Start moving {filesToMove.Count()} file"));
-
-    //     foreach (var fileToMove in filesToMove)
-    //     {
-    //         await Task.Run(async () => WriteConsole(await _service.MoveFile(fileToMove.Id, fileToMove.FileCategory))); // Here will be api call
-
-    //         _progressPercentage += Convert.ToDouble(fileToMove.FileSize * 100 / totalSize);
-    //         StateHasChanged();
-    //     }
-
-    //     totalSize = 0;
-
-    //     await Task.Run(() => WriteConsole($"All file moved{System.Environment.NewLine}"));
-    //     StateHasChanged();
-    //     await Task.Delay(5000);
-    //     _progressIsVisible = false;
-    //     _progressPercentage = 0;
-    //     await RefreshFileList();
-    // }
 
     protected void MoveFiles()
     {
-        // _progressIsVisible = true;
-
         var filesToMove = FileStateSelectors.GetFilesToMove(FileState.Value);
-
-        // _progressPercentage = 0;
-        // totalSize = (from x in filesToMove select x.FileSize).Sum(); // totSize : 100 = movedSize : x
 
         Dispatcher.Dispatch(new MoveFilesAction(filesToMove));
 

@@ -3,7 +3,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using FileCategorization_Web.Data.DTOs.WebScrum;
 using FileCategorization_Web.Interfaces;
-using Microsoft.IdentityModel.Tokens;
 
 namespace FileCategorization_Web.Services;
 
@@ -144,7 +143,7 @@ public class WebScrumServices : IWebScrumServices
     {
         Console.WriteLine($"Request check url = {urlToCheck}");
 
-        var _urlToCheck = Base64UrlEncoder.Encode(urlToCheck);
+        var _urlToCheck = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(urlToCheck));
 
         Uri uri = new Uri(string.Format(GetRestUrl() + $"api/v1/CheckLink/{_urlToCheck}/", string.Empty));
 
