@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  # FileCategorization API Service
+  filecategorization-api:
+    build:
+      context: ..
+      dockerfile: Delivery/api.dockerfile
+      platforms:
+        - linux/arm/v7
+    container_name: filecategorization-api
+    restart: unless-stopped
+    ports:
+      - "5089:5089"
+      - "7128:7128"
+    volumes:
+      # Persistent data storage
+      - /share/Container/filecategorization/data:/data
+      - /share/Container/filecategorization/logs:/data/Log
+      # ML.NET models and training data
+      - /share/Container/filecategorization/ml-models:/app/Temp/MlData
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
+      - DOTNET_GCServer=0
+      - DOTNET_GCConcurrent=1
+      - DOTNET_GCRetainVM=25
+      - TZ=Europe/Rome
+      - JWT_SECRET=${JWT_SECRET:-your-jwt-secret-key-here}
+      - ASPNETCORE_URLS=http://+:5089;https://+:7128
+    networks:
+      - filecategorization-network
+    depends_on:
+      - filecategorization-web
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5089/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # FileCategorization Web Service  
+  filecategorization-web:
+    build:
+      context: ..
+      dockerfile: Delivery/web.dockerfile
+      platforms:
+        - linux/arm/v7
+    container_name: filecategorization-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # SSL certificates (if using Let's Encrypt)
+      - /share/Container/filecategorization/certs:/etc/nginx/certs:ro
+      # Nginx logs
+      - /share/Container/filecategorization/logs/nginx:/var/log/nginx
+    environment:
+      - TZ=Europe/Rome
+      - NGINX_HOST=${NGINX_HOST:-localhost}
+      - NGINX_PORT=80
+    networks:
+      - filecategorization-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  filecategorization-network:
+    driver: bridge
+    name: filecategorization-network
+
+volumes:
+  # Shared persistent storage
+  filecategorization-data:
+    external: true
+    name: filecategorization-data
+  filecategorization-logs:
+    external: true  
+    name: filecategorization-logs

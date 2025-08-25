@@ -72,9 +72,9 @@
         </div>*@
         <div style="flex: 1; overflow: auto">
             <RadzenPanelMenu Match="NavLinkMatch.Prefix">
-                <RadzenPanelMenuItem Text="Home" Icon="home" Path="/">
+                <RadzenPanelMenuItem Text="Home" Icon="home" Path="index">
                 </RadzenPanelMenuItem>
-                <RadzenPanelMenuItem Text="File Categorization" Icon="interests" Path="filecategorizationindex"></RadzenPanelMenuItem>
+               @* <RadzenPanelMenuItem Text="File Categorization" Icon="interests" Path="filecategorizationindex"></RadzenPanelMenuItem>*@
                 <RadzenPanelMenuItem Text="Last View" Icon="visibility" Path="lastView"></RadzenPanelMenuItem>
                 <RadzenPanelMenuItem Text="FC Config" Icon="settings" Path="config"></RadzenPanelMenuItem>
                 <RadzenPanelMenuItem Text="Web Scrum" Icon="language" Path="WebScrum"></RadzenPanelMenuItem>
@@ -133,7 +133,8 @@
             // Show console on pages that might need it
             return currentPath switch
             {
-                "/" => false,  // Hide on home page
+                "/" => true,  // Show on home page (now points to Index/file categorization)
+                "/index" => true,  // Show on index page (file categorization)
                 "/filecategorizationindex" => true,  // Show on main file categorization page
                 "/lastview" => true,  // Show on last view page
                 "/config" => true,  // Show on config page

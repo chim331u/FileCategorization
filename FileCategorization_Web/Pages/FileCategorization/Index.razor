@@ -1,4 +1,5 @@
-﻿@page "/filecategorizationindex"
+﻿@page "/"
+@page "/index"
 @using Microsoft.AspNetCore.SignalR.Client
 @using Fluxor
 @using FileCategorization_Web.Features.FileManagement.Actions
@@ -183,11 +184,16 @@
             
             // Initialize Fluxor state - load initial data
             // SignalR is automatically handled by INotificationService which integrates with Fluxor
-            Dispatcher.Dispatch(new LoadCategoriesAction());
-            Dispatcher.Dispatch(new LoadFilesAction(FileState.Value.SearchParameter));
+            
+            // Dispatcher.Dispatch(new LoadCategoriesAction());
+            // Dispatcher.Dispatch(new LoadFilesAction(FileState.Value.SearchParameter));
+            Dispatcher.Dispatch(new RefreshDataAction());
             // Application ready message moved to MainLayout to show only on first app load
             
             _categorization = false;
+            
+            // Force UI refresh after state initialization
+            StateHasChanged();
         }
         catch (Exception ex)
         {
@@ -195,6 +201,16 @@
         }
         
         return Task.CompletedTask;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Ensure grid refreshes after first render when data loads
+            await InvokeAsync(StateHasChanged);
+        }
+        await base.OnAfterRenderAsync(firstRender);
     }
 
     private void OnStateChanged(object? sender, EventArgs e)
