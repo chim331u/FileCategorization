@@ -39,6 +39,7 @@ warning() {
 #############################################################################
 # CONFIGURATION PARAMETERS
 # These can be modified or set via environment variables
+# Based on deploy_qnap_config.env - all parameters consolidated here
 #############################################################################
 
 # Git Repository Configuration
@@ -51,24 +52,71 @@ DOCKER_IMAGE_NAME="${DOCKER_IMAGE_NAME:-filecat_api_image}"
 DOCKER_IMAGE_TAG="${DOCKER_IMAGE_TAG:-latest}"
 CONTAINER_NAME="${CONTAINER_NAME:-filecat_api}"
 
+# Docker Build Configuration
+DOCKERFILE_PATH="${DOCKERFILE_PATH:-Delivery/api.dockerfile}"
+BUILD_CONTEXT="${BUILD_CONTEXT:-.}"
+
 # Container Runtime Configuration
 HOST_PORT="${HOST_PORT:-30219}"
 CONTAINER_PORT="${CONTAINER_PORT:-8080}"
 
 # Volume Mappings (QNAP specific paths)
+# Customize these paths according to your QNAP NAS setup
 DATA_VOLUME="${DATA_VOLUME:-/share/CACHEDEV2_DATA/Storage/Docker/file_categorization:/data}"
 INCOMING_VOLUME="${INCOMING_VOLUME:-/share/Download/Incoming:/incoming}"
 SERIE_VOLUME="${SERIE_VOLUME:-/share/Video/Serie:/serie}"
 
-# Environment Variables for Application
+# Application Environment Variables
+# JWT Secret Key (REQUIRED - must be 32+ characters)
+# Generate a secure random key: openssl rand -base64 32
 JWT_SECRET="${JWT_SECRET:-your-32-characters-long-super-strong-jwt-secret-key}"
+
+# Crypto Master Key for application encryption
+# Used for sensitive data encryption within the application
 CRYPTO_MASTERKEY="${CRYPTO_MASTERKEY:-CrypToMasterKey}"
+
+# DownloadDaemon Credentials (REQUIRED)
+# These are used to connect to your DownloadDaemon instance
 DD_USERNAME="${DD_USERNAME:-chim}"
 DD_PSW="${DD_PSW:-aneurysm}"
 
-# Docker Build Configuration
-DOCKERFILE_PATH="${DOCKERFILE_PATH:-Delivery/api.dockerfile}"
-BUILD_CONTEXT="${BUILD_CONTEXT:-.}"
+#############################################################################
+# ADDITIONAL OPTIONAL SETTINGS
+# These settings provide fine-tuned control over the deployment
+#############################################################################
+
+# Database connection strings (auto-configured for production)
+# Production: Data Source=/data/FileCat.db
+# Development: Data Source=Temp/FileCat.db
+DATABASE_CONNECTION="${DATABASE_CONNECTION:-}"
+
+# Hangfire connection string (auto-configured for production)  
+# Production: Data Source=/data/Hangfire.db
+# Development: Data Source=Temp/Hangfire.db
+HANGFIRE_CONNECTION="${HANGFIRE_CONNECTION:-}"
+
+# Log level for application
+# Options: Debug, Information, Warning, Error, Critical
+LOG_LEVEL="${LOG_LEVEL:-Information}"
+
+# CORS origins (if accessing from different domains)
+# CORS_ORIGINS="http://localhost:3000,https://your-domain.com"
+CORS_ORIGINS="${CORS_ORIGINS:-}"
+
+#############################################################################
+# ARM32 NAS OPTIMIZATION SETTINGS
+# These settings are automatically applied in the Docker container
+#############################################################################
+
+# Hangfire queue poll interval (optimized for ARM32)
+# Default: 1 second, ARM32 optimized: 15 seconds
+HANGFIRE_QUEUE_POLL_INTERVAL="${HANGFIRE_QUEUE_POLL_INTERVAL:-15}"
+
+# Database connection pool size (optimized for limited memory)
+DATABASE_CONNECTION_POOL_SIZE="${DATABASE_CONNECTION_POOL_SIZE:-5}"
+
+# Log file retention in days (to manage disk space)
+LOG_RETENTION_DAYS="${LOG_RETENTION_DAYS:-30}"
 
 #############################################################################
 # PARAMETER VALIDATION
@@ -594,6 +642,13 @@ print_banner() {
     echo "Image: ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
     echo "Container: $CONTAINER_NAME"
     echo "Port: $HOST_PORT:$CONTAINER_PORT"
+    echo ""
+    echo "Volume Mappings:"
+    echo "  Data: $(echo $DATA_VOLUME | cut -d: -f1) → /data"
+    echo "  Incoming: $(echo $INCOMING_VOLUME | cut -d: -f1) → /incoming"  
+    echo "  Serie: $(echo $SERIE_VOLUME | cut -d: -f1) → /serie"
+    echo ""
+    echo "Configuration: All parameters integrated in script (no .env file needed)"
     echo "============================================================================="
 }
 
@@ -618,14 +673,25 @@ print_summary() {
 show_help() {
     cat << EOF
 FileCategorization API Deployment Script for QNAP ARM32 NAS
+============================================================================
+
+DESCRIPTION:
+    This script performs complete deployment of FileCategorization API on 
+    QNAP ARM32 NAS with 1GB RAM optimization. All configuration parameters
+    are integrated in the script with sensible defaults.
 
 USAGE:
     $0 [OPTIONS]
 
+QUICK START:
+    # 1. Edit configuration section in the script (lines 45-119)
+    # 2. Run deployment
+    $0
+
 OPTIONS:
     -h, --help              Show this help message
-    -r, --repo URL          Git repository URL (default: set GITHUB_REPO env var)
-    -b, --branch NAME       Git branch name (default: main)
+    -r, --repo URL          Git repository URL
+    -b, --branch NAME       Git branch name (default: DeliveryNasArm32)  
     -p, --port PORT         Host port for API (default: 30219)
     -n, --name NAME         Container name (default: filecat_api)
     -i, --image NAME        Docker image name (default: filecat_api_image)
@@ -633,26 +699,51 @@ OPTIONS:
     --dd-username USER      DownloadDaemon username
     --dd-password PASS      DownloadDaemon password
 
-ENVIRONMENT VARIABLES:
-    GITHUB_REPO            Git repository URL
-    GIT_BRANCH             Git branch to clone
-    HOST_PORT              Host port for API
-    CONTAINER_NAME         Docker container name
-    DOCKER_IMAGE_NAME      Docker image name
-    JWT_SECRET             JWT secret key
-    DD_USERNAME            DownloadDaemon username  
-    DD_PSW                 DownloadDaemon password
+CONFIGURATION:
+    All parameters are configured in the script header (lines 45-119):
+    
+    # Main Configuration
+    GITHUB_REPO             Git repository URL
+    GIT_BRANCH              Git branch to deploy (default: DeliveryNasArm32)
+    HOST_PORT               Host port for API (default: 30219)
+    CONTAINER_NAME          Docker container name (default: filecat_api)
+    
+    # Security
+    JWT_SECRET              JWT secret key (REQUIRED - 32+ characters)
+    DD_USERNAME             DownloadDaemon username (REQUIRED)
+    DD_PSW                  DownloadDaemon password (REQUIRED)
+    
+    # QNAP Volume Paths
+    DATA_VOLUME             Application data (default: /share/CACHEDEV2_DATA/...)
+    INCOMING_VOLUME         Files to process (default: /share/Download/Incoming)
+    SERIE_VOLUME            Categorized files (default: /share/Video/Serie)
 
-EXAMPLE:
-    # Using command line parameters
-    $0 -r https://github.com/user/FileCategorization.git -b main -p 30219
-
-    # Using environment variables
-    export GITHUB_REPO="https://github.com/user/FileCategorization.git"
-    export JWT_SECRET="your-32-characters-long-super-strong-jwt-secret-key"
-    export DD_USERNAME="myUsername"
-    export DD_PSW="myPassword"
+ENVIRONMENT VARIABLE OVERRIDE:
+    You can still override any parameter with environment variables:
+    
+    export JWT_SECRET="your-secure-32-character-secret-key"
+    export DD_USERNAME="your-dd-username"
+    export DD_PSW="your-dd-password"
     $0
+
+EXAMPLES:
+    # Basic deployment (edit script configuration first)
+    $0
+    
+    # Override specific parameters
+    $0 --port 8080 --jwt-secret "my-super-secure-jwt-secret-32chars"
+    
+    # Different repository/branch
+    $0 -r https://github.com/myuser/FileCategorization.git -b main
+    
+    # Custom container name
+    $0 --name my_filecat_api
+
+REQUIREMENTS:
+    - QNAP NAS ARM32 with Container Station enabled
+    - wget/curl (for repository download if Git unavailable)
+    - unzip (for ZIP extraction if Git unavailable)
+    - Docker available via Container Station
 
 EOF
 }

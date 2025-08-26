@@ -82,13 +82,51 @@ chmod +x deploy.sh
 
 ## 📁 **Deployment Files**
 
-- `deploy.sh` - Automated deployment script with system setup
+### **🚀 Main Deployment Scripts**
+- **`deploy_qnap_api.sh`** - **Complete QNAP ARM32 deployment script** (self-contained with integrated configuration)
+- **`QNAP_DEPLOYMENT.md`** - **Complete deployment documentation** with troubleshooting and best practices
+- `deploy.sh` - Legacy automated deployment script (multi-container setup)
+
+### **🧪 Testing & Development**
+- `qnap-deploy-example.sh` - Example usage scenarios for deployment script
+- `test-deploy.sh` - Configuration validation and testing script
+- `test-download.sh` - Repository download testing script
+
+### **🐳 Docker Configuration**
 - `docker-compose.yml` - Multi-container orchestration with ARM32 optimization
-- `api.dockerfile` - Multi-stage API container build (ARM32 optimized)
+- **`api.dockerfile`** - **Production API container** (ARM32 optimized, multi-stage build)
+- **`api-simple.dockerfile`** - **Simplified API container** (fallback for compatibility issues)
+- **`api-minimal.dockerfile`** - **Ultra-minimal API container** (maximum compatibility)
+- **`api-optimized.dockerfile`** - **Performance-optimized API container** (warning suppression, faster build)
 - `web.dockerfile` - Static file serving container with nginx (ARM32)
+
+### **⚙️ Configuration Files**
 - `nginx.conf` - Performance optimized nginx configuration
 - `nginx-site.conf` - Complete site configuration with API proxy and SignalR
 - `appsettings.Production.json` - Production API settings with security and performance
+
+## 🎯 **Recommended Deployment Approach**
+
+### **For QNAP NAS ARM32 (Recommended)**
+```bash
+# Single script deployment with integrated configuration
+wget https://raw.githubusercontent.com/your-repo/FileCategorization/main/Delivery/deploy_qnap_api.sh
+chmod +x deploy_qnap_api.sh
+
+# Edit configuration (lines 45-119)
+vi deploy_qnap_api.sh
+
+# Deploy
+./deploy_qnap_api.sh
+```
+
+### **For Advanced Multi-Container Setup**
+```bash
+# Use docker-compose for full stack deployment
+wget https://raw.githubusercontent.com/your-repo/FileCategorization/main/Delivery/deploy.sh
+chmod +x deploy.sh
+./deploy.sh
+```
 
 ## 🔧 **Manual Deployment**
 

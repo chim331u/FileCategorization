@@ -23,9 +23,9 @@ Questa guida spiega come utilizzare lo script di deployment automatico per insta
 
 ## 🚀 Installazione Rapida
 
-### Step 1: Download dei file di deployment
+### Step 1: Download dello script di deployment
 
-Accedi al tuo NAS QNAP via SSH e scarica i file:
+Accedi al tuo NAS QNAP via SSH e scarica lo script:
 
 ```bash
 # Crea directory per il deployment
@@ -34,7 +34,6 @@ cd /share/CACHEDEV2_DATA/Scripts/FileCategorization
 
 # Scarica lo script di deployment
 wget https://raw.githubusercontent.com/your-repo/FileCategorization/main/deploy_qnap_api.sh
-wget https://raw.githubusercontent.com/your-repo/FileCategorization/main/deploy_qnap_config.env
 
 # Rendi eseguibile lo script
 chmod +x deploy_qnap_api.sh
@@ -42,16 +41,16 @@ chmod +x deploy_qnap_api.sh
 
 ### Step 2: Configurazione
 
-Modifica il file `deploy_qnap_config.env` con le tue configurazioni:
+Modifica le configurazioni integrate nello script:
 
 ```bash
-vi deploy_qnap_config.env
+vi deploy_qnap_api.sh
 ```
 
-**Parametri obbligatori da modificare:**
+**Modifica la sezione di configurazione (linee 45-119):**
 - `GITHUB_REPO`: URL del tuo repository GitHub
 - `JWT_SECRET`: Chiave segreta di 32+ caratteri
-- `DD_USERNAME`: Username DownloadDaemon
+- `DD_USERNAME`: Username DownloadDaemon  
 - `DD_PSW`: Password DownloadDaemon
 
 ### Step 3: Deployment
@@ -59,38 +58,40 @@ vi deploy_qnap_config.env
 Esegui il deployment:
 
 ```bash
-# Carica le configurazioni
-source deploy_qnap_config.env
-
-# Esegui il deployment
+# Deployment diretto (configurazione integrata)
 ./deploy_qnap_api.sh
+
+# Oppure con parametri personalizzati
+./deploy_qnap_api.sh --jwt-secret "your-secure-secret" --dd-username "myuser"
 ```
 
 ## 📖 Utilizzo Dettagliato
 
 ### Configurazione Avanzata
 
-Il file `deploy_qnap_config.env` contiene tutte le configurazioni parametriche:
+Lo script contiene tutte le configurazioni parametriche integrate (linee 45-119):
 
 ```bash
 # Repository GitHub
-GITHUB_REPO="https://github.com/your-username/FileCategorization.git"
-GIT_BRANCH="main"
+GITHUB_REPO="https://github.com/chim331u/FileCategorization.git"
+GIT_BRANCH="DeliveryNasArm32"
 
 # Configurazione Docker
 CONTAINER_NAME="filecat_api"
 HOST_PORT="30219"
 
-# Volumi QNAP
+# Volumi QNAP (personalizza questi percorsi)
 DATA_VOLUME="/share/CACHEDEV2_DATA/Storage/Docker/file_categorization:/data"
 INCOMING_VOLUME="/share/Download/Incoming:/incoming" 
 SERIE_VOLUME="/share/Video/Serie:/serie"
 
-# Credenziali applicazione
+# Credenziali applicazione (OBBLIGATORIO modificare)
 JWT_SECRET="your-32-characters-long-super-strong-jwt-secret-key"
-DD_USERNAME="myUsername"
-DD_PSW="myPassword"
+DD_USERNAME="chim"
+DD_PSW="aneurysm"
 ```
+
+**Per modificare**: Apri lo script con `vi deploy_qnap_api.sh` e modifica i valori nella sezione configurazione.
 
 ### Opzioni da Riga di Comando
 
