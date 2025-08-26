@@ -5,15 +5,16 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 # Set working directory
 WORKDIR /src
 
-# Copy solution and project files first (better caching)
-COPY FileCategorization.sln .
+# Copy only the required project files (avoid solution file issues)
 COPY FileCategorization_Api/FileCategorization_Api.csproj ./FileCategorization_Api/
 COPY FileCategorization_Shared/FileCategorization_Shared.csproj ./FileCategorization_Shared/
 
-# Restore packages (no runtime specification for compatibility)
+# Restore packages for the API project specifically
+WORKDIR /src/FileCategorization_Api
 RUN dotnet restore
 
-# Copy the rest of the source code
+# Go back to /src to copy source code
+WORKDIR /src
 COPY FileCategorization_Api/ ./FileCategorization_Api/
 COPY FileCategorization_Shared/ ./FileCategorization_Shared/
 

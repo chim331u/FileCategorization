@@ -304,13 +304,15 @@ clone_repository() {
     
     cd "$LOCAL_REPO_DIR"
     
-    # Search for Dockerfile in multiple possible locations
+    # Search for Dockerfile in multiple possible locations (order matters - most specific first)
     POSSIBLE_DOCKERFILES=(
         "$DOCKERFILE_PATH"
         "Delivery/api.dockerfile"
         "Delivery/api-simple.dockerfile"
+        "Delivery/api-minimal.dockerfile"
         "api.dockerfile"
         "api-simple.dockerfile"
+        "api-minimal.dockerfile"
         "Dockerfile.api"
         "Dockerfile"
     )
@@ -418,19 +420,34 @@ build_docker_image() {
             
             error "Docker build failed with both platform and no-platform approaches"
             
-            # If we have a simple dockerfile as fallback, try that
-            if [[ -f "Delivery/api-simple.dockerfile" && "$DOCKERFILE_PATH" != "Delivery/api-simple.dockerfile" ]]; then
-                warning "Trying fallback with simplified Dockerfile"
-                DOCKERFILE_PATH="Delivery/api-simple.dockerfile"
-                
-                docker build \
-                    -f "$DOCKERFILE_PATH" \
-                    -t "$image_full_name" \
-                    "$BUILD_CONTEXT" || {
-                    error "Even simplified Dockerfile build failed"
-                    exit 1
-                }
-            else
+            # Try fallback Dockerfiles in order of preference
+            FALLBACK_DOCKERFILES=(
+                "Delivery/api-simple.dockerfile"
+                "Delivery/api-minimal.dockerfile"
+            )
+            
+            FALLBACK_SUCCESS=false
+            for fallback_dockerfile in "${FALLBACK_DOCKERFILES[@]}"; do
+                if [[ -f "$fallback_dockerfile" && "$DOCKERFILE_PATH" != "$fallback_dockerfile" ]]; then
+                    warning "Trying fallback with $fallback_dockerfile"
+                    
+                    if docker build \
+                        -f "$fallback_dockerfile" \
+                        -t "$image_full_name" \
+                        "$BUILD_CONTEXT"; then
+                        
+                        DOCKERFILE_PATH="$fallback_dockerfile"
+                        FALLBACK_SUCCESS=true
+                        success "Fallback build successful with $fallback_dockerfile"
+                        break
+                    else
+                        warning "Fallback build failed with $fallback_dockerfile"
+                    fi
+                fi
+            done
+            
+            if [[ "$FALLBACK_SUCCESS" != "true" ]]; then
+                error "All Dockerfile builds failed"
                 exit 1
             fi
         fi
