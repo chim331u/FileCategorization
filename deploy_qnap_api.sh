@@ -304,13 +304,15 @@ clone_repository() {
     
     cd "$LOCAL_REPO_DIR"
     
-    # Search for Dockerfile in multiple possible locations (order matters - most specific first)
+    # Search for Dockerfile in multiple possible locations (order matters - most optimized first)
     POSSIBLE_DOCKERFILES=(
         "$DOCKERFILE_PATH"
         "Delivery/api.dockerfile"
+        "Delivery/api-optimized.dockerfile"
         "Delivery/api-simple.dockerfile"
         "Delivery/api-minimal.dockerfile"
         "api.dockerfile"
+        "api-optimized.dockerfile"
         "api-simple.dockerfile"
         "api-minimal.dockerfile"
         "Dockerfile.api"
@@ -420,8 +422,9 @@ build_docker_image() {
             
             error "Docker build failed with both platform and no-platform approaches"
             
-            # Try fallback Dockerfiles in order of preference
+            # Try fallback Dockerfiles in order of preference (optimized → simple → minimal)
             FALLBACK_DOCKERFILES=(
+                "Delivery/api-optimized.dockerfile"
                 "Delivery/api-simple.dockerfile"
                 "Delivery/api-minimal.dockerfile"
             )
@@ -505,7 +508,7 @@ run_docker_container() {
         -v "$DATA_VOLUME" \
         -v "$INCOMING_VOLUME" \
         -v "$SERIE_VOLUME" \
-        -e "JWT:Secret=$JWT_SECRET" \
+        -e "JWT_SECRET=$JWT_SECRET" \
         -e "CRYPTO:MASTERKEY=$CRYPTO_MASTERKEY" \
         -e "DD_USERNAME=$DD_USERNAME" \
         -e "DD_PSW=$DD_PSW" \
