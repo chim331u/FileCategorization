@@ -83,13 +83,15 @@ chmod +x deploy.sh
 ## 📁 **Deployment Files**
 
 ### **🚀 Main Deployment Scripts**
-- **`deploy_qnap_api.sh`** - **Complete QNAP ARM32 deployment script** (self-contained with integrated configuration)
+- **`deploy_qnap_api.sh`** - **Complete QNAP ARM32 API deployment script** (self-contained with integrated configuration)
+- **`deploy_qnap_web.sh`** - **Complete QNAP ARM32 WEB deployment script** (Blazor WebAssembly with nginx)
 - **`QNAP_DEPLOYMENT.md`** - **Complete deployment documentation** with troubleshooting and best practices
 - `deploy.sh` - Legacy automated deployment script (multi-container setup)
 
 ### **🧪 Testing & Development**
-- `qnap-deploy-example.sh` - Example usage scenarios for deployment script
-- `test-deploy.sh` - Configuration validation and testing script
+- `qnap-deploy-example.sh` - Example usage scenarios for API deployment script
+- `test-deploy.sh` - Configuration validation and testing script for API
+- `test-deploy-web.sh` - Configuration validation and testing script for WEB
 - `test-download.sh` - Repository download testing script
 
 ### **🐳 Docker Configuration**
@@ -108,16 +110,31 @@ chmod +x deploy.sh
 ## 🎯 **Recommended Deployment Approach**
 
 ### **For QNAP NAS ARM32 (Recommended)**
+
+#### **Step 1: Deploy API First**
 ```bash
-# Single script deployment with integrated configuration
+# Download API deployment script
 wget https://raw.githubusercontent.com/your-repo/FileCategorization/main/Delivery/deploy_qnap_api.sh
 chmod +x deploy_qnap_api.sh
 
 # Edit configuration (lines 45-119)
 vi deploy_qnap_api.sh
 
-# Deploy
+# Deploy API
 ./deploy_qnap_api.sh
+```
+
+#### **Step 2: Deploy WEB Frontend**
+```bash
+# Download WEB deployment script
+wget https://raw.githubusercontent.com/your-repo/FileCategorization/main/Delivery/deploy_qnap_web.sh
+chmod +x deploy_qnap_web.sh
+
+# Edit configuration (lines 45-85) - Make sure API_BASE_URL points to your API
+vi deploy_qnap_web.sh
+
+# Deploy WEB
+./deploy_qnap_web.sh
 ```
 
 ### **For Advanced Multi-Container Setup**
