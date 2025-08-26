@@ -2,13 +2,12 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FileCategorization_Api.Infrastructure.Data;
-using FileCategorization_Api.Domain.Entities.Identity;
 using FileCategorization_Api.Endpoints;
-using FileCategorization_Shared.Common;
 using FileCategorization_Api.Services;
 using FileCategorization_Api.Common;
 using Hangfire;
 using Hangfire.Dashboard;
+using Hangfire.Storage.SQLite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -30,11 +29,18 @@ builder.Services.AddSignalR()
 
 builder.Services.AddHangfire(config =>
 {
+    var hangfireConnectionString = builder.Configuration.GetConnectionString("hangfireConnection") 
+                                   ?? "Data Source=Temp/Hangfire.db";
+   
     config.
         UseSimpleAssemblyNameTypeSerializer()
         .UseRecommendedSerializerSettings()
-        .UseInMemoryStorage();
+        .UseSQLiteStorage(hangfireConnectionString, new Hangfire.Storage.SQLite.SQLiteStorageOptions
+        {
+            QueuePollInterval = TimeSpan.FromSeconds(15)
+        });
 });
+
 builder.Services.AddHangfireServer(options => options.SchedulePollingInterval = TimeSpan.FromSeconds(1));
 
 builder.Services.AddSwaggerGen(c =>
