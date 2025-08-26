@@ -18,7 +18,8 @@ COPY FileCategorization_Api/FileCategorization_Api.csproj ./FileCategorization_A
 COPY FileCategorization_Shared/FileCategorization_Shared.csproj ./FileCategorization_Shared/
 
 # Restore packages (this layer will be cached if no project changes)
-RUN dotnet restore --runtime linux-arm
+# Restore without runtime specifier for better compatibility
+RUN dotnet restore --verbosity normal
 
 # Copy the rest of the source code
 COPY FileCategorization_Api/ ./FileCategorization_Api/
@@ -31,7 +32,7 @@ RUN dotnet publish \
     --runtime linux-arm \
     --self-contained false \
     --output /app/publish \
-    --verbosity minimal \
+    --verbosity normal \
     /p:PublishTrimmed=false \
     /p:PublishSingleFile=false \
     /p:EnableCompressionInSingleFile=false
