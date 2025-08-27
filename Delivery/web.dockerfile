@@ -16,20 +16,20 @@ RUN apk add --no-cache \
 
 # Note: wasm-tools workload not supported on ARM32, using standard publish
 
-# Copy solution and project files first
-COPY FileCategorization.sln .
-COPY FileCategorization_Web/FileCategorization_Web.csproj ./FileCategorization_Web/
-COPY FileCategorization_Shared/FileCategorization_Shared.csproj ./FileCategorization_Shared/
+# Copy project files first (avoid solution file to prevent API dependency)
+COPY ./FileCategorization_Web/FileCategorization_Web.csproj ./FileCategorization_Web/
+COPY ./FileCategorization_Shared/FileCategorization_Shared.csproj ./FileCategorization_Shared/
 
-# Restore packages
+# Restore packages for Web project only
+WORKDIR /src/FileCategorization_Web
 RUN dotnet restore
 
 # Copy the rest of the source code
-COPY FileCategorization_Web/ ./FileCategorization_Web/
-COPY FileCategorization_Shared/ ./FileCategorization_Shared/
+COPY ./FileCategorization_Web/ ./FileCategorization_Web/
+COPY ./FileCategorization_Shared/ ./FileCategorization_Shared/
 
 # Build and publish Blazor WASM with ARM32 optimizations
-WORKDIR /src/FileCategorization_Web
+# Already in /src/FileCategorization_Web from restore step
 RUN dotnet publish \
     --configuration Release \
     --output /app/publish \
