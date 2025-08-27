@@ -1,8 +1,17 @@
 # QNAP ARM32 NAS Deployment Guide
 
-## FileCategorization API - Docker Deployment per NAS QNAP ARM32
+## FileCategorization - Complete Stack Deployment per NAS QNAP ARM32
 
-Questa guida spiega come utilizzare lo script di deployment automatico per installare l'API FileCategorization su un NAS QNAP ARM32 con 1GB di RAM.
+Questa guida completa spiega come utilizzare gli script di deployment automatico per installare l'intera piattaforma FileCategorization (API + WEB) su un NAS QNAP ARM32 con 1GB di RAM.
+
+## 🏗️ Stack Completo
+
+Il sistema FileCategorization comprende due componenti principali:
+
+- **FileCategorization API** (Backend): .NET 8 Web API con ML.NET e Hangfire
+- **FileCategorization WEB** (Frontend): Blazor WebAssembly con Fluxor e SignalR
+
+Entrambi i componenti sono ottimizzati per architettura ARM32 e risorse limitate (1GB RAM).
 
 ## 📋 Requisiti
 
@@ -21,22 +30,24 @@ Questa guida spiega come utilizzare lo script di deployment automatico per insta
   - **curl** (alternativa)
 - **unzip** (se non hai Git): `opkg install unzip`
 
-## 🚀 Installazione Rapida
+## 🚀 Installazione Rapida - Stack Completo
 
-### Step 1: Download dello script di deployment
+### Step 1: Download degli script di deployment
 
-Accedi al tuo NAS QNAP via SSH e scarica lo script:
+Accedi al tuo NAS QNAP via SSH e scarica gli script:
 
 ```bash
 # Crea directory per il deployment
 mkdir -p /share/CACHEDEV2_DATA/Scripts/FileCategorization
 cd /share/CACHEDEV2_DATA/Scripts/FileCategorization
 
-# Scarica lo script di deployment
-wget https://raw.githubusercontent.com/your-repo/FileCategorization/main/deploy_qnap_api.sh
+# Scarica gli script di deployment
+wget https://raw.githubusercontent.com/chim331u/FileCategorization/DeliveryNasArm32/Delivery/deploy_qnap_api.sh
+wget https://raw.githubusercontent.com/chim331u/FileCategorization/DeliveryNasArm32/Delivery/deploy_qnap_web_fixed.sh
 
-# Rendi eseguibile lo script
+# Rendi eseguibili gli script
 chmod +x deploy_qnap_api.sh
+chmod +x deploy_qnap_web_fixed.sh
 ```
 
 ### Step 2: Configurazione
@@ -53,15 +64,25 @@ vi deploy_qnap_api.sh
 - `DD_USERNAME`: Username DownloadDaemon  
 - `DD_PSW`: Password DownloadDaemon
 
-### Step 3: Deployment
+### Step 3: Deployment Stack Completo
 
-Esegui il deployment:
+**Prima deploya l'API (backend), poi il WEB (frontend):**
 
 ```bash
-# Deployment diretto (configurazione integrata)
+# 1. Deployment API (Backend) - PRIMA
 ./deploy_qnap_api.sh
 
-# Oppure con parametri personalizzati
+# Attendi che l'API sia operativa, poi:
+# 2. Deployment WEB (Frontend) - DOPO
+./deploy_qnap_web_fixed.sh
+
+# Verifica che entrambi i servizi siano attivi
+docker ps | grep filecat
+```
+
+**Configurazione personalizzata API:**
+```bash
+# API con parametri personalizzati
 ./deploy_qnap_api.sh --jwt-secret "your-secure-secret" --dd-username "myuser"
 ```
 
@@ -129,46 +150,176 @@ Il deployment creerà automaticamente questa struttura:
 
 ## 🔧 Gestione Container
 
-### Comandi Utili
+### Comandi Utili Stack Completo
 
 ```bash
-# Visualizza stato container
-docker ps | grep filecat_api
+# Visualizza stato di tutti i container FileCategorization
+docker ps | grep filecat
 
 # Visualizza log in tempo reale
-docker logs -f filecat_api
+docker logs -f filecat_api    # API Backend
+docker logs -f filecat_web    # WEB Frontend
 
-# Riavvia container
+# Riavvia container (order matters: API first, then WEB)
 docker restart filecat_api
+docker restart filecat_web
 
-# Ferma container
-docker stop filecat_api
+# Ferma/Avvia stack completo
+docker stop filecat_web filecat_api      # Ferma (WEB prima, poi API)
+docker start filecat_api filecat_web     # Avvia (API prima, poi WEB)
 
-# Avvia container fermato
-docker start filecat_api
-
-# Statistiche risorse (importante per ARM32)
-docker stats filecat_api
+# Statistiche risorse complete (importante per ARM32)
+docker stats filecat_api filecat_web --no-stream
 ```
 
-### Accesso all'API
+### Accesso alle Applicazioni
 
-Dopo il deployment, l'API sarà disponibile su:
+Dopo il deployment completo, saranno disponibili:
 
+#### API Backend (Porta 30219)
 - **API Endpoint**: `http://your-nas-ip:30219`
 - **Swagger UI**: `http://your-nas-ip:30219/swagger`
 - **Hangfire Dashboard**: `http://your-nas-ip:30219/hangfire`
 
+#### Web Frontend (Porta 30229)
+- **Web UI**: `http://your-nas-ip:30229`
+- **Interfaccia Utente**: Blazor WebAssembly con gestione file e configurazioni
+
 ### Health Check
 
-Verifica che l'API sia operativa:
+Verifica che entrambi i servizi siano operativi:
 
 ```bash
-# Test endpoint di health
+# Test API Backend (dovrebbe restituire JSON)
 curl http://localhost:30219/health
 
-# Test endpoint API
+# Test Web Frontend (dovrebbe restituire HTML)
+curl http://localhost:30229/
+
+# Verifica connessione WEB → API
 curl http://localhost:30219/api/v2/files
+```
+
+## 🌐 Deployment WEB Frontend - Configurazione Specifica
+
+### Script di Deployment WEB
+
+Il deployment WEB utilizza uno script specifico ottimizzato per ARM32:
+
+```bash
+# Script principale (tutti i fix applicati)
+./deploy_qnap_web_fixed.sh
+
+# Alternative disponibili
+./deploy_qnap_web.sh                 # Script originale
+./qnap_web_deploy_simple.sh         # Versione semplificata
+```
+
+### Fix ARM32 per Blazor WebAssembly
+
+Il deployment WEB risolve automaticamente i problemi ARM32:
+
+#### ✅ Problemi Risolti
+- **wasm-tools incompatibility**: Rimosso workload non supportato su ARM32
+- **Build context errors**: Corretti i path COPY nel dockerfile
+- **Dependency resolution**: Gestione corretta progetto FileCategorization_Shared
+- **Memory optimization**: Disabilitata compressione Blazor per ARM32
+
+#### 🔧 Ottimizzazioni ARM32 Applicate
+```dockerfile
+# Dockerfile ottimizzato per ARM32
+RUN dotnet publish \
+    --configuration Release \
+    --output /app/publish \
+    --verbosity minimal \
+    /p:BlazorEnableCompression=false \
+    /p:BlazorEnableTimeZoneSupport=false \
+    /p:InvariantGlobalization=true
+```
+
+### Configurazione WEB → API
+
+Il WEB si connette automaticamente all'API attraverso:
+
+```json
+{
+  "Uri": "http://localhost:30219/",
+  "FileCategorizationApi": {
+    "BaseUrl": "http://localhost:30219/"
+  }
+}
+```
+
+**La configurazione è automatica** - non richiede modifiche manuali.
+
+### Struttura Container WEB
+
+```
+Container: filecat_web
+Porte: 30229:80
+Volume Mappings:
+  - Nginx Logs: /var/log/nginx
+  - SSL Certs: /etc/nginx/ssl (preparato per HTTPS futuro)
+  
+Directory Host:
+  - /share/CACHEDEV2_DATA/Storage/Docker/file_categorization_web/logs
+  - /share/CACHEDEV2_DATA/Storage/Docker/file_categorization_web/certs
+```
+
+### Gestione Container WEB
+
+```bash
+# Verifica stato WEB
+docker ps | grep filecat_web
+
+# Log WEB container
+docker logs -f filecat_web
+
+# Riavvia WEB
+docker restart filecat_web
+
+# Statistiche risorse WEB
+docker stats filecat_web
+
+# Accesso diretto al container
+docker exec -it filecat_web /bin/sh
+```
+
+### Troubleshooting WEB Specifico
+
+#### WEB non si carica
+```bash
+# Verifica porta 30229
+netstat -tlnp | grep :30229
+
+# Verifica configurazione nginx
+docker exec -it filecat_web nginx -t
+
+# Ricarica configurazione nginx
+docker exec -it filecat_web nginx -s reload
+```
+
+#### WEB non si connette all'API
+```bash
+# Verifica dalla WEB che l'API sia raggiungibile
+docker exec -it filecat_web wget -q --spider http://localhost:30219/health
+echo $?  # Dovrebbe essere 0
+
+# Verifica configurazione API URL
+docker exec -it filecat_web cat /usr/share/nginx/html/appsettings.json
+```
+
+#### Problemi di Performance WEB su ARM32
+```bash
+# Monitora utilizzo risorse
+docker stats filecat_web --no-stream
+
+# Verifica cache nginx
+docker exec -it filecat_web ls -la /var/cache/nginx/
+
+# Clear cache se necessario
+docker exec -it filecat_web rm -rf /var/cache/nginx/*
+docker restart filecat_web
 ```
 
 ## ⚡ Ottimizzazioni ARM32
@@ -202,17 +353,25 @@ df -h /share/CACHEDEV2_DATA/Storage/Docker/file_categorization/
 
 ## 🔄 Update e Maintenance
 
-### Update dell'Applicazione
+### Update dello Stack Completo
 
 Per aggiornare a una nuova versione:
 
 ```bash
-# Ri-esegui il deployment (scaricherà l'ultima versione)
+# Update completo - ORDINE IMPORTANTE
+# 1. Update API (Backend) - PRIMA
 ./deploy_qnap_api.sh
 
-# Oppure specifica un branch/tag specifico
+# 2. Update WEB (Frontend) - DOPO
+./deploy_qnap_web_fixed.sh
+
+# Verifica che entrambi i servizi siano attivi
+docker ps | grep filecat
+
+# Update con branch/tag specifico
 export GIT_BRANCH="v2.1.0"
 ./deploy_qnap_api.sh
+./deploy_qnap_web_fixed.sh
 ```
 
 ### Backup dei Dati
@@ -229,7 +388,7 @@ cp /share/CACHEDEV2_DATA/Storage/Docker/file_categorization/Hangfire.db \
    /share/CACHEDEV2_DATA/Backup/Hangfire_$(date +%Y%m%d).db
 ```
 
-### Pulizia Sistema
+### Pulizia Sistema Stack Completo
 
 Per liberare spazio disco:
 
@@ -240,9 +399,16 @@ docker image prune -f
 # Rimuovi container fermati
 docker container prune -f
 
-# Pulizia log vecchi (>30 giorni)
+# Pulizia log vecchi API (>30 giorni)
 find /share/CACHEDEV2_DATA/Storage/Docker/file_categorization/Log/ \
   -name "*.log" -mtime +30 -delete
+
+# Pulizia log vecchi WEB nginx (>30 giorni)  
+find /share/CACHEDEV2_DATA/Storage/Docker/file_categorization_web/logs/ \
+  -name "*.log" -mtime +30 -delete
+
+# Verifica spazio occupato dal stack
+du -sh /share/CACHEDEV2_DATA/Storage/Docker/file_categorization*
 ```
 
 ## 🚨 Troubleshooting
@@ -300,12 +466,100 @@ tail -f /share/CACHEDEV2_DATA/Storage/Docker/file_categorization/Log/*.log
 grep -i error /share/CACHEDEV2_DATA/Storage/Docker/file_categorization/Log/*.log
 ```
 
+## 📋 Quick Reference - Comandi Operativi
+
+### Deployment Stack Completo da Zero
+
+```bash
+# Setup iniziale (eseguire una sola volta)
+mkdir -p /share/CACHEDEV2_DATA/Scripts/FileCategorization
+cd /share/CACHEDEV2_DATA/Scripts/FileCategorization
+
+# Download script
+wget https://raw.githubusercontent.com/chim331u/FileCategorization/DeliveryNasArm32/Delivery/deploy_qnap_api.sh
+wget https://raw.githubusercontent.com/chim331u/FileCategorization/DeliveryNasArm32/Delivery/deploy_qnap_web_fixed.sh
+chmod +x *.sh
+
+# Deployment completo (ordine importante)
+./deploy_qnap_api.sh      # 1. API Backend
+./deploy_qnap_web_fixed.sh  # 2. WEB Frontend
+
+# Verifica finale
+docker ps | grep filecat
+curl http://localhost:30219/health  # API
+curl http://localhost:30229/        # WEB
+```
+
+### Monitoraggio Sistema ARM32
+
+```bash
+# Monitoraggio risorse complete
+watch -n 30 'echo "=== SYSTEM RESOURCES ==="; free -h; echo "=== DOCKER CONTAINERS ==="; docker stats --no-stream filecat_api filecat_web'
+
+# Quick health check
+echo "API Health: $(curl -s http://localhost:30219/health | jq -r '.status' 2>/dev/null || echo 'ERROR')"
+echo "WEB Health: $(curl -s -o /dev/null -w '%{http_code}' http://localhost:30229/)"
+
+# Log monitoring
+docker logs filecat_api --tail 50 --since 5m
+docker logs filecat_web --tail 50 --since 5m
+```
+
+### Maintenance Routine Settimanale
+
+```bash
+# Script di manutenzione (salva come /share/Scripts/filecat_maintenance.sh)
+#!/bin/bash
+echo "=== FileCategorization Maintenance $(date) ==="
+
+# Backup databases
+cp /share/CACHEDEV2_DATA/Storage/Docker/file_categorization/FileCat.db \
+   /share/CACHEDEV2_DATA/Backup/FileCat_$(date +%Y%m%d).db
+
+# Clean old logs
+find /share/CACHEDEV2_DATA/Storage/Docker/file_categorization*/logs/ \
+  -name "*.log" -mtime +14 -delete
+
+# Clean docker
+docker image prune -f
+docker container prune -f
+
+# Resource check
+echo "Disk usage:"
+du -sh /share/CACHEDEV2_DATA/Storage/Docker/file_categorization*
+echo "Memory usage:"
+docker stats --no-stream filecat_api filecat_web
+
+echo "Maintenance completed!"
+```
+
+### Emergency Recovery
+
+```bash
+# Recovery completo in caso di problemi
+echo "Starting emergency recovery..."
+
+# Stop all
+docker stop filecat_web filecat_api 2>/dev/null || true
+docker rm filecat_web filecat_api 2>/dev/null || true
+
+# Clean images if corrupted
+docker rmi filecat_api_image:latest filecat_web_image:latest 2>/dev/null || true
+
+# Re-deploy from scratch
+cd /share/CACHEDEV2_DATA/Scripts/FileCategorization
+./deploy_qnap_api.sh
+./deploy_qnap_web_fixed.sh
+
+echo "Recovery completed - check http://YOUR-NAS-IP:30229"
+```
+
 ## 📞 Support
 
 Per supporto e segnalazione bug:
-- **Repository**: https://github.com/your-repo/FileCategorization
-- **Issues**: https://github.com/your-repo/FileCategorization/issues
-- **Wiki**: https://github.com/your-repo/FileCategorization/wiki
+- **Repository**: https://github.com/chim331u/FileCategorization
+- **Issues**: https://github.com/chim331u/FileCategorization/issues
+- **Branch Deployment**: DeliveryNasArm32
 
 ## 📝 Note sulla Sicurezza
 
