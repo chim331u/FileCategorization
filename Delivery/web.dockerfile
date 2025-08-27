@@ -20,13 +20,13 @@ RUN apk add --no-cache \
 COPY ./FileCategorization_Web/FileCategorization_Web.csproj ./FileCategorization_Web/
 COPY ./FileCategorization_Shared/FileCategorization_Shared.csproj ./FileCategorization_Shared/
 
-# Restore packages for Web project only
-WORKDIR /src/FileCategorization_Web
-RUN dotnet restore
-
-# Copy the rest of the source code
+# Copy source code BEFORE restore to avoid dependency issues
 COPY ./FileCategorization_Web/ ./FileCategorization_Web/
 COPY ./FileCategorization_Shared/ ./FileCategorization_Shared/
+
+# Restore packages for Web project with ARM32 optimizations
+WORKDIR /src/FileCategorization_Web
+RUN dotnet restore --verbosity minimal --no-cache
 
 # Build and publish Blazor WASM with ARM32 optimizations
 # Already in /src/FileCategorization_Web from restore step
@@ -34,9 +34,11 @@ RUN dotnet publish \
     --configuration Release \
     --output /app/publish \
     --verbosity minimal \
+    --no-restore \
     /p:BlazorEnableCompression=false \
     /p:BlazorEnableTimeZoneSupport=false \
-    /p:InvariantGlobalization=true
+    /p:InvariantGlobalization=true \
+    /p:PublishTrimmed=false
 
 # Stage 2: Nginx runtime environment (ARM32)
 FROM --platform=linux/arm/v7 nginx:alpine AS runtime
