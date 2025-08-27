@@ -77,8 +77,8 @@ CRYPTO_MASTERKEY="${CRYPTO_MASTERKEY:-CrypToMasterKey}"
 
 # DownloadDaemon Credentials (REQUIRED)
 # These are used to connect to your DownloadDaemon instance
-DD_USERNAME="${DD_USERNAME:-chim}"
-DD_PSW="${DD_PSW:-aneurysm}"
+DD_USERNAME="${DD_USERNAME:-user}"
+DD_PSW="${DD_PSW:-password}"
 
 #############################################################################
 # ADDITIONAL OPTIONAL SETTINGS

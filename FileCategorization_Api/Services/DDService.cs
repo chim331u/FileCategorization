@@ -134,7 +134,7 @@ public class DDService : IDDService
         //      CreatedDate = DateTime.Now,
         //      IsActive = true,
         //      LastUpdatedDate = DateTime.Now,
-        //      Id = 1, UserName = "chim", Password = "aneurysm"
+        //      Id = 1, UserName = "user", Password = "password"
         //  };
         // _setting = await AddSetting(_setting);
 

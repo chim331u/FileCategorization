@@ -87,8 +87,8 @@ SERIE_VOLUME="/share/Video/Serie:/serie"
 
 # Credenziali applicazione (OBBLIGATORIO modificare)
 JWT_SECRET="your-32-characters-long-super-strong-jwt-secret-key"
-DD_USERNAME="chim"
-DD_PSW="aneurysm"
+DD_USERNAME="user"
+DD_PSW="password"
 ```
 
 **Per modificare**: Apri lo script con `vi deploy_qnap_api.sh` e modifica i valori nella sezione configurazione.
