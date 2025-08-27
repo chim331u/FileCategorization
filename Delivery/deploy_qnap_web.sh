@@ -57,9 +57,9 @@ DOCKERFILE_PATH="${DOCKERFILE_PATH:-Delivery/web.dockerfile}"
 BUILD_CONTEXT="${BUILD_CONTEXT:-.}"
 
 # Container Runtime Configuration
-HOST_PORT="${HOST_PORT:-80}"
+HOST_PORT="${HOST_PORT:-30229}"
 CONTAINER_PORT="${CONTAINER_PORT:-80}"
-HOST_HTTPS_PORT="${HOST_HTTPS_PORT:-443}"
+HOST_HTTPS_PORT="${HOST_HTTPS_PORT:-30443}"
 CONTAINER_HTTPS_PORT="${CONTAINER_HTTPS_PORT:-443}"
 
 # Volume Mappings (QNAP specific paths for nginx logs and SSL certificates)
