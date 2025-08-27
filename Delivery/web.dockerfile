@@ -14,8 +14,7 @@ RUN apk add --no-cache \
     npm \
     && rm -rf /var/cache/apk/*
 
-# Install .NET WASM tools
-RUN dotnet workload install wasm-tools
+# Note: wasm-tools workload not supported on ARM32, using standard publish
 
 # Copy solution and project files first
 COPY FileCategorization.sln .
@@ -29,14 +28,13 @@ RUN dotnet restore
 COPY FileCategorization_Web/ ./FileCategorization_Web/
 COPY FileCategorization_Shared/ ./FileCategorization_Shared/
 
-# Build and publish Blazor WASM with optimizations
+# Build and publish Blazor WASM with ARM32 optimizations
 WORKDIR /src/FileCategorization_Web
 RUN dotnet publish \
     --configuration Release \
     --output /app/publish \
     --verbosity minimal \
-    /p:PublishTrimmed=true \
-    /p:BlazorEnableCompression=true \
+    /p:BlazorEnableCompression=false \
     /p:BlazorEnableTimeZoneSupport=false \
     /p:InvariantGlobalization=true
 
