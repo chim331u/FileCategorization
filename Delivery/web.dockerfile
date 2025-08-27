@@ -24,21 +24,30 @@ COPY ./FileCategorization_Shared/FileCategorization_Shared.csproj ./FileCategori
 COPY ./FileCategorization_Web/ ./FileCategorization_Web/
 COPY ./FileCategorization_Shared/ ./FileCategorization_Shared/
 
+# Set memory optimizations for ARM32 builds
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+ENV DOTNET_EnableWriteXorExecute=0
+ENV DOTNET_TieredPGO=0
+ENV DOTNET_ReadyToRun=0
+
 # Restore packages for Web project with ARM32 optimizations
 WORKDIR /src/FileCategorization_Web
-RUN dotnet restore --verbosity minimal --no-cache
+RUN dotnet restore --verbosity quiet --no-cache --disable-parallel
 
 # Build and publish Blazor WASM with ARM32 optimizations
 # Already in /src/FileCategorization_Web from restore step
 RUN dotnet publish \
     --configuration Release \
     --output /app/publish \
-    --verbosity minimal \
+    --verbosity quiet \
     --no-restore \
+    --nologo \
     /p:BlazorEnableCompression=false \
     /p:BlazorEnableTimeZoneSupport=false \
     /p:InvariantGlobalization=true \
-    /p:PublishTrimmed=false
+    /p:PublishTrimmed=false \
+    /p:PublishSingleFile=false \
+    /p:UseSharedCompilation=false
 
 # Stage 2: Nginx runtime environment (ARM32)
 FROM --platform=linux/arm/v7 nginx:alpine AS runtime

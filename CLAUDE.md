@@ -72,6 +72,10 @@ dotnet build --verbosity normal
 cd Delivery
 ./deploy.sh
 
+# Deploy specific components on QNAP ARM32 NAS
+./deploy_qnap_api.sh          # API deployment with ARM32 optimizations
+./deploy_qnap_web_arm32.sh    # Web deployment optimized for 1GB RAM
+
 # Manual Docker operations
 docker-compose up -d
 docker-compose down
@@ -106,7 +110,7 @@ FileCategorization/
 - **Architecture**: Clean Architecture with Repository Pattern
 - **API Style**: Minimal APIs with endpoint mapping
 - **Database**: SQLite with Entity Framework Core
-- **Background Jobs**: Hangfire with in-memory storage
+- **Background Jobs**: Hangfire with SQLite storage (optimized for ARM32)
 - **Real-time**: SignalR hub at `/notifications`
 - **Authentication**: JWT Bearer token authentication
 - **Logging**: Serilog with structured logging
@@ -163,7 +167,7 @@ FileCategorization/
 - **.NET 8.0**: Target framework
 - **Entity Framework Core 8.0.15**: ORM with SQLite provider
 - **ML.NET 4.0.2**: Machine learning framework
-- **Hangfire 1.8.18**: Background job processing
+- **Hangfire 1.8.18**: Background job processing with SQLite storage
 - **FluentValidation 11.11.0**: Request validation
 - **AutoMapper 12.0.1**: DTO/Entity mapping
 - **Serilog**: Structured logging

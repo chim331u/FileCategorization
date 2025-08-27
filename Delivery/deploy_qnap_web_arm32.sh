@@ -72,9 +72,22 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Checking system resources..."
 FREE_MEM=$(free -m | awk 'NR==2{printf "%.0f", $7}')
 echo "Available memory: ${FREE_MEM}MB"
 
-if [ "$FREE_MEM" -lt 300 ]; then
-    echo "⚠️  WARNING: Low memory detected (${FREE_MEM}MB). This may cause build failures."
-    echo "Consider stopping other services temporarily."
+if [ "$FREE_MEM" -lt 50 ]; then
+    echo "❌ ERROR: Critically low memory detected (${FREE_MEM}MB)"
+    echo "ARM32 Docker builds require at least 50MB available memory"
+    echo "Please stop other services or reboot system to free memory"
+    echo "Current memory usage:"
+    free -h
+    exit 1
+elif [ "$FREE_MEM" -lt 200 ]; then
+    echo "⚠️  WARNING: Low memory detected (${FREE_MEM}MB). Build may fail."
+    echo "Attempting to free additional memory..."
+    
+    # Stop more services to free memory
+    systemctl stop container-station 2>/dev/null || true
+    sleep 5
+    systemctl start container-station 2>/dev/null || true
+    sleep 10
 fi
 
 # Build Docker image with memory optimizations
@@ -82,11 +95,12 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Building ARM32 memory-optimized image..."
 echo "Using dockerfile: Delivery/web.dockerfile"
 echo "Build context: . (project root)"
 
-# Try build with platform specification first
+# Memory optimization: containers will be managed manually
+
+# Try build without memory limits first (ARM32 needs all available memory)
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Attempting build without memory constraints..."
 if docker build \
     --platform linux/arm/v7 \
-    --memory=800m \
-    --memory-swap=800m \
     -f Delivery/web.dockerfile \
     -t $IMAGE_NAME \
     . 2>/dev/null; then
@@ -94,16 +108,14 @@ if docker build \
 else
     echo "⚠️  Platform build failed, trying without platform flag..."
     if docker build \
-        --memory=800m \
-        --memory-swap=800m \
         -f Delivery/web.dockerfile \
         -t $IMAGE_NAME \
         . 2>/dev/null; then
         echo "✅ Build successful without platform specification"
     else
         echo "❌ Standard build failed, trying minimal resource build..."
-        # Last resort: build without memory limits
-        docker build \
+        # Last resort: use legacy builder
+        DOCKER_BUILDKIT=0 docker build \
             -f Delivery/web.dockerfile \
             -t $IMAGE_NAME \
             .
@@ -111,7 +123,10 @@ else
         if [ $? -ne 0 ]; then
             echo "❌ ERROR: All build attempts failed"
             echo "This usually indicates insufficient memory or corrupted Docker state"
-            echo "Try: docker system prune -a -f && reboot"
+            echo "Recommendations:"
+            echo "1. Restart Docker daemon: systemctl restart docker"
+            echo "2. Clear all Docker data: docker system prune -a -f"
+            echo "3. Reboot system if memory is critically low"
             exit 1
         fi
     fi
