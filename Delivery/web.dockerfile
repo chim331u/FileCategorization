@@ -71,18 +71,20 @@ COPY Delivery/nginx-site.conf /etc/nginx/conf.d/default.conf
 # Copy Blazor WASM files from build stage
 COPY --from=build /app/publish/wwwroot /usr/share/nginx/html
 
-# Create nginx user and set permissions
-RUN chown -R nginx:nginx /usr/share/nginx/html && \
+# Create directories and set permissions (must be done as root)
+RUN mkdir -p /var/log/nginx /var/cache/nginx /var/run && \
+    chown -R nginx:nginx /usr/share/nginx/html && \
     chown -R nginx:nginx /var/cache/nginx && \
     chown -R nginx:nginx /var/log/nginx && \
-    chown -R nginx:nginx /etc/nginx/conf.d
+    chown -R nginx:nginx /etc/nginx/conf.d && \
+    chown nginx:nginx /var/run
 
-# Switch to nginx user
-USER nginx
-
-# Optimize static files with compression
+# Optimize static files with compression (as root)
 RUN find /usr/share/nginx/html -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.json" \) \
     -exec gzip -k -9 {} \;
+
+# Switch to nginx user AFTER all file operations
+USER nginx
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
