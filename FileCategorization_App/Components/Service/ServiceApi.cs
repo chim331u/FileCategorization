@@ -4,10 +4,12 @@ using FileCategorization_App.Components.Interface;
 using FileCategorization_App.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using FileCategorization_Shared.Common;
+using FileCategorization_Shared.DTOs.FileManagement;
 
 namespace FileCategorization_App.Components.Service
 {
-    public class ServiceApi : IServiceApi
+    public class ServiceApi : BaseApiService, IServiceApi
     {
         HttpClient _client;
         JsonSerializerOptions _serializerOptions;
@@ -16,28 +18,29 @@ namespace FileCategorization_App.Components.Service
         private readonly IUtilityServices _utilityServices;
         ILogger<ServiceApi> _logger;
 
-        public ServiceApi(IHttpsClientHandlerService service, IConfiguration config, IUtilityServices utilityServices, ILogger<ServiceApi> logger)
+        public ServiceApi(IHttpsClientHandlerService service, IConfiguration config, IUtilityServices utilityServices, ILogger<ServiceApi> logger) 
+            : base(CreateHttpClient(service), logger)
         {
-#if DEBUG
             _httpsClientHandlerService = service;
-            HttpMessageHandler handler = _httpsClientHandlerService.GetPlatformMessageHandler();
-            if (handler != null)
-                _client = new HttpClient(handler);
-            else
-                _client = new HttpClient();
-#else
-            _client = new HttpClient();
-#endif
             _config = config;
-
-            _serializerOptions = new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                WriteIndented = true
-            };
-
             _utilityServices = utilityServices;
             _logger = logger;
+
+            // Set base address for HttpClient
+            if (_client.BaseAddress == null)
+            {
+                _client.BaseAddress = new Uri(_utilityServices.ApiUrl);
+            }
+        }
+
+        private static HttpClient CreateHttpClient(IHttpsClientHandlerService service)
+        {
+#if DEBUG
+            HttpMessageHandler handler = service.GetPlatformMessageHandler();
+            return handler != null ? new HttpClient(handler) : new HttpClient();
+#else
+            return new HttpClient();
+#endif
         }
 
         public async Task<List<FilesDetailDto>> GetFiles()
@@ -358,5 +361,153 @@ namespace FileCategorization_App.Components.Service
                 return null;
             }
         }
+
+        #region New Interface Implementation (Async with Result Pattern)
+        
+        public async Task<Result<List<FilesDetailDto>>> GetFilesAsync()
+        {
+            try
+            {
+                var result = await GetFiles();
+                return Result<List<FilesDetailDto>>.Success(result ?? new List<FilesDetailDto>());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error getting files: {ex.Message}");
+                return Result<List<FilesDetailDto>>.Failure($"Error getting files: {ex.Message}");
+            }
+        }
+        
+        public async Task<Result<string>> RefreshCategoryAsync()
+        {
+            try
+            {
+                var result = await RefreshCategory();
+                return Result<string>.Success(result ?? "Refresh completed");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error refreshing category: {ex.Message}");
+                return Result<string>.Failure($"Error refreshing category: {ex.Message}");
+            }
+        }
+        
+        public async Task<Result<FilesDetailDto>> GetFileAsync(int id)
+        {
+            try
+            {
+                var result = await GetFile(id);
+                return result != null 
+                    ? Result<FilesDetailDto>.Success(result) 
+                    : Result<FilesDetailDto>.Failure($"File with ID {id} not found");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error getting file {id}: {ex.Message}");
+                return Result<FilesDetailDto>.Failure($"Error getting file {id}: {ex.Message}");
+            }
+        }
+        
+        public async Task<Result<List<string>>> GetCategoriesAsync()
+        {
+            try
+            {
+                var result = await GetCategories();
+                return Result<List<string>>.Success(result ?? new List<string>());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error getting categories: {ex.Message}");
+                return Result<List<string>>.Failure($"Error getting categories: {ex.Message}");
+            }
+        }
+        
+        public async Task<Result<string>> MoveFileAsync(FilesDetailDto fileDetail)
+        {
+            try
+            {
+                var result = await MoveFile(fileDetail);
+                return Result<string>.Success(result ?? "File moved successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error moving file: {ex.Message}");
+                return Result<string>.Failure($"Error moving file: {ex.Message}");
+            }
+        }
+        
+        public async Task<Result<string>> TrainModelAsync()
+        {
+            try
+            {
+                var result = await TrainModel();
+                return Result<string>.Success(result ?? "Model trained successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error training model: {ex.Message}");
+                return Result<string>.Failure($"Error training model: {ex.Message}");
+            }
+        }
+        
+        public async Task<Result<List<FilesDetailDto>>> GetLastFilesListAsync()
+        {
+            try
+            {
+                var result = await GetLastFilesList();
+                return Result<List<FilesDetailDto>>.Success(result ?? new List<FilesDetailDto>());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error getting last files list: {ex.Message}");
+                return Result<List<FilesDetailDto>>.Failure($"Error getting last files list: {ex.Message}");
+            }
+        }
+        
+        public async Task<Result<List<FilesDetailDto>>> GetAllFilesAsync(string fileCategory)
+        {
+            try
+            {
+                var result = await GetAllFiles(fileCategory);
+                return Result<List<FilesDetailDto>>.Success(result ?? new List<FilesDetailDto>());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error getting all files: {ex.Message}");
+                return Result<List<FilesDetailDto>>.Failure($"Error getting all files: {ex.Message}");
+            }
+        }
+        
+        public async Task<Result<FilesDetailDto>> UpdateFileDetailAsync(FilesDetailDto item)
+        {
+            try
+            {
+                var result = await UpdateFileDetail(item);
+                return result != null 
+                    ? Result<FilesDetailDto>.Success(result) 
+                    : Result<FilesDetailDto>.Failure("Failed to update file detail");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error updating file detail: {ex.Message}");
+                return Result<FilesDetailDto>.Failure($"Error updating file detail: {ex.Message}");
+            }
+        }
+        
+        public async Task<Result<string>> MoveFilesAsync(List<FilesDetailDto> filesToMove)
+        {
+            try
+            {
+                var result = await MoveFiles(filesToMove);
+                return Result<string>.Success(result ?? "Files moved successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error moving files: {ex.Message}");
+                return Result<string>.Failure($"Error moving files: {ex.Message}");
+            }
+        }
+        
+        #endregion
     }
 }

@@ -4,10 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **FileCategorization solution** consisting of three .NET 8.0 projects:
-- **FileCategorization_Api**: Web API backend with machine learning capabilities
-- **FileCategorization_Web**: Blazor WebAssembly frontend with modern state management
-- **FileCategorization_Shared**: Common library for shared models and utilities
+This is a **FileCategorization solution** consisting of four .NET projects:
+- **FileCategorization_Api**: .NET 8.0 Web API backend with machine learning capabilities
+- **FileCategorization_Web**: .NET 8.0 Blazor WebAssembly frontend with modern state management
+- **FileCategorization_App**: .NET 9.0 MAUI Blazor Hybrid mobile app for Android
+- **FileCategorization_Shared**: .NET 8.0 Common library for shared models and utilities
 
 The system provides file categorization using machine learning, DownloadDaemon integration, and real-time notifications.
 
@@ -66,6 +67,27 @@ dotnet run                      # HTTP: localhost:5045, HTTPS: localhost:7275
 dotnet build --verbosity normal
 ```
 
+### MAUI App Project (FileCategorization_App)
+```bash
+# Run MAUI Blazor Hybrid app on Android
+cd FileCategorization_App
+dotnet build -f net9.0-android
+dotnet run -f net9.0-android
+
+# Build Android APK for deployment
+dotnet publish -f net9.0-android -c Release
+
+# Install on Android device/emulator (requires ADB)
+adb install bin/Release/net9.0-android/com.companyname.filecategorization_app-Signed.apk
+
+# Debug on Android device
+dotnet run -f net9.0-android --launch-profile "Pixel 5 - API 30 (Android 11.0 - API 30)"
+
+# Clean Android build artifacts
+dotnet clean
+rm -rf bin/ obj/
+```
+
 ### Docker Deployment (ARM32 NAS)
 ```bash
 # Build and deploy entire stack
@@ -97,12 +119,13 @@ docker exec -it <container_name> ls -la /data/Hangfire.db
 
 ## Architecture Overview
 
-### Three-Project Solution Structure
+### Four-Project Solution Structure
 ```
 FileCategorization/
 ├── FileCategorization_Api/     # .NET 8 Web API backend
-├── FileCategorization_Web/     # Blazor WebAssembly frontend
-├── FileCategorization_Shared/  # Common library
+├── FileCategorization_Web/     # .NET 8 Blazor WebAssembly frontend  
+├── FileCategorization_App/     # .NET 9 MAUI Blazor Hybrid mobile app
+├── FileCategorization_Shared/  # .NET 8 Common library
 └── FileCategorization.sln      # Solution file
 ```
 
@@ -155,8 +178,30 @@ FileCategorization/
 - **Testing Infrastructure**: 90+ unit tests with comprehensive coverage
 - **API v2 Integration**: All services use modern v2 endpoints with enhanced error handling
 
+### FileCategorization_App (Mobile App)
+- **Architecture**: .NET MAUI Blazor Hybrid application for Android
+- **Target Framework**: .NET 9.0 with Android-specific targeting (`net9.0-android`)
+- **UI Framework**: Blazor components running in WebView with Radzen Blazor components
+- **Logging**: Serilog with file and debug output to device cache directory
+- **API Integration**: Direct HTTP calls to FileCategorization_Api using legacy v1 endpoints
+- **Platform Support**: Currently configured for Android only (API 35+)
+
+#### Key Mobile App Components
+- **Services** (`Components/Service/`): HTTP client services for API communication
+- **Interfaces** (`Components/Interface/`): Service abstractions and contracts  
+- **Data Models** (`Data/`): Local DTOs and entities for mobile-specific concerns
+- **Pages** (`Components/Pages/`): Blazor pages for mobile UI (DDweb, LastView, Settings, etc.)
+- **Platform Configuration**: Android-specific configurations and permissions
+
+#### Mobile App Features
+- **File Management**: View and manage files with categorization from mobile device
+- **DownloadDaemon Integration**: Access ed2k link management and thread processing
+- **Remote Control**: Perform file operations and model training remotely
+- **Offline Logging**: Local Serilog file logging in device cache directory
+- **Cross-Platform Foundation**: MAUI structure ready for iOS/Windows expansion
+
 ### FileCategorization_Shared
-- **Purpose**: Common models and utilities shared between API and Web projects
+- **Purpose**: Common models and utilities shared between API, Web, and App projects
 - **Target**: .NET 8.0 class library with nullable reference types
 - **Dependencies**: Pure .NET library with no external dependencies
 - **DTOs**: Centralized data transfer objects for v2 API contracts (FileManagement, Configuration, DD)
@@ -182,6 +227,14 @@ FileCategorization/
 - **HttpClientFactory**: HTTP service management
 - **Polly**: Resilience patterns (foundation ready)
 
+### Mobile App Stack
+- **.NET MAUI**: Cross-platform application framework (.NET 9.0)
+- **Blazor Hybrid**: Blazor components in native WebView
+- **Radzen Blazor**: UI component library for mobile-optimized interfaces
+- **Serilog**: Structured logging with file and debug sinks
+- **SignalR Client**: Real-time communication with API
+- **Microsoft.IdentityModel.Tokens**: JWT token handling
+
 ## Development Patterns
 
 ### Backend Patterns
@@ -199,6 +252,14 @@ FileCategorization/
 - **Real-time Integration**: SignalR events dispatch Fluxor actions
 - **Service Adapters**: Intelligent selection between modern v2 and legacy v1 APIs based on configuration
 
+### Mobile App Patterns
+- **MAUI Service Registration**: Dependency injection with scoped services for UI components
+- **Interface Segregation**: Clean service abstractions with single responsibility
+- **Direct API Communication**: HTTP client services with JSON serialization
+- **Platform-Specific Handlers**: Conditional HTTPS handlers for development vs production
+- **Mobile-First Logging**: File-based logging in device cache directory with structured output
+- **Legacy API Integration**: Currently uses v1 API endpoints (migration to v2 recommended)
+
 ## Testing Strategy
 
 ### API Testing
@@ -215,6 +276,13 @@ FileCategorization/
 - **Test Helpers**: `FluxorTestHelper`, `MockServiceHelper`
 - **Limitation**: Blazor WebAssembly cannot execute tests directly (compilation validation only)
 
+### Mobile App Testing
+- **Current State**: No automated tests implemented yet
+- **Testing Strategy**: Manual testing on Android devices/emulators
+- **Recommended**: Unit tests for service layer and HTTP communication
+- **Tools**: xUnit for future unit tests, Android instrumentation for UI tests
+- **Challenges**: MAUI Blazor Hybrid testing requires device/emulator for full validation
+
 ## Configuration
 
 ### API Configuration
@@ -227,6 +295,14 @@ FileCategorization/
 - **Modern Config**: `FileCategorizationApi` section for new service patterns
 - **Legacy Fallback**: Automatic fallback to legacy services when modern config missing
 
+### Mobile App Configuration
+- **Target Framework**: .NET 9.0 with Android API 35+ support
+- **API Base URL**: Configured through `IUtilityServices.ApiUrl` property
+- **Application ID**: `com.companyname.filecategorization_app`
+- **Logging Path**: Device cache directory with rolling file logs (`serilog_.log`)
+- **HTTPS Handling**: Development builds use custom HTTPS client handler
+- **Permissions**: Network permissions configured in `AndroidManifest.xml`
+
 ## Migration Paths
 
 ### API v1 to v2 Migration
@@ -238,6 +314,13 @@ FileCategorization/
 - Legacy services wrapped with adapter pattern
 - New features use Fluxor state management
 - Component-by-component migration to modern patterns
+
+### Mobile App API v1 to v2 Migration
+- Current mobile app uses legacy v1 API endpoints exclusively
+- **Priority**: High - migrate to v2 endpoints for consistency with Web project
+- **Benefits**: Access to modern Result<T> pattern, enhanced error handling, validation
+- **Scope**: Update all service classes in `Components/Service/` directory
+- **Shared Models**: Leverage `FileCategorization_Shared` DTOs instead of local duplicates
 
 ## Recent Architectural Improvements
 
@@ -336,8 +419,16 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 ### Testing Requirements
 - Run `dotnet test` for API project before any commits
 - Use `./Tests/run-tests.sh` for Web project test infrastructure validation
+- For Mobile App: `dotnet build -f net9.0-android` to validate compilation
 - Ensure all tests pass before proceeding with deployments
 - Mock external dependencies properly in unit tests
+
+### Mobile App Development
+- Test on physical Android device when possible for accurate performance
+- Use Android Debug Bridge (ADB) for device deployment and debugging
+- Monitor device logs for Serilog output during development
+- Validate network connectivity and API communication on mobile networks
+- Consider mobile-specific UI/UX patterns and constraints
 
 ## Production Considerations
 
@@ -353,11 +444,19 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 - Set up proper CORS policies on API
 - Consider PWA features for offline support
 
+### Mobile App Deployment
+- Build release APK with `dotnet publish -f net9.0-android -c Release`
+- Configure production API base URL for mobile app
+- Test on various Android API levels (minimum API 35)
+- Consider battery optimization and network efficiency
+- Plan for app store distribution and signing certificates
+
 ### Performance Optimization
 - Leverage caching layer with appropriate policies
 - Use batch operations for database access
 - Monitor cache hit/miss ratios
 - Implement proper connection pooling for HTTP clients
+- Optimize mobile app for battery life and data usage
 
 ### ARM32 NAS Optimizations (August 2024)
 **Target**: QNAP ARM32 NAS with 1GB RAM - Optimized for low-resource environments
@@ -444,17 +543,51 @@ Hard refresh: Ctrl+Shift+R (or Cmd+Shift+R on Mac)
 
 ## TODO - Future Implementation Tasks
 
-### 1. Shared Library Consolidation
+### 1. Mobile App API v2 Migration
 **Priority**: High | **Effort**: Medium
-- **Task**: Move common DTOs and Response<T> types from API and WEB to FileCategorization_Shared
-- **Rationale**: Eliminate code duplication and ensure consistency across projects
+- **Task**: Migrate FileCategorization_App from v1 to v2 API endpoints
+- **Rationale**: Consistency with Web project and access to modern error handling
+- **Scope**:
+  - Update all service classes in `Components/Service/` to use `/api/v2/` endpoints  
+  - Replace local DTOs with shared models from FileCategorization_Shared
+  - Implement Result<T> pattern for structured error handling
+  - Add proper request validation and timeout handling
+- **Benefits**: Consistent API usage, better error handling, reduced code duplication
+
+### 2. Shared Library Consolidation  
+**Priority**: High | **Effort**: Medium
+- **Task**: Move common DTOs and Response<T> types from API, WEB, and APP to FileCategorization_Shared
+- **Rationale**: Eliminate code duplication and ensure consistency across all projects
 - **Scope**: 
   - Common response types (`Result<T>`, `ApiResponse`, error models)
-  - Shared DTOs used by both API and Web projects
+  - Shared DTOs used by API, Web, and App projects
   - Common enums and constants
-- **Benefits**: Reduced maintenance overhead, consistent data contracts, better type safety
+  - Mobile-specific DTOs that could be reused
+- **Benefits**: Reduced maintenance overhead, consistent data contracts, better type safety across all clients
 
-### 2. ✅ COMPLETED - Docker Containerization for ARM32 NAS (August 2024)
+### 3. Mobile App Testing Infrastructure
+**Priority**: Medium | **Effort**: Medium  
+- **Task**: Implement comprehensive testing for MAUI Blazor Hybrid app
+- **Scope**:
+  - Unit tests for service layer and HTTP communication
+  - Mock API responses for offline testing
+  - Android instrumentation tests for UI validation
+  - Automated build and test pipeline
+- **Challenges**: MAUI Blazor Hybrid testing complexity
+- **Benefits**: Improved reliability, regression detection, automated quality assurance
+
+### 4. Cross-Platform Mobile Expansion
+**Priority**: Low | **Effort**: High
+- **Task**: Extend MAUI app to support iOS and Windows platforms
+- **Current State**: Android-only configuration (`net9.0-android`)
+- **Requirements**:
+  - Add iOS target framework (`net9.0-ios`)
+  - Add Windows target framework (`net9.0-windows10.0.19041.0`)
+  - Platform-specific configurations and permissions
+  - Testing on multiple platforms
+- **Benefits**: Broader user reach, unified codebase across platforms
+
+### 5. ✅ COMPLETED - Docker Containerization for ARM32 NAS (August 2024)
 **Priority**: High | **Effort**: High | **Status**: ✅ **COMPLETED**
 - **Task**: Create optimized Docker configuration for QNAP ARM32 NAS deployment
 - **✅ Completed Requirements**:
@@ -470,7 +603,7 @@ Hard refresh: Ctrl+Shift+R (or Cmd+Shift+R on Mac)
   - ✅ **Memory Optimization**: Hangfire.InMemory → Hangfire.Storage.SQLite (60-80% RAM reduction)
   - ✅ **Database Configuration**: Proper SQLite connection strings for ARM32 environments
 
-### 3. Web API v2 Migration
+### 6. Web API v2 Migration
 **Priority**: Medium | **Effort**: Medium
 - **Task**: Migrate FileCategorization_Web to use v2 API endpoints exclusively
 - **Scope**:
@@ -480,7 +613,7 @@ Hard refresh: Ctrl+Shift+R (or Cmd+Shift+R on Mac)
   - Remove legacy v1 API dependencies
 - **Benefits**: Access to latest features, improved error handling, better performance with batch operations
 
-### 4. UI Framework Evaluation
+### 7. UI Framework Evaluation
 **Priority**: Low | **Effort**: High
 - **Task**: Evaluate Radzen vs Pure Blazor component approach
 - **Analysis Required**:
@@ -494,7 +627,7 @@ Hard refresh: Ctrl+Shift+R (or Cmd+Shift+R on Mac)
   - **Hybrid Approach**: Selective replacement of heavy Radzen components
 - **Decision Criteria**: Performance impact, design flexibility, maintenance complexity
 
-### 5. Future ARM32 NAS Optimizations
+### 8. Future ARM32 NAS Optimizations
 **Priority**: Medium | **Effort**: Medium
 - **Task**: Additional optimizations for ARM32 environments with limited resources
 - **Potential Optimizations**:

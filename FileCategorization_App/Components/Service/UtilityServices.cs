@@ -13,6 +13,16 @@ namespace FileCategorization_App.Components.Service
         public string ApiUrl { get; set; }
         public string NetworkSettingFullPath { get; set; }
         public string globalSettingFullPath { get; set; }
+        
+        /// <summary>
+        /// Whether to use v2 API endpoints (default: false for backward compatibility)
+        /// </summary>
+        public bool UseV2Endpoints { get; set; } = false;
+        
+        /// <summary>
+        /// Whether to fallback to v1 endpoints if v2 fails (default: true)
+        /// </summary>
+        public bool FallbackToV1 { get; set; } = true;
 
 
         private readonly IConfiguration _config;

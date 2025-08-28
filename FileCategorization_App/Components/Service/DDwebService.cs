@@ -1,10 +1,11 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
 using FileCategorization_App.Components.Interface;
-using FileCategorization_App.Data.DTOs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
+using FileCategorization_Shared.Common;
+using FileCategorization_Shared.DTOs.DD;
 
 namespace FileCategorization_App.Components.Service;
 
@@ -40,7 +41,7 @@ public class DDwebService : IDDwebService
         _utilityServices = utilityServices;
         _logger = logger;
     }
-    public async Task<List<ThreadsDto>> GetActiveThreads()
+    public async Task<List<ThreadSummaryDto>> GetActiveThreads()
     {
         _logger.LogInformation($"Request active threads");
         
@@ -48,7 +49,7 @@ public class DDwebService : IDDwebService
         
         try
         {
-            var threadsList = await _client.GetFromJsonAsync<List<ThreadsDto>>(uri);
+            var threadsList = await _client.GetFromJsonAsync<List<ThreadSummaryDto>>(uri);
         
             if (threadsList != null)
             {
@@ -69,7 +70,7 @@ public class DDwebService : IDDwebService
         }
     }
 
-    public async Task<List<Ed2kLinkDto>> GetEd2kLinks(int threadId)
+    public async Task<List<LinkDto>> GetEd2kLinks(int threadId)
     {
         _logger.LogInformation($"Request links for thread i = {threadId}");
         
@@ -77,7 +78,7 @@ public class DDwebService : IDDwebService
         
         try
         {
-            var linkList = await _client.GetFromJsonAsync<List<Ed2kLinkDto>>(uri);
+            var linkList = await _client.GetFromJsonAsync<List<LinkDto>>(uri);
         
             if (linkList != null)
             {
@@ -174,4 +175,79 @@ public class DDwebService : IDDwebService
             return false;
         }
     }
+
+    #region New Interface Implementation (Async with Result Pattern)
+    
+    public async Task<Result<List<ThreadSummaryDto>>> GetActiveThreadsAsync()
+    {
+        try
+        {
+            var result = await GetActiveThreads();
+            return Result<List<ThreadSummaryDto>>.Success(result ?? new List<ThreadSummaryDto>());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error getting active threads: {ex.Message}");
+            return Result<List<ThreadSummaryDto>>.Failure($"Error getting active threads: {ex.Message}");
+        }
+    }
+    
+    public async Task<Result<List<LinkDto>>> GetEd2kLinksAsync(int threadId)
+    {
+        try
+        {
+            var result = await GetEd2kLinks(threadId);
+            return Result<List<LinkDto>>.Success(result ?? new List<LinkDto>());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error getting ED2K links: {ex.Message}");
+            return Result<List<LinkDto>>.Failure($"Error getting ED2K links: {ex.Message}");
+        }
+    }
+    
+    public async Task<Result<string>> UseLinkAsync(int linkId)
+    {
+        try
+        {
+            var result = await UseLink(linkId);
+            return Result<string>.Success(result ?? "Link used successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error using link: {ex.Message}");
+            return Result<string>.Failure($"Error using link: {ex.Message}");
+        }
+    }
+    
+    public async Task<Result<bool>> RenewThreadAsync(int threadId)
+    {
+        try
+        {
+            var result = await RenewThread(threadId);
+            return Result<bool>.Success(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error renewing thread: {ex.Message}");
+            return Result<bool>.Failure($"Error renewing thread: {ex.Message}");
+        }
+    }
+    
+    [Obsolete("This method is deprecated in v2 API and will be removed")]
+    public async Task<Result<bool>> CheckUrlAsync(string urlToCheck)
+    {
+        try
+        {
+            var result = await CheckUrl(urlToCheck);
+            return Result<bool>.Success(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error checking URL: {ex.Message}");
+            return Result<bool>.Failure($"Error checking URL: {ex.Message}");
+        }
+    }
+    
+    #endregion
 }

@@ -1,6 +1,5 @@
 ﻿@page "/DDwebPage"
 @using System.Text.RegularExpressions
-@using FileCategorization_App.Data.DTOs
 
 <RadzenRow AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
 
@@ -28,18 +27,18 @@
 @if (threadList != null && selectedThread == null)
 {
     <RadzenDataList AllowVirtualization="false" WrapItems="true"
-                    Data="@threadList" TItem="ThreadsDto" PagerHorizontalAlign="HorizontalAlign.Left">
+                    Data="@threadList" TItem="ThreadSummaryDto" PagerHorizontalAlign="HorizontalAlign.Left">
         <Template Context="_thread">
             <RadzenCard Variant="Variant.Outlined" class="rz-p-0" Style="width: 100%; overflow: hidden;">
                 <RadzenRow Gap="0">
                     <RadzenColumn @onclick="(args => GetEd2kLinks(_thread.Id))" size="2" class="rz-p-2">
                         <RadzenRow Gap="0.5rm">
                             <RadzenBadge BadgeStyle="BadgeStyle.Success" IsPill="true"
-                                         Text="@_thread.LinksNumber.ToString()"/>
+                                         Text="@_thread.LinksCount.ToString()"/>
                         </RadzenRow>
                         <RadzenRow>
                             <RadzenBadge BadgeStyle="BadgeStyle.Warning" IsPill="true" Text="NEW"
-                                         Visible="@_thread.NewLinks"/>
+                                         Visible="@_thread.HasNewLinks"/>
                         </RadzenRow>
                     </RadzenColumn>
                     <RadzenColumn @onclick="(args => GetEd2kLinks(_thread.Id))" Size="8" class="rz-p-2">
@@ -60,7 +59,7 @@
 {
     <h2>@selectedThread.MainTitle</h2>
     <RadzenDataList AllowVirtualization="false" WrapItems="true" AllowPaging="false"
-                    Data="@linksList" TItem="Ed2kLinkDto" PagerHorizontalAlign="HorizontalAlign.Left"
+                    Data="@linksList" TItem="LinkDto" PagerHorizontalAlign="HorizontalAlign.Left"
                     ShowPagingSummary="false">
         <Template Context="_link">
             <RadzenCard Variant="Variant.Outlined" class="rz-p-0" Style="width: 100%; overflow: hidden;">
@@ -102,9 +101,9 @@
 @code {
     [Inject] public IDDwebService _service { get; set; }
 
-    IList<ThreadsDto>? threadList;
-    IList<Ed2kLinkDto>? linksList;
-    ThreadsDto? selectedThread;
+    IList<ThreadSummaryDto>? threadList;
+    IList<LinkDto>? linksList;
+    ThreadSummaryDto? selectedThread;
     string _urlToCheck = string.Empty;
     string _consoleLog = string.Empty;
     bool _urlValid = false;
