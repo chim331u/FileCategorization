@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace FC_APP.Data
+namespace FileCategorization_App.Data
 {
     public class FilesDetailDto
     {

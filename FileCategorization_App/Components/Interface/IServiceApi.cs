@@ -1,9 +1,6 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
-using FC_APP.Data;
-using Microsoft.AspNetCore.SignalR.Client;
+﻿using FileCategorization_App.Data;
 
-namespace FC_APP.Components.Interface
+namespace FileCategorization_App.Components.Interface
 {
     public interface IServiceApi
     {

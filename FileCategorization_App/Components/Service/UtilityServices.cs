@@ -1,18 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Globalization;
+using System.Text.Json;
+using FileCategorization_App.Components.Interface;
+using FileCategorization_App.Data.Setting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
-using FC_App.Components.Interface;
-using FC_App.Data;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Threading.Tasks;
-using Microsoft.Maui.Storage;
 
-namespace FC_App.Components.Service
+namespace FileCategorization_App.Components.Service
 {
     public class UtilityServices : IUtilityServices
     {

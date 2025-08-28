@@ -1,4 +1,4 @@
-﻿namespace FC_APP.Data.DTOs;
+﻿namespace FileCategorization_App.Data.DTOs;
 
 public class Ed2kLinkDto
 {

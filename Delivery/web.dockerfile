@@ -93,7 +93,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 # Expose ports
 EXPOSE 80 443
 
-# Start nginx
+# Start nginx.
 CMD ["nginx", "-g", "daemon off;"]
 
 # ARM32 specific optimizations metadata

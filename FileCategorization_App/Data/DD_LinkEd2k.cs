@@ -1,4 +1,4 @@
-﻿namespace FC_APP.Data;
+﻿namespace FileCategorization_App.Data;
 
 public class DD_LinkEd2k : BaseEntity
 {

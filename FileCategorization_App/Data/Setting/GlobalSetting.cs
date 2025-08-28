@@ -1,4 +1,4 @@
-﻿namespace FC_App.Data
+﻿namespace FileCategorization_App.Data.Setting
 {
     public class GlobalSetting
     {

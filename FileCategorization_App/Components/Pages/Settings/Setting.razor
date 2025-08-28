@@ -1,6 +1,9 @@
 ﻿@page "/setting"
-@using System.Text.Json
-@using FC_APP.Data.DTOs
+@using Android.Locations
+@using FileCategorization_App.Data.DTOs
+@using FileCategorization_App.Data.Setting
+@using Java.Util.Jar
+@using Javax.Xml.Validation
 
 
 @inject ILogger<Setting> logger
@@ -100,7 +103,7 @@
                                                 <RadzenTextBox Name="name" @bind-Value="@item.Name" />
                                             </ChildContent>
                                             <Helper>
-                                                <RadzenRequiredValidator Component="name" Text="Name is required." />
+                                                <RadzenRequiredValidator Component="name" Text="Attributes.Name is required." />
                                             </Helper>
                                         </RadzenFormField>
                                         <RadzenFormField Text="Address" Variant="Variant.Text">
@@ -147,7 +150,7 @@
                                             <RadzenTextBox Name="name" @bind-Value="@newNetworkSetting.Name" />
                                         </ChildContent>
                                         <Helper>
-                                            <RadzenRequiredValidator Component="name" Text="Name is required." />
+                                            <RadzenRequiredValidator Component="name" Text="Attributes.Name is required." />
                                         </Helper>
                                     </RadzenFormField>
                                     <RadzenFormField Text="Address" Variant="Variant.Text">

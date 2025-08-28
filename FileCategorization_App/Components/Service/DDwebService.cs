@@ -1,14 +1,12 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
-using FC_App.Components.Interface;
-using FC_APP.Components.Interface;
-using FC_APP.Data;
-using FC_APP.Data.DTOs;
+using FileCategorization_App.Components.Interface;
+using FileCategorization_App.Data.DTOs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 
-namespace FC_APP.Components.Service;
+namespace FileCategorization_App.Components.Service;
 
 public class DDwebService : IDDwebService
 {

@@ -1,6 +1,6 @@
-﻿using System.Net.Http;
+﻿using FileCategorization_App.Components.Interface;
 
-namespace FC_APP.Components.Interface
+namespace FileCategorization_App.Components.Service
 {
     public class HttpsClientHandlerService : IHttpsClientHandlerService
     {

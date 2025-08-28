@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace FC_APP.Data
+﻿namespace FileCategorization_App.Data
 {
     public abstract class BaseEntity
     {

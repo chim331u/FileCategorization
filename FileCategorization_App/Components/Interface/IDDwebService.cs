@@ -1,7 +1,6 @@
-﻿using FC_APP.Data;
-using FC_APP.Data.DTOs;
+﻿using FileCategorization_App.Data.DTOs;
 
-namespace FC_APP.Components.Interface;
+namespace FileCategorization_App.Components.Interface;
 
 public interface IDDwebService
 {
