@@ -1,0 +1,171 @@
+@page "/cache-monitor"
+@using FileCategorization_App.Components.Interface
+@inject ICacheService CacheService
+@implements IDisposable
+
+<RadzenStack Orientation="Orientation.Vertical" Gap="1rem">
+    <RadzenText TextStyle="TextStyle.H4" TagName="TagName.H1">Cache Performance Monitor</RadzenText>
+    
+    <RadzenRow>
+        <RadzenColumn Size="3">
+            <RadzenCard>
+                <RadzenStack Orientation="Orientation.Vertical" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenText TextStyle="TextStyle.H6">Total Items</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4" Style="color: var(--rz-primary)">@_statistics.TotalItems</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        
+        <RadzenColumn Size="3">
+            <RadzenCard>
+                <RadzenStack Orientation="Orientation.Vertical" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenText TextStyle="TextStyle.H6">Hit Ratio</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4" Style="color: var(--rz-success)">@($"{_statistics.HitRatio:P1}")</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        
+        <RadzenColumn Size="3">
+            <RadzenCard>
+                <RadzenStack Orientation="Orientation.Vertical" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenText TextStyle="TextStyle.H6">Requests</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4" Style="color: var(--rz-info)">@_statistics.TotalRequests</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        
+        <RadzenColumn Size="3">
+            <RadzenCard>
+                <RadzenStack Orientation="Orientation.Vertical" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenText TextStyle="TextStyle.H6">Memory Usage</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4" Style="color: var(--rz-warning)">@FormatBytes(_statistics.MemoryUsageBytes)</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+    
+    <RadzenRow>
+        <RadzenColumn Size="6">
+            <RadzenCard>
+                <RadzenStack Orientation="Orientation.Vertical" Gap="0.5rem">
+                    <RadzenText TextStyle="TextStyle.H6">Hit Statistics</RadzenText>
+                    <RadzenText>Hits: <strong>@_statistics.HitCount</strong></RadzenText>
+                    <RadzenText>Misses: <strong>@_statistics.MissCount</strong></RadzenText>
+                    <RadzenText>Hit Rate: <strong>@($"{_statistics.HitRatio:P2}")</strong></RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        
+        <RadzenColumn Size="6">
+            <RadzenCard>
+                <RadzenStack Orientation="Orientation.Vertical" Gap="0.5rem">
+                    <RadzenText TextStyle="TextStyle.H6">Cache Actions</RadzenText>
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                        <RadzenButton Text="Refresh Stats" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Click="RefreshStats" />
+                        <RadzenButton Text="Clear Cache" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="ClearCache" />
+                    </RadzenStack>
+                    <RadzenText Style="font-size: 0.875rem; color: var(--rz-text-secondary-color)">
+                        Active since: @_statistics.LastResetTime.ToString("HH:mm:ss")
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+    
+    @if (_showCacheDetails)
+    {
+        <RadzenRow>
+            <RadzenColumn Size="12">
+                <RadzenCard>
+                    <RadzenStack Orientation="Orientation.Vertical" Gap="0.5rem">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                            <RadzenText TextStyle="TextStyle.H6">Cache Performance Insights</RadzenText>
+                            <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall" Click="() => _showCacheDetails = false" />
+                        </RadzenStack>
+                        
+                        <RadzenAlert AlertStyle="AlertStyle.Info" Shade="Shade.Lighter">
+                            <RadzenText TextStyle="TextStyle.Body2">
+                                @GetPerformanceInsight()
+                            </RadzenText>
+                        </RadzenAlert>
+                        
+                        <RadzenText TextStyle="TextStyle.Subtitle2">Cache Strategy:</RadzenText>
+                        <ul class="list-unstyled">
+                            <li>• Categories: 10 minutes (rarely change)</li>
+                            <li>• File Lists: 2 minutes (moderate changes)</li>
+                            <li>• DD Threads: 1 minute (frequent changes)</li>
+                            <li>• DD Links: 30 seconds (very frequent changes)</li>
+                        </ul>
+                    </RadzenStack>
+                </RadzenCard>
+            </RadzenColumn>
+        </RadzenRow>
+    }
+    else
+    {
+        <RadzenRow>
+            <RadzenColumn Size="12" Style="text-align: center;">
+                <RadzenButton Text="Show Performance Insights" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => _showCacheDetails = true" />
+            </RadzenColumn>
+        </RadzenRow>
+    }
+</RadzenStack>
+
+@code {
+    private CacheStatistics _statistics = new();
+    private bool _showCacheDetails = false;
+    private Timer? _refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshStats();
+        
+        // Auto-refresh every 5 seconds
+        _refreshTimer = new Timer(async _ => await InvokeAsync(async () =>
+        {
+            await RefreshStats();
+            StateHasChanged();
+        }), null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+    }
+
+    private async Task RefreshStats()
+    {
+        _statistics = CacheService.GetStatistics();
+        await Task.CompletedTask; // Placeholder for potential async operations
+    }
+
+    private async Task ClearCache()
+    {
+        await CacheService.ClearAsync();
+        await RefreshStats();
+        StateHasChanged();
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F1} MB";
+    }
+
+    private string GetPerformanceInsight()
+    {
+        var hitRatio = _statistics.HitRatio;
+        
+        if (hitRatio >= 0.8)
+            return "🟢 Excellent cache performance! Most requests are served from cache, significantly reducing API calls and improving response times.";
+        else if (hitRatio >= 0.6)
+            return "🟡 Good cache performance. Consider reviewing cache expiry times for frequently accessed data to improve hit ratio further.";
+        else if (hitRatio >= 0.4)
+            return "🟠 Moderate cache performance. Cache may be expiring too quickly or data patterns don't align with cache strategy.";
+        else if (_statistics.TotalRequests > 10)
+            return "🔴 Low cache performance. Review cache strategy and consider longer expiry times for stable data.";
+        else
+            return "ℹ️ Insufficient data for performance analysis. Use the app to generate cache statistics.";
+    }
+
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+    }
+}

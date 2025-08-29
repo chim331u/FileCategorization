@@ -57,37 +57,59 @@ namespace FileCategorization_App.Components.Interface
         /// Moves multiple files in batch operation
         /// </summary>
         Task<Result<string>> MoveFilesAsync(List<FilesDetailDto> filesToMove);
+
+        #region Legacy Sync Methods (for backward compatibility)
         
-        #region Legacy Methods (for backward compatibility during migration)
-        [Obsolete("Use GetFilesAsync instead. This method will be removed in Phase 2")]
-        Task<List<FilesDetailDto>> GetFiles();
-        
-        [Obsolete("Use RefreshCategoryAsync instead. This method will be removed in Phase 2")]
-        Task<string> RefreshCategory();
-        
-        [Obsolete("Use GetFileAsync instead. This method will be removed in Phase 2")]
-        Task<FilesDetailDto> GetFile(int id);
-        
-        [Obsolete("Use GetCategoriesAsync instead. This method will be removed in Phase 2")]
+        /// <summary>
+        /// Legacy sync method for GetCategories
+        /// </summary>
         Task<List<string>> GetCategories();
         
-        [Obsolete("Use MoveFileAsync instead. This method will be removed in Phase 2")]
-        Task<string> MoveFile(FilesDetailDto fileDetail);
+        /// <summary>
+        /// Legacy sync method for GetFiles
+        /// </summary>
+        Task<List<FilesDetailDto>> GetFiles();
         
-        [Obsolete("Use TrainModelAsync instead. This method will be removed in Phase 2")]
-        Task<string> TrainModel();
+        /// <summary>
+        /// Legacy sync method for GetFile
+        /// </summary>
+        Task<FilesDetailDto> GetFile(int id);
         
-        [Obsolete("Use GetLastFilesListAsync instead. This method will be removed in Phase 2")]
+        /// <summary>
+        /// Legacy sync method for GetLastFilesList
+        /// </summary>
         Task<List<FilesDetailDto>> GetLastFilesList();
         
-        [Obsolete("Use GetAllFilesAsync instead. This method will be removed in Phase 2")]
+        /// <summary>
+        /// Legacy sync method for GetAllFiles
+        /// </summary>
         Task<List<FilesDetailDto>> GetAllFiles(string fileCategory);
         
-        [Obsolete("Use UpdateFileDetailAsync instead. This method will be removed in Phase 2")]
+        /// <summary>
+        /// Legacy sync method for RefreshCategory
+        /// </summary>
+        Task<string> RefreshCategory();
+        
+        /// <summary>
+        /// Legacy sync method for MoveFile
+        /// </summary>
+        Task<string> MoveFile(FilesDetailDto fileDetail);
+        
+        /// <summary>
+        /// Legacy sync method for MoveFiles
+        /// </summary>
+        Task<string> MoveFiles(List<FilesDetailDto> filesToMove);
+        
+        /// <summary>
+        /// Legacy sync method for UpdateFileDetail
+        /// </summary>
         Task<FilesDetailDto> UpdateFileDetail(FilesDetailDto item);
         
-        [Obsolete("Use MoveFilesAsync instead. This method will be removed in Phase 2")]
-        Task<string> MoveFiles(List<FilesDetailDto> filesToMove);
+        /// <summary>
+        /// Legacy sync method for TrainModel
+        /// </summary>
+        Task<string> TrainModel();
+        
         #endregion
     }
 }

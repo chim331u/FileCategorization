@@ -29,25 +29,38 @@ public interface IDDwebService
     Task<Result<bool>> RenewThreadAsync(int threadId);
     
     /// <summary>
-    /// Checks URL validity (deprecated in v2)
+    /// Checks URL validity (deprecated in v2, uses v1 API)
     /// </summary>
-    [Obsolete("This method is deprecated in v2 API and will be removed")]
+    [Obsolete("This method uses v1 API and will be removed in future versions")]
     Task<Result<bool>> CheckUrlAsync(string urlToCheck);
     
-    #region Legacy Methods (for backward compatibility during migration)
-    [Obsolete("Use GetActiveThreadsAsync instead. This method will be removed in Phase 2")]
+    #region Legacy Sync Methods (for backward compatibility)
+    
+    /// <summary>
+    /// Legacy sync method for GetActiveThreads
+    /// </summary>
     Task<List<ThreadSummaryDto>> GetActiveThreads();
     
-    [Obsolete("Use GetEd2kLinksAsync instead. This method will be removed in Phase 2")]
+    /// <summary>
+    /// Legacy sync method for GetEd2kLinks
+    /// </summary>
     Task<List<LinkDto>> GetEd2kLinks(int threadId);
     
-    [Obsolete("Use UseLinkAsync instead. This method will be removed in Phase 2")]
+    /// <summary>
+    /// Legacy sync method for UseLink
+    /// </summary>
     Task<string> UseLink(int linkId);
     
-    [Obsolete("Use RenewThreadAsync instead. This method will be removed in Phase 2")]
+    /// <summary>
+    /// Legacy sync method for RenewThread
+    /// </summary>
     Task<bool> RenewThread(int threadId);
     
-    [Obsolete("Use CheckUrlAsync instead. This method will be removed in Phase 2")]
+    /// <summary>
+    /// Legacy sync method for CheckUrl
+    /// </summary>
+    [Obsolete("This method uses v1 API and will be removed in future versions")]
     Task<bool> CheckUrl(string urlToCheck);
+    
     #endregion
 }
