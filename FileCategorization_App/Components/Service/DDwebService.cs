@@ -30,12 +30,19 @@ public class DDwebService : BaseApiService, IDDwebService
 
     private static HttpClient CreateHttpClient(IHttpsClientHandlerService service)
     {
+        HttpClient client;
 #if DEBUG
         HttpMessageHandler handler = service.GetPlatformMessageHandler();
-        return handler != null ? new HttpClient(handler) : new HttpClient();
+        client = handler != null ? new HttpClient(handler) : new HttpClient();
 #else
-        return new HttpClient();
+        client = new HttpClient();
 #endif
+        
+        // Configure timeout and default headers for DD operations
+        client.Timeout = TimeSpan.FromSeconds(45); // Longer timeout for DD operations
+        client.DefaultRequestHeaders.Add("User-Agent", "FileCategorization_App/1.0");
+        
+        return client;
     }
     public async Task<List<ThreadSummaryDto>> GetActiveThreads()
     {
@@ -183,70 +190,42 @@ public class DDwebService : BaseApiService, IDDwebService
     
     public async Task<Result<List<ThreadSummaryDto>>> GetActiveThreadsAsync()
     {
-        try
-        {
-            Uri uri = CreateUri("api/v2/dd/threads");
-            HttpResponseMessage response = await _client.GetAsync(uri);
-            return await HandleResponseAsync<List<ThreadSummaryDto>>(response, "GetActiveThreadsAsync");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Error getting active threads: {ex.Message}");
-            return Result<List<ThreadSummaryDto>>.Failure($"Error getting active threads: {ex.Message}");
-        }
+        return await ExecuteWithRetryAsync<List<ThreadSummaryDto>>(
+            () => _client.GetAsync(CreateUri("api/v2/dd/threads")),
+            "GetActiveThreadsAsync",
+            maxRetries: 3);
     }
     
     public async Task<Result<List<LinkDto>>> GetEd2kLinksAsync(int threadId)
     {
-        try
-        {
-            Uri uri = CreateUri($"api/v2/dd/threads/{threadId}/links");
-            HttpResponseMessage response = await _client.GetAsync(uri);
-            return await HandleResponseAsync<List<LinkDto>>(response, "GetEd2kLinksAsync");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Error getting ED2K links: {ex.Message}");
-            return Result<List<LinkDto>>.Failure($"Error getting ED2K links: {ex.Message}");
-        }
+        return await ExecuteWithRetryAsync<List<LinkDto>>(
+            () => _client.GetAsync(CreateUri($"api/v2/dd/threads/{threadId}/links")),
+            "GetEd2kLinksAsync",
+            maxRetries: 3);
     }
     
     public async Task<Result<string>> UseLinkAsync(int linkId)
     {
-        try
-        {
-            Uri uri = CreateUri($"api/v2/dd/links/{linkId}/use");
-            HttpResponseMessage response = await _client.PostAsync(uri, null);
-            var result = await HandleResponseAsync<FileCategorization_Shared.DTOs.DD.LinkUsageResultDto>(response, "UseLinkAsync");
+        var result = await ExecuteWithRetryAsync<FileCategorization_Shared.DTOs.DD.LinkUsageResultDto>(
+            () => _client.PostAsync(CreateUri($"api/v2/dd/links/{linkId}/use"), null),
+            "UseLinkAsync",
+            maxRetries: 2); // Reduce retries for POST operations
             
-            if (result.IsSuccess)
-            {
-                return Result<string>.Success(result.Value?.Title ?? "Link used successfully");
-            }
-            return Result<string>.Failure(result.Error);
-        }
-        catch (Exception ex)
+        if (result.IsSuccess)
         {
-            _logger.LogError($"Error using link: {ex.Message}");
-            return Result<string>.Failure($"Error using link: {ex.Message}");
+            return Result<string>.Success(result.Value?.Title ?? "Link used successfully");
         }
+        return Result<string>.Failure(result.Error);
     }
     
     public async Task<Result<bool>> RenewThreadAsync(int threadId)
     {
-        try
-        {
-            Uri uri = CreateUri($"api/v2/dd/threads/{threadId}/refresh");
-            HttpResponseMessage response = await _client.PostAsync(uri, null);
-            var result = await HandleResponseAsync<ThreadProcessingResultDto>(response, "RenewThreadAsync");
+        var result = await ExecuteWithRetryAsync<ThreadProcessingResultDto>(
+            () => _client.PostAsync(CreateUri($"api/v2/dd/threads/{threadId}/refresh"), null),
+            "RenewThreadAsync",
+            maxRetries: 2); // Reduce retries for POST operations
             
-            return Result<bool>.Success(result.IsSuccess);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Error renewing thread: {ex.Message}");
-            return Result<bool>.Failure($"Error renewing thread: {ex.Message}");
-        }
+        return Result<bool>.Success(result.IsSuccess);
     }
     
     [Obsolete("This method is deprecated in v2 API and will be removed")]

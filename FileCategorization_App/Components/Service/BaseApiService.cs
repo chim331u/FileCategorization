@@ -60,10 +60,25 @@ public abstract class BaseApiService
                 return Result<T>.Failure($"HTTP {response.StatusCode}: {errorContent}");
             }
         }
+        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+        {
+            _logger.LogError($"{operationName}: Request timeout - {ex.Message}");
+            return Result<T>.Failure("Request timed out: Server may be unavailable or connection is too slow");
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogError($"{operationName}: Request cancelled - {ex.Message}");
+            return Result<T>.Failure("Request was cancelled");
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError($"{operationName}: Network error - {ex.Message}");
+            return Result<T>.Failure("Network connection failed: Check internet connectivity");
+        }
         catch (JsonException ex)
         {
             _logger.LogError($"{operationName}: JSON deserialization error - {ex.Message}");
-            return Result<T>.Failure($"JSON deserialization error: {ex.Message}");
+            return Result<T>.Failure("Invalid response format from server");
         }
         catch (Exception ex)
         {
@@ -92,10 +107,25 @@ public abstract class BaseApiService
                 return Result<string>.Failure($"HTTP {response.StatusCode}: {errorContent}");
             }
         }
+        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+        {
+            _logger.LogError($"{operationName}: Request timeout - {ex.Message}");
+            return Result<string>.Failure("Request timed out: Server may be unavailable or connection is too slow");
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogError($"{operationName}: Request cancelled - {ex.Message}");
+            return Result<string>.Failure("Request was cancelled");
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError($"{operationName}: Network error - {ex.Message}");
+            return Result<string>.Failure("Network connection failed: Check internet connectivity");
+        }
         catch (Exception ex)
         {
-            _logger.LogError($"{operationName}: Error - {ex.Message}");
-            return Result<string>.Failure($"Error: {ex.Message}");
+            _logger.LogError($"{operationName}: Unexpected error - {ex.Message}");
+            return Result<string>.Failure($"Unexpected error: {ex.Message}");
         }
     }
 
@@ -105,5 +135,121 @@ public abstract class BaseApiService
     protected Uri CreateUri(string endpoint)
     {
         return new Uri(_client.BaseAddress, endpoint);
+    }
+
+    /// <summary>
+    /// Executes HTTP operation with retry policy and exponential backoff
+    /// </summary>
+    protected async Task<Result<T>> ExecuteWithRetryAsync<T>(
+        Func<Task<HttpResponseMessage>> operation, 
+        string operationName,
+        int maxRetries = 3)
+    {
+        var baseDelay = TimeSpan.FromSeconds(1);
+        Exception lastException = null;
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                var response = await operation();
+                return await HandleResponseAsync<T>(response, operationName);
+            }
+            catch (HttpRequestException ex)
+            {
+                lastException = ex;
+                _logger.LogWarning($"{operationName}: Network error on attempt {attempt}/{maxRetries} - {ex.Message}");
+                
+                if (attempt == maxRetries)
+                    break;
+                    
+                var delay = TimeSpan.FromMilliseconds(baseDelay.TotalMilliseconds * Math.Pow(2, attempt - 1));
+                _logger.LogInformation($"{operationName}: Retrying in {delay.TotalSeconds} seconds...");
+                await Task.Delay(delay);
+            }
+            catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+            {
+                lastException = ex;
+                _logger.LogWarning($"{operationName}: Timeout on attempt {attempt}/{maxRetries}");
+                
+                if (attempt == maxRetries)
+                    break;
+                    
+                var delay = TimeSpan.FromMilliseconds(baseDelay.TotalMilliseconds * Math.Pow(2, attempt - 1));
+                await Task.Delay(delay);
+            }
+            catch (Exception ex)
+            {
+                // Don't retry for non-network related exceptions
+                _logger.LogError($"{operationName}: Non-retryable error - {ex.Message}");
+                return Result<T>.Failure($"Operation failed: {ex.Message}");
+            }
+        }
+
+        var errorMessage = lastException switch
+        {
+            HttpRequestException => "Network connection failed after multiple attempts. Check internet connectivity.",
+            TaskCanceledException => "Operation timed out after multiple attempts. Server may be unavailable.",
+            _ => $"Operation failed: {lastException?.Message}"
+        };
+
+        return Result<T>.Failure(errorMessage);
+    }
+
+    /// <summary>
+    /// Executes string response operation with retry policy
+    /// </summary>
+    protected async Task<Result<string>> ExecuteStringWithRetryAsync(
+        Func<Task<HttpResponseMessage>> operation, 
+        string operationName,
+        int maxRetries = 3)
+    {
+        var baseDelay = TimeSpan.FromSeconds(1);
+        Exception lastException = null;
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                var response = await operation();
+                return await HandleStringResponseAsync(response, operationName);
+            }
+            catch (HttpRequestException ex)
+            {
+                lastException = ex;
+                _logger.LogWarning($"{operationName}: Network error on attempt {attempt}/{maxRetries} - {ex.Message}");
+                
+                if (attempt == maxRetries)
+                    break;
+                    
+                var delay = TimeSpan.FromMilliseconds(baseDelay.TotalMilliseconds * Math.Pow(2, attempt - 1));
+                await Task.Delay(delay);
+            }
+            catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+            {
+                lastException = ex;
+                _logger.LogWarning($"{operationName}: Timeout on attempt {attempt}/{maxRetries}");
+                
+                if (attempt == maxRetries)
+                    break;
+                    
+                var delay = TimeSpan.FromMilliseconds(baseDelay.TotalMilliseconds * Math.Pow(2, attempt - 1));
+                await Task.Delay(delay);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"{operationName}: Non-retryable error - {ex.Message}");
+                return Result<string>.Failure($"Operation failed: {ex.Message}");
+            }
+        }
+
+        var errorMessage = lastException switch
+        {
+            HttpRequestException => "Network connection failed after multiple attempts. Check internet connectivity.",
+            TaskCanceledException => "Operation timed out after multiple attempts. Server may be unavailable.",
+            _ => $"Operation failed: {lastException?.Message}"
+        };
+
+        return Result<string>.Failure(errorMessage);
     }
 }

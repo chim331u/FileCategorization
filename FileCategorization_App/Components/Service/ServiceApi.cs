@@ -33,12 +33,19 @@ namespace FileCategorization_App.Components.Service
 
         private static HttpClient CreateHttpClient(IHttpsClientHandlerService service)
         {
+            HttpClient client;
 #if DEBUG
             HttpMessageHandler handler = service.GetPlatformMessageHandler();
-            return handler != null ? new HttpClient(handler) : new HttpClient();
+            client = handler != null ? new HttpClient(handler) : new HttpClient();
 #else
-            return new HttpClient();
+            client = new HttpClient();
 #endif
+            
+            // Configure timeout and default headers
+            client.Timeout = TimeSpan.FromSeconds(30); // 30 second timeout
+            client.DefaultRequestHeaders.Add("User-Agent", "FileCategorization_App/1.0");
+            
+            return client;
         }
 
         public async Task<List<FilesDetailDto>> GetFiles()
@@ -393,30 +400,31 @@ namespace FileCategorization_App.Components.Service
         
         public async Task<Result<List<FilesDetailDto>>> GetFilesAsync()
         {
-            try
-            {
-                var result = await GetFiles();
-                return Result<List<FilesDetailDto>>.Success(result ?? new List<FilesDetailDto>());
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error getting files: {ex.Message}");
-                return Result<List<FilesDetailDto>>.Failure($"Error getting files: {ex.Message}");
-            }
+            return await ExecuteWithRetryAsync<List<FilesDetailDto>>(
+                () => _client.GetAsync(CreateUri("api/v2/files/filtered/3")),
+                "GetFilesAsync",
+                maxRetries: 3);
         }
         
         public async Task<Result<string>> RefreshCategoryAsync()
         {
-            try
+            var request = new RefreshFilesRequest
             {
-                var result = await RefreshCategory();
-                return Result<string>.Success(result ?? "Refresh completed");
-            }
-            catch (Exception ex)
+                BatchSize = 100,
+                ForceRecategorization = false,
+                FileExtensionFilters = null // Process all files
+            };
+
+            var result = await ExecuteWithRetryAsync<ActionJobResponse>(
+                () => _client.PostAsJsonAsync(CreateUri("api/v2/actions/refresh-files"), request),
+                "RefreshCategoryAsync",
+                maxRetries: 2); // POST operations get fewer retries
+
+            if (result.IsSuccess)
             {
-                _logger.LogError($"Error refreshing category: {ex.Message}");
-                return Result<string>.Failure($"Error refreshing category: {ex.Message}");
+                return Result<string>.Success($"Refresh job started: {result.Value?.JobId}");
             }
+            return Result<string>.Failure(result.Error);
         }
         
         public async Task<Result<FilesDetailDto>> GetFileAsync(int id)
@@ -437,16 +445,10 @@ namespace FileCategorization_App.Components.Service
         
         public async Task<Result<List<string>>> GetCategoriesAsync()
         {
-            try
-            {
-                var result = await GetCategories();
-                return Result<List<string>>.Success(result ?? new List<string>());
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error getting categories: {ex.Message}");
-                return Result<List<string>>.Failure($"Error getting categories: {ex.Message}");
-            }
+            return await ExecuteWithRetryAsync<List<string>>(
+                () => _client.GetAsync(CreateUri("api/v2/files/categories")),
+                "GetCategoriesAsync",
+                maxRetries: 3); // Categories are frequently requested, so retry more
         }
         
         public async Task<Result<string>> MoveFileAsync(FilesDetailDto fileDetail)
@@ -465,16 +467,16 @@ namespace FileCategorization_App.Components.Service
         
         public async Task<Result<string>> TrainModelAsync()
         {
-            try
+            var result = await ExecuteWithRetryAsync<ActionJobResponse>(
+                () => _client.PostAsync(CreateUri("api/v2/actions/train-model"), null),
+                "TrainModelAsync",
+                maxRetries: 1); // Model training is resource-intensive, don't retry much
+
+            if (result.IsSuccess)
             {
-                var result = await TrainModel();
-                return Result<string>.Success(result ?? "Model trained successfully");
+                return Result<string>.Success($"Train model job started: {result.Value?.JobId}");
             }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error training model: {ex.Message}");
-                return Result<string>.Failure($"Error training model: {ex.Message}");
-            }
+            return Result<string>.Failure(result.Error);
         }
         
         public async Task<Result<List<FilesDetailDto>>> GetLastFilesListAsync()
