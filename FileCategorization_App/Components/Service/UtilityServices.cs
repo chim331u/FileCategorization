@@ -15,9 +15,9 @@ namespace FileCategorization_App.Components.Service
         public string globalSettingFullPath { get; set; }
         
         /// <summary>
-        /// Whether to use v2 API endpoints (default: false for backward compatibility)
+        /// Whether to use v2 API endpoints (default: true for Phase 2B)
         /// </summary>
-        public bool UseV2Endpoints { get; set; } = false;
+        public bool UseV2Endpoints { get; set; } = true;
         
         /// <summary>
         /// Whether to fallback to v1 endpoints if v2 fails (default: true)
@@ -187,8 +187,8 @@ namespace FileCategorization_App.Components.Service
             {
                 Name = "LocalDev",
                 Address = "10.0.2.2",
-                Port = "7125",
-                Schema = "https",
+                Port = "5089",
+                Schema = "http",
                 IsActive = true
             });
 

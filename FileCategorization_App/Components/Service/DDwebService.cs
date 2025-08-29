@@ -6,156 +6,160 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using FileCategorization_Shared.Common;
 using FileCategorization_Shared.DTOs.DD;
+using FileCategorization_App.Data.DTOs.DD;
 
 namespace FileCategorization_App.Components.Service;
 
-public class DDwebService : IDDwebService
+public class DDwebService : BaseApiService, IDDwebService
 {
-    HttpClient _client;
-    JsonSerializerOptions _serializerOptions;
-    IHttpsClientHandlerService _httpsClientHandlerService;
     private readonly IConfiguration _config;
     private readonly IUtilityServices _utilityServices;
-    ILogger<ServiceApi> _logger;
     
     public DDwebService(IHttpsClientHandlerService service, IConfiguration config, IUtilityServices utilityServices, ILogger<ServiceApi> logger)
+        : base(CreateHttpClient(service), logger)
+    {
+        _config = config;
+        _utilityServices = utilityServices;
+        
+        // Set base address for HttpClient
+        if (_client.BaseAddress == null)
+        {
+            _client.BaseAddress = new Uri(_utilityServices.ApiUrl);
+        }
+    }
+
+    private static HttpClient CreateHttpClient(IHttpsClientHandlerService service)
     {
 #if DEBUG
-        _httpsClientHandlerService = service;
-        HttpMessageHandler handler = _httpsClientHandlerService.GetPlatformMessageHandler();
-        if (handler != null)
-            _client = new HttpClient(handler);
-        else
-            _client = new HttpClient();
+        HttpMessageHandler handler = service.GetPlatformMessageHandler();
+        return handler != null ? new HttpClient(handler) : new HttpClient();
 #else
-            _client = new HttpClient();
+        return new HttpClient();
 #endif
-        _config = config;
-
-        _serializerOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = true
-        };
-
-        _utilityServices = utilityServices;
-        _logger = logger;
     }
     public async Task<List<ThreadSummaryDto>> GetActiveThreads()
     {
-        _logger.LogInformation($"Request active threads");
-        
-        Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v1/GetActiveThreads", string.Empty));
+        _logger.LogInformation($"Request active threads - Using v2 API");
         
         try
         {
-            var threadsList = await _client.GetFromJsonAsync<List<ThreadSummaryDto>>(uri);
-        
-            if (threadsList != null)
+            Uri uri = CreateUri("api/v2/dd/threads");
+            HttpResponseMessage response = await _client.GetAsync(uri);
+            var result = await HandleResponseAsync<List<ThreadSummaryDto>>(response, "GetActiveThreads");
+            
+            if (result.IsSuccess)
             {
-                _logger.LogInformation($"Received threads list");
+                _logger.LogInformation($"Received {result.Value?.Count ?? 0} active threads");
+                return result.Value ?? new List<ThreadSummaryDto>();
             }
             else
             {
-                _logger.LogWarning($"Threads list not received");
+                _logger.LogWarning($"Failed to get active threads: {result.Error}");
+                return new List<ThreadSummaryDto>();
             }
-        
-            return threadsList;
         }
         catch (Exception ex)
         {
-            _logger.LogError($"{ex.Message} - {ex.InnerException}");
-        
-            return null;
+            _logger.LogError($"Error getting active threads: {ex.Message} - {ex.InnerException}");
+            return new List<ThreadSummaryDto>();
         }
     }
 
     public async Task<List<LinkDto>> GetEd2kLinks(int threadId)
     {
-        _logger.LogInformation($"Request links for thread i = {threadId}");
-        
-        Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v1/GetLinks/{threadId}", string.Empty));
+        _logger.LogInformation($"Request links for thread {threadId} - Using v2 API");
         
         try
         {
-            var linkList = await _client.GetFromJsonAsync<List<LinkDto>>(uri);
-        
-            if (linkList != null)
+            Uri uri = CreateUri($"api/v2/dd/threads/{threadId}/links");
+            HttpResponseMessage response = await _client.GetAsync(uri);
+            var result = await HandleResponseAsync<List<LinkDto>>(response, "GetEd2kLinks");
+            
+            if (result.IsSuccess)
             {
-                _logger.LogInformation($"Received link list");
+                _logger.LogInformation($"Received {result.Value?.Count ?? 0} links for thread {threadId}");
+                return result.Value ?? new List<LinkDto>();
             }
             else
             {
-                _logger.LogWarning($"Link list not received");
+                _logger.LogWarning($"Failed to get links for thread {threadId}: {result.Error}");
+                return new List<LinkDto>();
             }
-        
-            return linkList;
         }
         catch (Exception ex)
         {
-            _logger.LogError($"{ex.Message} - {ex.InnerException}");
-        
-            return null;
+            _logger.LogError($"Error getting links for thread {threadId}: {ex.Message} - {ex.InnerException}");
+            return new List<LinkDto>();
         }
     }    
     
     public async Task<string> UseLink(int linkId)
     {
-        _logger.LogInformation($"Request use link id = {linkId}");
+        _logger.LogInformation($"Request use link id = {linkId} - Using v2 API");
 
-        Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v1/UseLink/{linkId}", string.Empty));
-        
         try
         {
-            var result = await _client.GetFromJsonAsync<string>(uri);
-
-            if (!string.IsNullOrEmpty(result))
+            Uri uri = CreateUri($"api/v2/dd/links/{linkId}/use");
+            HttpResponseMessage response = await _client.PostAsync(uri, null);
+            var result = await HandleResponseAsync<FileCategorization_Shared.DTOs.DD.LinkUsageResultDto>(response, "UseLink");
+            
+            if (result.IsSuccess)
             {
-                _logger.LogInformation($" Link Used");
-                return result;
+                _logger.LogInformation($"Link {linkId} used successfully");
+                return result.Value?.Title ?? "Link used successfully";
             }
-            return string.Empty;
+            else
+            {
+                _logger.LogWarning($"Failed to use link {linkId}: {result.Error}");
+                return string.Empty;
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError($"{ex.Message} - {ex.InnerException}");
-        
+            _logger.LogError($"Error using link {linkId}: {ex.Message} - {ex.InnerException}");
             return string.Empty;
         }
     }
 
     public async Task<bool> RenewThread(int threadId)
     {
-        _logger.LogInformation($"Request check url for thread id= {threadId}");
+        _logger.LogInformation($"Request refresh thread links for thread id = {threadId} - Using v2 API");
 
-        Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v1/CheckLinks/{threadId}/", string.Empty));
-        
         try
         {
-            var result = await _client.GetAsync(uri);
-
-            if (result.IsSuccessStatusCode)
+            Uri uri = CreateUri($"api/v2/dd/threads/{threadId}/refresh");
+            HttpResponseMessage response = await _client.PostAsync(uri, null);
+            var result = await HandleResponseAsync<ThreadProcessingResultDto>(response, "RenewThread");
+            
+            if (result.IsSuccess)
             {
-                _logger.LogInformation($"{result.StatusCode.ToString()} - Url Checked");
-                return result.IsSuccessStatusCode;
+                _logger.LogInformation($"Thread {threadId} refreshed successfully: {result.Value?.NewLinksCount ?? 0} new links found");
+                return true;
             }
-            return false;
+            else
+            {
+                _logger.LogWarning($"Failed to refresh thread {threadId}: {result.Error}");
+                return false;
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError($"{ex.Message} - {ex.InnerException}");
-        
+            _logger.LogError($"Error refreshing thread {threadId}: {ex.Message} - {ex.InnerException}");
             return false;
         }
     }
 
+    /// <summary>
+    /// CheckUrl method - remains on v1 API as no v2 equivalent exists
+    /// This method will be deprecated in future versions
+    /// </summary>
+    [Obsolete("This method uses v1 API and will be removed in future versions")]
     public async Task<bool> CheckUrl(string urlToCheck)
     {
-        _logger.LogInformation($"Request check url = {urlToCheck}");
+        _logger.LogInformation($"Request check url = {urlToCheck} - Using v1 API (deprecated)");
         
         var _urlToCheck = Base64UrlEncoder.Encode(urlToCheck);
-
-        Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v1/CheckLink/{_urlToCheck}/", string.Empty));
+        Uri uri = new Uri(_utilityServices.ApiUrl + $"api/v1/CheckLink/{_urlToCheck}/");
         
         try
         {
@@ -170,8 +174,7 @@ public class DDwebService : IDDwebService
         }
         catch (Exception ex)
         {
-            _logger.LogError($"{ex.Message} - {ex.InnerException}");
-        
+            _logger.LogError($"Error checking URL: {ex.Message} - {ex.InnerException}");
             return false;
         }
     }
@@ -182,8 +185,9 @@ public class DDwebService : IDDwebService
     {
         try
         {
-            var result = await GetActiveThreads();
-            return Result<List<ThreadSummaryDto>>.Success(result ?? new List<ThreadSummaryDto>());
+            Uri uri = CreateUri("api/v2/dd/threads");
+            HttpResponseMessage response = await _client.GetAsync(uri);
+            return await HandleResponseAsync<List<ThreadSummaryDto>>(response, "GetActiveThreadsAsync");
         }
         catch (Exception ex)
         {
@@ -196,8 +200,9 @@ public class DDwebService : IDDwebService
     {
         try
         {
-            var result = await GetEd2kLinks(threadId);
-            return Result<List<LinkDto>>.Success(result ?? new List<LinkDto>());
+            Uri uri = CreateUri($"api/v2/dd/threads/{threadId}/links");
+            HttpResponseMessage response = await _client.GetAsync(uri);
+            return await HandleResponseAsync<List<LinkDto>>(response, "GetEd2kLinksAsync");
         }
         catch (Exception ex)
         {
@@ -210,8 +215,15 @@ public class DDwebService : IDDwebService
     {
         try
         {
-            var result = await UseLink(linkId);
-            return Result<string>.Success(result ?? "Link used successfully");
+            Uri uri = CreateUri($"api/v2/dd/links/{linkId}/use");
+            HttpResponseMessage response = await _client.PostAsync(uri, null);
+            var result = await HandleResponseAsync<FileCategorization_Shared.DTOs.DD.LinkUsageResultDto>(response, "UseLinkAsync");
+            
+            if (result.IsSuccess)
+            {
+                return Result<string>.Success(result.Value?.Title ?? "Link used successfully");
+            }
+            return Result<string>.Failure(result.Error);
         }
         catch (Exception ex)
         {
@@ -224,8 +236,11 @@ public class DDwebService : IDDwebService
     {
         try
         {
-            var result = await RenewThread(threadId);
-            return Result<bool>.Success(result);
+            Uri uri = CreateUri($"api/v2/dd/threads/{threadId}/refresh");
+            HttpResponseMessage response = await _client.PostAsync(uri, null);
+            var result = await HandleResponseAsync<ThreadProcessingResultDto>(response, "RenewThreadAsync");
+            
+            return Result<bool>.Success(result.IsSuccess);
         }
         catch (Exception ex)
         {

@@ -6,17 +6,16 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using FileCategorization_Shared.Common;
 using FileCategorization_Shared.DTOs.FileManagement;
+using FileCategorization_App.Data.DTOs.Actions;
+using System.Text;
 
 namespace FileCategorization_App.Components.Service
 {
     public class ServiceApi : BaseApiService, IServiceApi
     {
-        HttpClient _client;
-        JsonSerializerOptions _serializerOptions;
         IHttpsClientHandlerService _httpsClientHandlerService;
         private readonly IConfiguration _config;
         private readonly IUtilityServices _utilityServices;
-        ILogger<ServiceApi> _logger;
 
         public ServiceApi(IHttpsClientHandlerService service, IConfiguration config, IUtilityServices utilityServices, ILogger<ServiceApi> logger) 
             : base(CreateHttpClient(service), logger)
@@ -24,7 +23,6 @@ namespace FileCategorization_App.Components.Service
             _httpsClientHandlerService = service;
             _config = config;
             _utilityServices = utilityServices;
-            _logger = logger;
 
             // Set base address for HttpClient
             if (_client.BaseAddress == null)
@@ -45,8 +43,8 @@ namespace FileCategorization_App.Components.Service
 
         public async Task<List<FilesDetailDto>> GetFiles()
         {
-            _logger.LogInformation($"Request File to move (GetFiles)");
-            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v1/GetFileList/3", string.Empty));
+            _logger.LogInformation($"Request files to categorize (GetFiles) - Using v2 API");
+            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v2/files/filtered/3", string.Empty));
 
             var dataResponse = new List<FilesDetailDto>();
 
@@ -57,21 +55,19 @@ namespace FileCategorization_App.Components.Service
                 {
                     string content = await response.Content.ReadAsStringAsync();
                     dataResponse = JsonSerializer.Deserialize<List<FilesDetailDto>>(content, _serializerOptions);
-                    _logger.LogInformation($"{response.StatusCode.ToString()} - Files to move received");
-
+                    _logger.LogInformation($"{response.StatusCode.ToString()} - Files to categorize received (v2)");
                 }
                 else
                 {
-                    _logger.LogWarning($"{response.StatusCode.ToString()} - Files to move NOT received");
+                    _logger.LogWarning($"{response.StatusCode.ToString()} - Files to categorize NOT received (v2)");
                 }
 
-                return dataResponse;
+                return dataResponse ?? new List<FilesDetailDto>();
             }
             catch (Exception ex)
             {
-                _logger.LogError($"{ex.Message} - {ex.InnerException}");
-
-                return null;
+                _logger.LogError($"GetFiles v2 error: {ex.Message} - {ex.InnerException}");
+                return new List<FilesDetailDto>();
             }
 
 
@@ -79,32 +75,36 @@ namespace FileCategorization_App.Components.Service
 
         public async Task<string> RefreshCategory()
         {
-            _logger.LogInformation($"Request refresh categories (RefreshCategory)");
+            _logger.LogInformation($"Request refresh categories (RefreshCategory) - Using v2 API");
 
-            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v1/RefreshFiles", string.Empty));
+            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v2/actions/refresh-files", string.Empty));
 
-            var dataResponse = new List<FilesDetailDto>();
+            var request = new RefreshFilesRequest
+            {
+                BatchSize = 100,
+                ForceRecategorization = false,
+                FileExtensionFilters = null // Process all files
+            };
 
             try
             {
-                HttpResponseMessage response = await _client.GetAsync(uri);
+                HttpResponseMessage response = await _client.PostAsJsonAsync(uri, request);
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation($"{response.StatusCode.ToString()} - Categories received");
-                    return "List Updated";
+                    var content = await response.Content.ReadAsStringAsync();
+                    var jobResponse = JsonSerializer.Deserialize<ActionJobResponse>(content, _serializerOptions);
+                    
+                    _logger.LogInformation($"{response.StatusCode.ToString()} - Refresh job started: {jobResponse?.JobId}");
+                    return $"Refresh job started: {jobResponse?.JobId}";
                 }
-                _logger.LogWarning($"{response.StatusCode.ToString()} - Categories NOT received");
+                _logger.LogWarning($"{response.StatusCode.ToString()} - Refresh job NOT started");
                 return null;
             }
             catch (Exception ex)
             {
                 _logger.LogError($"{ex.Message} - {ex.InnerException}");
-
                 return null;
             }
-
-
-
         }
 
         public async Task<FilesDetailDto> GetFile(int id)
@@ -141,8 +141,8 @@ namespace FileCategorization_App.Components.Service
 
         public async Task<List<string>> GetCategories()
         {
-            _logger.LogInformation($"Request categories List (GetCategories)");
-            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v1/CategoryList", string.Empty));
+            _logger.LogInformation($"Request categories List (GetCategories) - Using v2 API");
+            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v2/files/categories", string.Empty));
 
             var dataResponse = new List<string>();
 
@@ -175,16 +175,30 @@ namespace FileCategorization_App.Components.Service
 
         public async Task<string> MoveFile(FilesDetailDto fileDetail)
         {
-            _logger.LogInformation($"Request to move files (MoveFile)");
-            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v1/MoveFile/{fileDetail.Id}/{fileDetail.FileCategory}", string.Empty));
+            _logger.LogInformation($"Request to move single file (MoveFile) - Using v2 API as batch");
+            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v2/actions/move-files", string.Empty));
 
             try
             {
-                HttpResponseMessage response = await _client.GetAsync(uri);
+                var request = new MoveFilesRequest
+                {
+                    FilesToMove = new List<FileMoveDto>
+                    {
+                        new FileMoveDto { Id = fileDetail.Id, FileCategory = fileDetail.FileCategory }
+                    },
+                    ContinueOnError = false,
+                    ValidateCategories = true,
+                    CreateDirectories = true
+                };
+
+                HttpResponseMessage response = await _client.PostAsJsonAsync(uri, request);
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation($"{response.StatusCode.ToString()} - File moved");
-                    return $"File {fileDetail.Name} moved.";
+                    var content = await response.Content.ReadAsStringAsync();
+                    var jobResponse = JsonSerializer.Deserialize<ActionJobResponse>(content, _serializerOptions);
+                    
+                    _logger.LogInformation($"{response.StatusCode.ToString()} - File move job started: {jobResponse?.JobId}");
+                    return $"File {fileDetail.Name} move job started: {jobResponse?.JobId}";
                 }
                 _logger.LogWarning($"{response.StatusCode.ToString()} - File NOT moved");
                 return null;
@@ -193,7 +207,6 @@ namespace FileCategorization_App.Components.Service
             catch (Exception ex)
             {
                 _logger.LogError($"{ex.Message} - {ex.InnerException}");
-
                 return null;
             }
 
@@ -201,29 +214,41 @@ namespace FileCategorization_App.Components.Service
 
         public async Task<string> MoveFiles(List<FilesDetailDto> filesToMove)
         {
-            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v1/FilesDetails/MoveFiles", string.Empty));
+            _logger.LogInformation($"Request move files batch - Using v2 API");
+            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v2/actions/move-files", string.Empty));
 
             try
             {
-                var fileMoveDtoList = new List<FileMovedDto>();
+                var fileMoveList = new List<FileMoveDto>();
 
                 foreach (var item in filesToMove)
                 {
-                    fileMoveDtoList.Add(new FileMovedDto { Id = item.Id, FileCategory = item.FileCategory });
+                    fileMoveList.Add(new FileMoveDto { Id = item.Id, FileCategory = item.FileCategory });
                 }
 
-                if (fileMoveDtoList == null || fileMoveDtoList.Count == 0)
+                if (fileMoveList == null || fileMoveList.Count == 0)
                 {
                     _logger.LogWarning($"No files to move");
                     return "No files to move";
                 }
 
-                HttpResponseMessage response = await _client.PostAsJsonAsync(uri, fileMoveDtoList);
+                var request = new MoveFilesRequest
+                {
+                    FilesToMove = fileMoveList,
+                    ContinueOnError = true,
+                    ValidateCategories = true,
+                    CreateDirectories = true
+                };
+
+                HttpResponseMessage response = await _client.PostAsJsonAsync(uri, request);
 
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation($"{response.StatusCode.ToString()} - File moved");
-                    return await response.Content.ReadAsStringAsync();
+                    var content = await response.Content.ReadAsStringAsync();
+                    var jobResponse = JsonSerializer.Deserialize<ActionJobResponse>(content, _serializerOptions);
+                    
+                    _logger.LogInformation($"{response.StatusCode.ToString()} - Move files job started: {jobResponse?.JobId}");
+                    return $"Move files job started: {jobResponse?.JobId}";
                 }
 
                 return null;
@@ -238,21 +263,23 @@ namespace FileCategorization_App.Components.Service
 
         public async Task<string> TrainModel()
         {
-            _logger.LogInformation($"Request train model (TrainModel)");
-            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/TrainModel", string.Empty));
+            _logger.LogInformation($"Request train model (TrainModel) - Using v2 API");
+            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v2/actions/train-model", string.Empty));
 
             try
             {
-                HttpResponseMessage response = await _client.GetAsync(uri);
+                HttpResponseMessage response = await _client.PostAsync(uri, null);
 
                 if (response.IsSuccessStatusCode)
                 {
-                    string content = await response.Content.ReadAsStringAsync();
-                    _logger.LogInformation($"{response.StatusCode.ToString()} - Model trained");
-                    return "Model's Train completed";
+                    var content = await response.Content.ReadAsStringAsync();
+                    var jobResponse = JsonSerializer.Deserialize<ActionJobResponse>(content, _serializerOptions);
+                    
+                    _logger.LogInformation($"{response.StatusCode.ToString()} - Train model job started: {jobResponse?.JobId}");
+                    return $"Train model job started: {jobResponse?.JobId}";
                 }
-                _logger.LogWarning($"{response.StatusCode.ToString()} - Model NOT trained");
-                return "Model's Train FAILED";
+                _logger.LogWarning($"{response.StatusCode.ToString()} - Model training NOT started");
+                return "Model training FAILED";
 
 
             }
@@ -266,9 +293,9 @@ namespace FileCategorization_App.Components.Service
 
         public async Task<List<FilesDetailDto>> GetLastFilesList()
         {
-            _logger.LogInformation($"Request Last file list (GetLastFilesList)");
+            _logger.LogInformation($"Request Last file list (GetLastFilesList) - Using v2 API");
 
-            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v1/GetLastViewList", string.Empty));
+            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v2/files/lastview", string.Empty));
 
             var dataResponse = new List<FilesDetailDto>();
 
@@ -299,8 +326,8 @@ namespace FileCategorization_App.Components.Service
 
         public async Task<List<FilesDetailDto>> GetAllFiles(string fileCategory)
         {
-            _logger.LogInformation($"Request Get all file list (GetAllFiles)");
-            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v1/GetAllFiles/{fileCategory}", string.Empty));
+            _logger.LogInformation($"Request Get all file list (GetAllFiles) - Using v2 API");
+            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v2/files/category/{fileCategory}", string.Empty));
 
             var dataResponse = new List<FilesDetailDto>();
 
