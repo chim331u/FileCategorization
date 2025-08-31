@@ -402,9 +402,15 @@ namespace FileCategorization_Api.Services
 
             var jobExecutionTime = await _utility.TimeDiff(jobStartTime, DateTime.Now);
             _logger.LogInformation($"Refresh Files Job Completed: [{jobExecutionTime}]");
+            
+            // Send final refreshFilesNotifications message with progress = 100 for APP completion detection
+            await _notificationHub.Clients.All.SendAsync("refreshFilesNotifications",
+                $"Refresh completed. Total files processed: {totalFilesInFolder}", 100);
+            
+            // Send jobNotifications for general job tracking
             await _notificationHub.Clients.All.SendAsync("jobNotifications",
                 $"Refresh Files job Completed in [{jobExecutionTime}] - Added {fileAdded} files, total files in folder: {totalFilesInFolder}",
-                0);
+                MoveFilesResults.Completed);
         }
 
         /// <summary>

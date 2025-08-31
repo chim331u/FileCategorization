@@ -156,6 +156,10 @@ app.MapActionsV2Endpoints();
 // DD v2 endpoints
 app.MapDDEndpointsV2();
 
+app.MapGroup("/api/v2/")
+    .WithTags("Healthcheck v2")
+    .MapHealthcheckEndPoints();
+
 app.Run();
 
 // Hangfire Authorization Filter for Development

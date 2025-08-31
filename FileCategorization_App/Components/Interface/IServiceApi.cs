@@ -18,10 +18,6 @@ namespace FileCategorization_App.Components.Interface
         /// </summary>
         Task<Result<string>> RefreshCategoryAsync();
 
-        /// <summary>
-        /// Gets specific file details by ID
-        /// </summary>
-        Task<Result<FilesDetailDto>> GetFileAsync(int id);
 
         /// <summary>
         /// Gets list of available categories
@@ -49,9 +45,9 @@ namespace FileCategorization_App.Components.Interface
         Task<Result<List<FilesDetailDto>>> GetAllFilesAsync(string fileCategory);
 
         /// <summary>
-        /// Updates file details
+        /// Marks file as "not to show again" (uses v2 API)
         /// </summary>
-        Task<Result<FilesDetailDto>> UpdateFileDetailAsync(FilesDetailDto item);
+        Task<Result<FilesDetailDto>> SetFileNotShowAgainAsync(int fileId);
 
         /// <summary>
         /// Moves multiple files in batch operation
@@ -70,10 +66,6 @@ namespace FileCategorization_App.Components.Interface
         /// </summary>
         Task<List<FilesDetailDto>> GetFiles();
         
-        /// <summary>
-        /// Legacy sync method for GetFile
-        /// </summary>
-        Task<FilesDetailDto> GetFile(int id);
         
         /// <summary>
         /// Legacy sync method for GetLastFilesList
@@ -100,10 +92,6 @@ namespace FileCategorization_App.Components.Interface
         /// </summary>
         Task<string> MoveFiles(List<FilesDetailDto> filesToMove);
         
-        /// <summary>
-        /// Legacy sync method for UpdateFileDetail
-        /// </summary>
-        Task<FilesDetailDto> UpdateFileDetail(FilesDetailDto item);
         
         /// <summary>
         /// Legacy sync method for TrainModel

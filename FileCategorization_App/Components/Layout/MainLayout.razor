@@ -1,17 +1,337 @@
 ﻿@inherits LayoutComponentBase
+@using FileCategorization_App.Components.Service
+@using FileCategorization_App.Components.Interface
+@inject AppInitializationService InitializationService
+@inject IUnifiedNotificationService NotificationService
+@inject ILogger<MainLayout> Logger
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu/>
-    </div>
-
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+<RadzenLayout>
+    <RadzenHeader>
+        <div class="header-container">
+            <div class="hamburger-menu" @onclick="ToggleNavMenu">
+                <RadzenIcon Icon="menu" />
+            </div>
+            <div class="app-title">FC Remote</div>
+            <div class="header-actions">
+                <RadzenIcon Icon="settings" @onclick="@(() => NavigateTo("setting"))" title="Settings" />
+            </div>
+        </div>
+        
+        <!-- Mobile Navigation Menu Overlay -->
+        @if (navMenuOpen)
+        {
+            <div class="nav-overlay @(navMenuOpen ? "show" : "")" @onclick="CloseNavMenu">
+                <div class="nav-menu-container" @onclick:stopPropagation="true">
+                    <div class="nav-header">
+                        <h5>Menu</h5>
+                        <RadzenIcon Icon="close" @onclick="CloseNavMenu" class="close-icon" />
+                    </div>
+                    <nav class="nav-menu">
+                        <div class="nav-item" @onclick="@(() => NavigateAndClose(""))">
+                            <RadzenIcon Icon="home" />
+                            <span>Home</span>
+                        </div>
+                        <div class="nav-item" @onclick="@(() => NavigateAndClose("lastView"))">
+                            <RadzenIcon Icon="visibility" />
+                            <span>Last View</span>
+                        </div>
+                        <div class="nav-item" @onclick="@(() => NavigateAndClose("DDwebPage"))">
+                            <RadzenIcon Icon="smart_toy" />
+                            <span>DD Web</span>
+                        </div>
+                        <div class="nav-item" @onclick="@(() => NavigateAndClose("setting"))">
+                            <RadzenIcon Icon="settings" />
+                            <span>Settings</span>
+                        </div>
+                        <div class="nav-item" @onclick="@(() => NavigateAndClose("cache-monitor"))">
+                            <RadzenIcon Icon="speed" />
+                            <span>Cache Monitor</span>
+                        </div>
+                        <div class="nav-item" @onclick="@(() => NavigateAndClose("connectivity"))">
+                            <RadzenIcon Icon="wifi" />
+                            <span>Connectivity</span>
+                        </div>
+                        <div class="nav-item" @onclick="@(() => NavigateAndClose("network-tester"))">
+                            <RadzenIcon Icon="settings_ethernet" />
+                            <span>Network Tester</span>
+                        </div>
+                        <div class="nav-item" @onclick="@(() => NavigateAndClose("notification-report"))">
+                            <RadzenIcon Icon="notifications" />
+                            <span>Notifiche TOAST</span>
+                        </div>
+                        <div class="nav-item" @onclick="@(() => NavigateAndClose("signalr-status"))">
+                            <RadzenIcon Icon="@(NotificationService.IsConnected ? "radio_button_checked" : "radio_button_unchecked")" 
+                                       Style="@(NotificationService.IsConnected ? "color: green;" : "color: red;")" />
+                            <span>SignalR @(NotificationService.IsConnected ? "Connected" : "Disconnected")</span>
+                        </div>
+                    </nav>
+                </div>
+            </div>
+        }
+    </RadzenHeader>
+    <RadzenBody>
+        <!-- Global Connectivity Status -->
+        <div class="connectivity-wrapper">
+            <FileCategorization_App.Components.Pages.Connectivity.ConnectivityStatus />
         </div>
 
-        <article class="content px-4">
+        <!-- Global Console -->
+        <div class="console-wrapper">
+            <FileCategorization_App.Components.Layout.GlobalConsole />
+        </div>
+
+        <div>
             @Body
-        </article>
-    </main>
-</div>
+        </div>
+    </RadzenBody>
+    <RadzenFooter>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem" JustifyContent="JustifyContent.SpaceBetween" Wrap="FlexWrap.Wrap">
+
+            <RadzenStack Orientation="Orientation.Vertical" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center">
+                <RadzenIcon Icon="home" onclick="@(()=> NavigateTo("home"))" />
+                @*                 <RadzenStack>Home</RadzenStack> *@
+            </RadzenStack>
+
+            <RadzenStack Orientation="Orientation.Vertical" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
+                         onclick="@(()=> NavigateTo("setting"))">
+                <RadzenIcon Icon="settings" title="Setting" style="font-weight: 100;" />@* <RadzenStack>Setting</RadzenStack> *@
+            </RadzenStack>
+
+            <RadzenStack Orientation="Orientation.Vertical" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
+                         onclick="@(()=> NavigateTo("logger"))">
+                <RadzenIcon Icon="article" title="Log" style="font-weight: 100;" />@* <RadzenStack>Log</RadzenStack> *@
+            </RadzenStack>
+
+            <RadzenStack Orientation="Orientation.Vertical" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
+                         onclick="@(()=> NavigateTo("lastView"))">
+                <RadzenIcon Icon="visibility" title="lastView" style="font-weight: 100;" />
+            </RadzenStack>
+            
+            <RadzenStack Orientation="Orientation.Vertical" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
+                         onclick="@(()=> NavigateTo("DDwebPage"))">
+                <RadzenIcon Icon="smart_toy" title="ddweb" style="font-weight: 100;" />
+            </RadzenStack>
+        </RadzenStack>
+    </RadzenFooter>
+</RadzenLayout>
+
+@code {
+    private bool navMenuOpen = false;
+    private bool isAppInitialized = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("it-IT");
+        
+        try
+        {
+            Logger.LogInformation("Initializing MainLayout...");
+            await InitializationService.InitializeAsync();
+            
+            // Initialize unified notification service
+            try
+            {
+                await NotificationService.StartAsync();
+                Logger.LogInformation("Unified notification service started successfully");
+            }
+            catch (Exception signalREx)
+            {
+                Logger.LogError($"Error starting unified notification service: {signalREx.Message}");
+            }
+            
+            isAppInitialized = true;
+            Logger.LogInformation("MainLayout initialized successfully");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error initializing MainLayout: {ex.Message}");
+            isAppInitialized = false;
+        }
+    }
+
+    private void ToggleNavMenu()
+    {
+        navMenuOpen = !navMenuOpen;
+    }
+
+    private void CloseNavMenu()
+    {
+        navMenuOpen = false;
+    }
+
+    private void NavigateAndClose(string page)
+    {
+        NavigateTo(page);
+        CloseNavMenu();
+    }
+
+    private void NavigateTo(string page)
+    {
+        NavManager.NavigateTo($"/{page}");
+    }
+}
+
+<style>
+    .header-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 16px;
+        height: 56px;
+        background-color: var(--rz-primary);
+        color: white;
+    }
+
+    .hamburger-menu {
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+    }
+
+    .hamburger-menu:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .app-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        flex: 1;
+        text-align: center;
+    }
+
+    .header-actions {
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+    }
+
+    .header-actions:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .nav-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s, visibility 0.3s;
+    }
+
+    .nav-overlay.show {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .nav-menu-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 280px;
+        height: 100vh;
+        background-color: white;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        transform: translateX(-100%);
+        transition: transform 0.3s;
+    }
+
+    .nav-overlay.show .nav-menu-container {
+        transform: translateX(0);
+    }
+
+    .nav-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        background-color: var(--rz-primary);
+        color: white;
+    }
+
+    .nav-header h5 {
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .close-icon {
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+    }
+
+    .close-icon:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .nav-menu {
+        padding: 8px 0;
+    }
+
+    .nav-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 20px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .nav-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .nav-item:last-child {
+        border-bottom: none;
+    }
+
+    .nav-item .rz-icon {
+        margin-right: 12px;
+        color: var(--rz-primary);
+        font-size: 1.1rem;
+    }
+
+    .nav-item span {
+        font-size: 1rem;
+        font-weight: 500;
+        color: #333;
+    }
+
+    /* Mobile-first responsive design */
+    @@media (max-width: 768px) {
+        .header-container {
+            padding: 0 12px;
+            height: 50px;
+        }
+
+        .app-title {
+            font-size: 1.1rem;
+        }
+
+        .nav-menu-container {
+            width: 250px;
+        }
+
+        .nav-item {
+            padding: 14px 16px;
+        }
+    }
+
+    /* Hide hamburger on larger screens if needed */
+    @@media (min-width: 1024px) {
+        .hamburger-menu {
+            /* Could hide on desktop if desired */
+        }
+    }
+</style>
+
+<RadzenDialog />
+<RadzenNotification />
+<RadzenContextMenu />
+<RadzenTooltip />

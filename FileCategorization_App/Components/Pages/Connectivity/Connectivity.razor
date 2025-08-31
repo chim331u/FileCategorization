@@ -1,0 +1,345 @@
+@page "/connectivity"
+@using FileCategorization_App.Components.Interface
+@using FileCategorization_Shared.Common
+@inject IConnectivityService ConnectivityService
+@inject ILogger<Connectivity> Logger
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Connectivity Monitor</PageTitle>
+
+<RadzenStack Orientation="Orientation.Vertical" Gap="1rem">
+    <RadzenText TextStyle="TextStyle.H4" TagName="TagName.H1">
+        <RadzenIcon Icon="wifi" /> Connectivity Monitor
+    </RadzenText>
+    
+    <!-- Current Status Overview -->
+    <RadzenRow>
+        <RadzenColumn Size="6">
+            <RadzenCard>
+                <RadzenStack Orientation="Orientation.Vertical" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenText TextStyle="TextStyle.H6">Network Status</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4" Style="@($"color: {GetNetworkStatusColor()}")">@GetNetworkStatusText()</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color)">
+                        @GetConnectionTypeText()
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        
+        <RadzenColumn Size="6">
+            <RadzenCard>
+                <RadzenStack Orientation="Orientation.Vertical" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenText TextStyle="TextStyle.H6">Server Status</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4" Style="@($"color: {GetServerStatusColor()}")">@GetServerStatusText()</RadzenText>
+                    @if (connectivityInfo?.LastPingDuration.TotalMilliseconds > 0)
+                    {
+                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color)">
+                            Ping: @($"{connectivityInfo.LastPingDuration.TotalMilliseconds:F0}ms")
+                        </RadzenText>
+                    }
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+    
+    <!-- Detailed Status -->
+    <RadzenCard>
+        <RadzenStack Orientation="Orientation.Vertical" Gap="1rem">
+            <RadzenText TextStyle="TextStyle.H6">Detailed Information</RadzenText>
+            
+            @if (connectivityInfo != null)
+            {
+                <RadzenRow>
+                    <RadzenColumn Size="4">
+                        <RadzenStack Orientation="Orientation.Vertical" Gap="0.25rem">
+                            <RadzenText TextStyle="TextStyle.Subtitle2">Connection Type</RadzenText>
+                            <RadzenText Style="color: var(--rz-primary)">@connectivityInfo.ConnectionType</RadzenText>
+                        </RadzenStack>
+                    </RadzenColumn>
+                    
+                    <RadzenColumn Size="4">
+                        <RadzenStack Orientation="Orientation.Vertical" Gap="0.25rem">
+                            <RadzenText TextStyle="TextStyle.Subtitle2">Network Name</RadzenText>
+                            <RadzenText Style="color: var(--rz-primary)">@(connectivityInfo.NetworkName ?? "Unknown")</RadzenText>
+                        </RadzenStack>
+                    </RadzenColumn>
+                    
+                    <RadzenColumn Size="4">
+                        <RadzenStack Orientation="Orientation.Vertical" Gap="0.25rem">
+                            <RadzenText TextStyle="TextStyle.Subtitle2">Connection Quality</RadzenText>
+                            <RadzenBadge Text="@GetConnectionQuality()" BadgeStyle="@GetConnectionQualityBadgeStyle()" />
+                        </RadzenStack>
+                    </RadzenColumn>
+                </RadzenRow>
+                
+                @if (connectivityInfo.ConsecutiveFailures > 0 || !string.IsNullOrEmpty(connectivityInfo.LastError))
+                {
+                    <RadzenAlert AlertStyle="AlertStyle.Warning" Shade="Shade.Lighter">
+                        <RadzenStack Orientation="Orientation.Vertical" Gap="0.25rem">
+                            @if (connectivityInfo.ConsecutiveFailures > 0)
+                            {
+                                <RadzenText><strong>Consecutive Failures:</strong> @connectivityInfo.ConsecutiveFailures</RadzenText>
+                            }
+                            @if (!string.IsNullOrEmpty(connectivityInfo.LastError))
+                            {
+                                <RadzenText><strong>Last Error:</strong> @connectivityInfo.LastError</RadzenText>
+                            }
+                        </RadzenStack>
+                    </RadzenAlert>
+                }
+                
+                @if (connectivityInfo.LastSuccessfulPing != DateTime.MinValue)
+                {
+                    <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color)">
+                        Last successful connection: @connectivityInfo.LastSuccessfulPing.ToString("HH:mm:ss")
+                    </RadzenText>
+                }
+            }
+            else
+            {
+                <RadzenAlert AlertStyle="AlertStyle.Info" Shade="Shade.Lighter">
+                    <RadzenText>Loading connectivity information...</RadzenText>
+                </RadzenAlert>
+            }
+        </RadzenStack>
+    </RadzenCard>
+    
+    <!-- Actions -->
+    <RadzenCard>
+        <RadzenStack Orientation="Orientation.Vertical" Gap="1rem">
+            <RadzenText TextStyle="TextStyle.H6">Actions</RadzenText>
+            
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Wrap="FlexWrap.Wrap">
+                <RadzenButton Text="Refresh Status" 
+                             Icon="refresh" 
+                             ButtonStyle="ButtonStyle.Primary" 
+                             Size="ButtonSize.Small"
+                             Click="RefreshStatus"
+                             Disabled="@isRefreshing"
+                             IsBusy="@isRefreshing" />
+                             
+                <RadzenButton Text="Test Server Connection" 
+                             Icon="link" 
+                             ButtonStyle="ButtonStyle.Secondary" 
+                             Size="ButtonSize.Small"
+                             Click="TestConnection"
+                             Disabled="@isTesting"
+                             IsBusy="@isTesting" />
+                             
+                <RadzenButton Text="Network Tester" 
+                             Icon="settings_ethernet" 
+                             ButtonStyle="ButtonStyle.Light" 
+                             Size="ButtonSize.Small"
+                             Click="NavigateToNetworkTester" />
+            </RadzenStack>
+            
+            @if (!string.IsNullOrEmpty(lastActionResult))
+            {
+                <RadzenAlert AlertStyle="@(lastActionSuccess ? AlertStyle.Success : AlertStyle.Danger)" 
+                            Shade="Shade.Lighter">
+                    <RadzenText>@lastActionResult</RadzenText>
+                </RadzenAlert>
+            }
+        </RadzenStack>
+    </RadzenCard>
+    
+    <!-- Real-time Updates -->
+    <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color); text-align: center;">
+        Status updates automatically every 30 seconds • Last updated: @lastUpdateTime.ToString("HH:mm:ss")
+    </RadzenText>
+</RadzenStack>
+
+@code {
+    private ConnectivityInfo? connectivityInfo;
+    private bool isRefreshing = false;
+    private bool isTesting = false;
+    private string? lastActionResult;
+    private bool lastActionSuccess = false;
+    private DateTime lastUpdateTime = DateTime.Now;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to connectivity events
+        ConnectivityService.ConnectivityChanged += OnConnectivityChanged;
+        ConnectivityService.ServerReachabilityChanged += OnServerReachabilityChanged;
+        
+        // Start monitoring
+        await ConnectivityService.StartMonitoringAsync();
+        
+        // Load initial status
+        await LoadConnectivityInfo();
+    }
+
+    private async void OnConnectivityChanged(object? sender, AppConnectivityChangedEventArgs e)
+    {
+        Logger.LogInformation($"Connectivity changed: {e.IsConnected}, Type: {e.ConnectionType}");
+        await InvokeAsync(async () =>
+        {
+            await LoadConnectivityInfo();
+            StateHasChanged();
+        });
+    }
+
+    private async void OnServerReachabilityChanged(object? sender, ServerReachabilityChangedEventArgs e)
+    {
+        Logger.LogInformation($"Server reachability changed: {e.IsReachable}");
+        await InvokeAsync(async () =>
+        {
+            await LoadConnectivityInfo();
+            StateHasChanged();
+        });
+    }
+
+    private async Task LoadConnectivityInfo()
+    {
+        try
+        {
+            connectivityInfo = await ConnectivityService.GetConnectivityInfoAsync();
+            lastUpdateTime = DateTime.Now;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error loading connectivity info: {ex.Message}");
+        }
+    }
+
+    private async Task RefreshStatus()
+    {
+        if (isRefreshing) return;
+        
+        isRefreshing = true;
+        lastActionResult = null;
+        
+        try
+        {
+            await LoadConnectivityInfo();
+            lastActionResult = "Status refreshed successfully";
+            lastActionSuccess = true;
+        }
+        catch (Exception ex)
+        {
+            lastActionResult = $"Error refreshing status: {ex.Message}";
+            lastActionSuccess = false;
+            Logger.LogError($"Error refreshing status: {ex.Message}");
+        }
+        finally
+        {
+            isRefreshing = false;
+        }
+    }
+
+    private async Task TestConnection()
+    {
+        if (isTesting) return;
+        
+        isTesting = true;
+        lastActionResult = null;
+        
+        try
+        {
+            var result = await ConnectivityService.PingServerAsync();
+            await LoadConnectivityInfo();
+            
+            lastActionResult = result 
+                ? "Server connection test successful" 
+                : "Server connection test failed";
+            lastActionSuccess = result;
+        }
+        catch (Exception ex)
+        {
+            lastActionResult = $"Connection test error: {ex.Message}";
+            lastActionSuccess = false;
+            Logger.LogError($"Error testing connection: {ex.Message}");
+        }
+        finally
+        {
+            isTesting = false;
+        }
+    }
+
+    private void NavigateToNetworkTester()
+    {
+        Navigation.NavigateTo("/network-tester");
+    }
+
+    private string GetNetworkStatusColor()
+    {
+        if (connectivityInfo?.IsConnected == true)
+            return "var(--rz-success)";
+        return "var(--rz-danger)";
+    }
+
+    private string GetNetworkStatusText()
+    {
+        if (connectivityInfo?.IsConnected == true)
+            return "Connected";
+        return "Disconnected";
+    }
+
+    private string GetServerStatusColor()
+    {
+        if (connectivityInfo?.IsConnected != true)
+            return "var(--rz-text-secondary-color)";
+        
+        if (connectivityInfo.IsServerReachable)
+            return "var(--rz-success)";
+        return "var(--rz-danger)";
+    }
+
+    private string GetServerStatusText()
+    {
+        if (connectivityInfo?.IsConnected != true)
+            return "N/A";
+        
+        if (connectivityInfo.IsServerReachable)
+            return "Reachable";
+        return "Unreachable";
+    }
+
+    private string GetConnectionTypeText()
+    {
+        if (connectivityInfo != null)
+            return $"via {connectivityInfo.ConnectionType}";
+        return "";
+    }
+
+    private string GetConnectionQuality()
+    {
+        if (connectivityInfo?.IsConnected != true)
+            return "No Connection";
+        
+        if (!connectivityInfo.IsServerReachable)
+            return "Poor";
+        
+        if (connectivityInfo.LastPingDuration.TotalMilliseconds <= 100)
+            return "Excellent";
+        else if (connectivityInfo.LastPingDuration.TotalMilliseconds <= 300)
+            return "Good";
+        else
+            return "Fair";
+    }
+
+    private BadgeStyle GetConnectionQualityBadgeStyle()
+    {
+        if (connectivityInfo?.IsConnected != true || !connectivityInfo.IsServerReachable)
+            return BadgeStyle.Danger;
+        
+        if (connectivityInfo.LastPingDuration.TotalMilliseconds <= 100)
+            return BadgeStyle.Success;
+        else if (connectivityInfo.LastPingDuration.TotalMilliseconds <= 300)
+            return BadgeStyle.Primary;
+        else
+            return BadgeStyle.Warning;
+    }
+
+    public void Dispose()
+    {
+        // Unsubscribe from events
+        ConnectivityService.ConnectivityChanged -= OnConnectivityChanged;
+        ConnectivityService.ServerReachabilityChanged -= OnServerReachabilityChanged;
+        
+        // Stop monitoring
+        _ = Task.Run(async () => await ConnectivityService.StopMonitoringAsync());
+    }
+}

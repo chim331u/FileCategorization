@@ -1,0 +1,313 @@
+@page "/network-tester"
+@using FileCategorization_App.Components.Interface
+@using FileCategorization_App.Data.Setting
+@using System.Net.NetworkInformation
+@inject IUtilityServices UtilityService
+@inject IConnectivityService ConnectivityService
+@inject ILogger<NetworkTester> Logger
+
+<PageTitle>Network Configuration Tester</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <RadzenText TextStyle="TextStyle.H4" TagName="TagName.H1">
+                <RadzenIcon Icon="settings_ethernet" /> Network Configuration Tester
+            </RadzenText>
+            
+            <!-- Current Configuration -->
+            <RadzenCard class="mb-4">
+                <RadzenStack Orientation="Orientation.Vertical" Gap="1rem">
+                    <RadzenText TextStyle="TextStyle.H6">Current API Configuration</RadzenText>
+                    <RadzenText><strong>Current API URL:</strong> <code>@currentApiUrl</code></RadzenText>
+                    <RadzenText><strong>Status:</strong> 
+                        <RadzenBadge Text="@(isCurrentUrlWorking ? "✓ Working" : "✗ Not Working")"
+                                    BadgeStyle="@(isCurrentUrlWorking ? BadgeStyle.Success : BadgeStyle.Danger)" />
+                    </RadzenText>
+                    @if (!string.IsNullOrEmpty(currentError))
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Warning" Shade="Shade.Lighter">
+                            <strong>Error:</strong> @currentError
+                        </RadzenAlert>
+                    }
+                </RadzenStack>
+            </RadzenCard>
+
+            <!-- Network Settings Test -->
+            <RadzenCard class="mb-4">
+                <RadzenStack Orientation="Orientation.Vertical" Gap="1rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                        <RadzenText TextStyle="TextStyle.H6">Available Network Configurations</RadzenText>
+                        <RadzenButton Text="@(isTestingAll ? "Testing..." : "Test All")"
+                                     Icon="@(isTestingAll ? "" : "play_circle")"
+                                     ButtonStyle="ButtonStyle.Primary"
+                                     Size="ButtonSize.Small"
+                                     Click="TestAllConfigurations"
+                                     Disabled="@isTestingAll"
+                                     IsBusy="@isTestingAll" />
+                    </RadzenStack>
+                    @if (networkSettings != null && networkSettings.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>URL</th>
+                                        <th>Status</th>
+                                        <th>Response Time</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var setting in networkSettings)
+                                    {
+                                        <tr class="@(setting.IsActive ? "table-success" : "")">
+                                            <td>
+                                                <strong>@setting.Name</strong>
+                                                @if (setting.IsActive)
+                                                {
+                                                    <RadzenBadge Text="Active" BadgeStyle="BadgeStyle.Success" />
+                                                }
+                                            </td>
+                                            <td>
+                                                <code>@($"{setting.Schema}://{setting.Address}:{setting.Port}")</code>
+                                            </td>
+                                            <td>
+                                                @if (testResults.ContainsKey(setting.Name))
+                                                {
+                                                    var result = testResults[setting.Name];
+                                                    <RadzenBadge Text="@(result.IsWorking ? "✓ Working" : "✗ Failed")"
+                                                                BadgeStyle="@(result.IsWorking ? BadgeStyle.Success : BadgeStyle.Danger)" />
+                                                }
+                                                else
+                                                {
+                                                    <RadzenBadge Text="Not Tested" BadgeStyle="BadgeStyle.Secondary" />
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (testResults.ContainsKey(setting.Name) && testResults[setting.Name].ResponseTime.HasValue)
+                                                {
+                                                    var responseTime = testResults[setting.Name].ResponseTime.Value;
+                                                    <RadzenBadge Text="@($"{responseTime.TotalMilliseconds:F0}ms")"
+                                                                BadgeStyle="@GetResponseTimeBadgeStyle(responseTime)" />
+                                                }
+                                                else
+                                                {
+                                                    <RadzenText Style="color: var(--rz-text-secondary-color)">-</RadzenText>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <button type="button" 
+                                                            class="btn btn-outline-primary" 
+                                                            @onclick="@(() => TestSingleConfiguration(setting))"
+                                                            disabled="@(testingSettings.Contains(setting.Name))">
+                                                        @if (testingSettings.Contains(setting.Name))
+                                                        {
+                                                            <span class="spinner-border spinner-border-sm"></span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <i class="bi bi-play"></i>
+                                                        }
+                                                    </button>
+                                                    <button type="button" 
+                                                            class="btn btn-outline-success" 
+                                                            @onclick="@(() => ActivateConfiguration(setting))"
+                                                            disabled="@setting.IsActive">
+                                                        <i class="bi bi-check-circle"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Info" Shade="Shade.Lighter">
+                            <RadzenIcon Icon="info" /> No network settings found. Default settings will be created.
+                        </RadzenAlert>
+                    }
+                </RadzenStack>
+            </RadzenCard>
+
+            <!-- Quick Setup -->
+            <RadzenCard>
+                <RadzenStack Orientation="Orientation.Vertical" Gap="1rem">
+                    <RadzenText TextStyle="TextStyle.H6">Quick Setup</RadzenText>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <RadzenText TextStyle="TextStyle.Subtitle1" Style="color: var(--rz-primary)">
+                                <RadzenIcon Icon="smartphone" /> For Physical Device
+                            </RadzenText>
+                            <RadzenText TextStyle="TextStyle.Body2">Use your computer's local IP address:</RadzenText>
+                            <ul class="list-unstyled small">
+                                <li>• Find your PC's IP: <code>ipconfig</code> (Windows) or <code>ifconfig</code> (Mac/Linux)</li>
+                                <li>• Use format: <code>http://192.168.x.x:5089</code></li>
+                                <li>• Make sure API is running and accessible</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <RadzenText TextStyle="TextStyle.Subtitle1" Style="color: var(--rz-success)">
+                                <RadzenIcon Icon="laptop" /> For Emulator
+                            </RadzenText>
+                            <RadzenText TextStyle="TextStyle.Body2">Use special emulator address:</RadzenText>
+                            <ul class="list-unstyled small">
+                                <li>• Android Emulator: <code>http://10.0.2.2:5089</code></li>
+                                <li>• iOS Simulator: <code>http://localhost:5089</code></li>
+                                <li>• Ensure API allows localhost connections</li>
+                            </ul>
+                        </div>
+                    </div>
+                </RadzenStack>
+            </RadzenCard>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string currentApiUrl = "";
+    private bool isCurrentUrlWorking = false;
+    private string? currentError;
+    private List<NetworkSetting>? networkSettings;
+    private Dictionary<string, TestResult> testResults = new();
+    private HashSet<string> testingSettings = new();
+    private bool isTestingAll = false;
+
+    public class TestResult
+    {
+        public bool IsWorking { get; set; }
+        public TimeSpan? ResponseTime { get; set; }
+        public string? Error { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentApiUrl = UtilityService.ApiUrl;
+        networkSettings = UtilityService.ReadNetworkSettingJson()?.ToList();
+        
+        // Test current configuration
+        await TestCurrentConfiguration();
+    }
+
+    private async Task TestCurrentConfiguration()
+    {
+        try
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var result = await ConnectivityService.PingServerAsync();
+            stopwatch.Stop();
+            
+            isCurrentUrlWorking = result;
+            currentError = isCurrentUrlWorking ? null : "Server ping failed";
+            
+            Logger.LogInformation($"Current API test result: {result}, Time: {stopwatch.ElapsedMilliseconds}ms");
+        }
+        catch (Exception ex)
+        {
+            isCurrentUrlWorking = false;
+            currentError = ex.Message;
+            Logger.LogError($"Error testing current API: {ex.Message}");
+        }
+    }
+
+    private async Task TestAllConfigurations()
+    {
+        if (networkSettings == null) return;
+        
+        isTestingAll = true;
+        testResults.Clear();
+        
+        try
+        {
+            foreach (var setting in networkSettings)
+            {
+                await TestSingleConfiguration(setting);
+                StateHasChanged();
+                await Task.Delay(500); // Small delay between tests
+            }
+        }
+        finally
+        {
+            isTestingAll = false;
+        }
+    }
+
+    private async Task TestSingleConfiguration(NetworkSetting setting)
+    {
+        testingSettings.Add(setting.Name);
+        
+        try
+        {
+            var testUrl = $"{setting.Schema}://{setting.Address}:{setting.Port}/api/v1/CategoryList";
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            
+            using var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(10);
+            
+            var response = await httpClient.GetAsync(testUrl);
+            stopwatch.Stop();
+            
+            testResults[setting.Name] = new TestResult
+            {
+                IsWorking = response.IsSuccessStatusCode,
+                ResponseTime = stopwatch.Elapsed,
+                Error = response.IsSuccessStatusCode ? null : $"HTTP {response.StatusCode}"
+            };
+            
+            Logger.LogInformation($"Test {setting.Name}: {response.IsSuccessStatusCode}, Time: {stopwatch.ElapsedMilliseconds}ms");
+        }
+        catch (Exception ex)
+        {
+            testResults[setting.Name] = new TestResult
+            {
+                IsWorking = false,
+                ResponseTime = null,
+                Error = ex.Message
+            };
+            
+            Logger.LogError($"Error testing {setting.Name}: {ex.Message}");
+        }
+        finally
+        {
+            testingSettings.Remove(setting.Name);
+        }
+    }
+
+    private async Task ActivateConfiguration(NetworkSetting setting)
+    {
+        if (networkSettings == null) return;
+        
+        // Deactivate all others
+        foreach (var s in networkSettings)
+        {
+            s.IsActive = false;
+        }
+        
+        // Activate selected
+        setting.IsActive = true;
+        
+        // Save and update
+        if (UtilityService.WriteNetworkSettingJson(networkSettings))
+        {
+            currentApiUrl = UtilityService.SetApiUrl();
+            await TestCurrentConfiguration();
+            Logger.LogInformation($"Activated configuration: {setting.Name}");
+        }
+    }
+
+    private BadgeStyle GetResponseTimeBadgeStyle(TimeSpan responseTime)
+    {
+        var ms = responseTime.TotalMilliseconds;
+        return ms switch
+        {
+            <= 100 => BadgeStyle.Success,
+            <= 300 => BadgeStyle.Warning,
+            _ => BadgeStyle.Danger
+        };
+    }
+}

@@ -118,8 +118,18 @@
     {
         linksList = null;
         selectedThread = null;
-        threadList = await _service.GetActiveThreads();
-        _consoleLog = "Threads loaded";
+        
+        var result = await _service.GetActiveThreadsAsync();
+        if (result.IsSuccess)
+        {
+            threadList = result.Value ?? new List<ThreadSummaryDto>();
+            _consoleLog = "Threads loaded";
+        }
+        else
+        {
+            threadList = new List<ThreadSummaryDto>();
+            _consoleLog = $"Error loading threads: {result.Error}";
+        }
     }
 
     private void GoHome()
@@ -133,56 +143,79 @@
     private async Task GetEd2kLinks(int threadId)
     {
         if (threadList != null) selectedThread = threadList.Where(x => x.Id == threadId).FirstOrDefault();
-        linksList = await _service.GetEd2kLinks(threadId);
-        _consoleLog = "Links loaded";
+        
+        var result = await _service.GetEd2kLinksAsync(threadId);
+        if (result.IsSuccess)
+        {
+            linksList = result.Value ?? new List<LinkDto>();
+            _consoleLog = "Links loaded";
+        }
+        else
+        {
+            linksList = new List<LinkDto>();
+            _consoleLog = $"Error loading links: {result.Error}";
+        }
     }
 
     private async Task UseLink(int linkId)
     {
         if (linkId > 0)
         {
-            
             _consoleLog = "Request using link ...";
-            var ed2kLink = await _service.UseLink(linkId);
+            var result = await _service.UseLinkAsync(linkId);
 
-            if (!string.IsNullOrEmpty(ed2kLink))
+            if (result.IsSuccess)
             {
+                var ed2kLink = result.Value ?? "";
                 _consoleLog = "Link used";
                 await CopyLink(ed2kLink);
-                var currentLink = linksList.Where(x => x.Id == linkId).FirstOrDefault();
-                currentLink.IsUsed = true;
+                var currentLink = linksList?.Where(x => x.Id == linkId).FirstOrDefault();
+                if (currentLink != null)
+                {
+                    currentLink.IsUsed = true;
+                }
+            }
+            else
+            {
+                _consoleLog = $"Error using link: {result.Error}";
             }
         }
     }
 
     private async Task RenewThread(int threadId)
     {
-        _consoleLog = $"Checking url for thread id {threadId} ...";
-        var response = await _service.RenewThread(threadId);
-        if (response)
+        _consoleLog = $"Refreshing thread id {threadId} ...";
+        var result = await _service.RenewThreadAsync(threadId);
+        if (result.IsSuccess && result.Value)
         {
-            //url checked
-            _consoleLog = "Url checked";
+            _consoleLog = "Thread refreshed successfully";
             _showAddLink = false;
             _urlValid = false;
             _urlToCheck = string.Empty;
             await GetActiveThreads();
+        }
+        else
+        {
+            _consoleLog = $"Error refreshing thread: {result.Error}";
         }
     }
 
     private async Task CheckUrl(MouseEventArgs arg)
     {
         _consoleLog = "Checking url...";
-        var response = await _service.CheckUrl(_urlToCheck);
-        if (response)
+        var result = await _service.CheckUrlAsync(_urlToCheck);
+        if (result.IsSuccess && result.Value)
         {
-            //url checked
-            _consoleLog = "Url checked";
+            _consoleLog = "Url checked successfully";
             _showAddLink = false;
             _urlValid = false;
             _urlToCheck = string.Empty;
 
             await GetActiveThreads();
+        }
+        else
+        {
+            _consoleLog = $"Error checking URL: {result.Error}";
         }
     }
 

@@ -114,37 +114,6 @@ namespace FileCategorization_App.Components.Service
             }
         }
 
-        public async Task<FilesDetailDto> GetFile(int id)
-        {
-            _logger.LogInformation($"Request Get File by Id (GetFile(id))");
-            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v1/GetFilesDetail/{id}", string.Empty));
-
-            try
-            {
-                var fileDetail = await _client.GetFromJsonAsync<FilesDetailDto>(uri);
-
-                if (fileDetail != null)
-                {
-                    _logger.LogInformation($"Received File {fileDetail.Name}");
-                }
-                else
-                {
-                    _logger.LogWarning($"Received File: null");
-                }
-
-                return fileDetail;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"{ex.Message} - {ex.InnerException}");
-
-                return null;
-            }
-
-
-
-
-        }
 
         public async Task<List<string>> GetCategories()
         {
@@ -365,36 +334,6 @@ namespace FileCategorization_App.Components.Service
             }
         }
 
-        public async Task<FilesDetailDto> UpdateFileDetail(FilesDetailDto item)
-        {
-            _logger.LogInformation($"Update file (UpdateFileDetail)");
-            Uri uri = new Uri(string.Format(_utilityServices.ApiUrl + $"api/v1/UpdateFilesDetail", string.Empty));
-
-            try
-            {
-                HttpResponseMessage response = await _client.PutAsJsonAsync(uri, item);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    string content = await response.Content.ReadAsStringAsync();
-                    var dataResponse = JsonSerializer.Deserialize<FilesDetailDto>(content, _serializerOptions);
-                    _logger.LogInformation($"{response.StatusCode.ToString()} - File Updated");
-                    return dataResponse;
-                }
-
-                _logger.LogWarning($"{response.StatusCode.ToString()} - File  NOT updated");
-
-
-                return null;
-
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"{ex.Message} - {ex.InnerException}");
-
-                return null;
-            }
-        }
 
         #region New Interface Implementation (Async with Result Pattern)
         
@@ -427,26 +366,11 @@ namespace FileCategorization_App.Components.Service
             return Result<string>.Failure(result.Error);
         }
         
-        public async Task<Result<FilesDetailDto>> GetFileAsync(int id)
-        {
-            try
-            {
-                var result = await GetFile(id);
-                return result != null 
-                    ? Result<FilesDetailDto>.Success(result) 
-                    : Result<FilesDetailDto>.Failure($"File with ID {id} not found");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error getting file {id}: {ex.Message}");
-                return Result<FilesDetailDto>.Failure($"Error getting file {id}: {ex.Message}");
-            }
-        }
         
         public async Task<Result<List<string>>> GetCategoriesAsync()
         {
             return await ExecuteWithRetryAsync<List<string>>(
-                () => _client.GetAsync(CreateUri("api/v2/files/categories")),
+                () => _client.GetAsync(CreateUri("api/v2/categories")),
                 "GetCategoriesAsync",
                 maxRetries: 3); // Categories are frequently requested, so retry more
         }
@@ -472,11 +396,7 @@ namespace FileCategorization_App.Components.Service
                 "TrainModelAsync",
                 maxRetries: 1); // Model training is resource-intensive, don't retry much
 
-            if (result.IsSuccess)
-            {
-                return Result<string>.Success($"Train model job started: {result.Value?.JobId}");
-            }
-            return Result<string>.Failure(result.Error);
+            return result.IsSuccess ? Result<string>.Success($"Train model job started: {result.Value?.JobId}") : Result<string>.Failure(result.Error);
         }
         
         public async Task<Result<List<FilesDetailDto>>> GetLastFilesListAsync()
@@ -507,20 +427,18 @@ namespace FileCategorization_App.Components.Service
             }
         }
         
-        public async Task<Result<FilesDetailDto>> UpdateFileDetailAsync(FilesDetailDto item)
+        /// <summary>
+        /// Marks file as "not to show again" using v2 API
+        /// </summary>
+        public async Task<Result<FilesDetailDto>> SetFileNotShowAgainAsync(int fileId)
         {
-            try
-            {
-                var result = await UpdateFileDetail(item);
-                return result != null 
-                    ? Result<FilesDetailDto>.Success(result) 
-                    : Result<FilesDetailDto>.Failure("Failed to update file detail");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error updating file detail: {ex.Message}");
-                return Result<FilesDetailDto>.Failure($"Error updating file detail: {ex.Message}");
-            }
+            
+            var apiCall = CreateUri($"api/v2/files/{fileId}/not-show-again");
+            var test = await ExecuteWithRetryAsync<FilesDetailDto>(
+                () => _client.PatchAsync(apiCall, null),
+                "SetFileNotShowAgainAsync",
+                maxRetries: 2);
+            return test;
         }
         
         public async Task<Result<string>> MoveFilesAsync(List<FilesDetailDto> filesToMove)

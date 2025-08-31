@@ -1,0 +1,415 @@
+@page "/notification-report"
+@using FileCategorization_App.Components.Interface
+@using FileCategorization_App.Components.Service
+@using Radzen
+@inject INotificationTrackingService TrackingService
+@inject TrackedNotificationService TrackedNotification
+@inject ILogger<NotificationReportPage> Logger
+@implements IDisposable
+
+<PageTitle>Resoconto Notifiche TOAST</PageTitle>
+
+<RadzenRow>
+    <RadzenColumn Size="12">
+        <RadzenCard>
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                <RadzenText TextStyle="TextStyle.H4" Text="📢 Resoconto Notifiche TOAST" />
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                    <RadzenButton Text="🔄 Aggiorna" Click="@RefreshData" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" />
+                    <RadzenButton Text="🗑️ Pulisci Vecchie" Click="@CleanOldNotifications" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" />
+                    <RadzenButton Text="📄 Esporta JSON" Click="@ExportToJson" ButtonStyle="ButtonStyle.Info" Size="ButtonSize.Small" />
+                    <RadzenButton Text="🧪 Test Notifica" Click="@TestNotification" ButtonStyle="ButtonStyle.Warning" Size="ButtonSize.Small" />
+                </RadzenStack>
+            </RadzenStack>
+        </RadzenCard>
+    </RadzenColumn>
+</RadzenRow>
+
+<!-- Statistiche -->
+<RadzenRow Class="mt-3">
+    <RadzenColumn Size="12">
+        <RadzenCard>
+            <RadzenText TextStyle="TextStyle.H6" Text="📊 Statistiche" />
+            <RadzenRow>
+                <RadzenColumn Size="6" SizeMD="3">
+                    <RadzenCard class="text-center">
+                        <RadzenText TextStyle="TextStyle.H6">📊 Totale</RadzenText>
+                        <RadzenText TextStyle="TextStyle.H4">@(statistics?.TotalNotifications ?? 0)</RadzenText>
+                    </RadzenCard>
+                </RadzenColumn>
+                <RadzenColumn Size="6" SizeMD="3">
+                    <RadzenCard class="text-center">
+                        <RadzenText TextStyle="TextStyle.H6">❌ Errori</RadzenText>
+                        <RadzenText TextStyle="TextStyle.H4">@(statistics?.ErrorCount ?? 0)</RadzenText>
+                    </RadzenCard>
+                </RadzenColumn>
+                <RadzenColumn Size="6" SizeMD="3">
+                    <RadzenCard class="text-center">
+                        <RadzenText TextStyle="TextStyle.H6">⚠️ Avvisi</RadzenText>
+                        <RadzenText TextStyle="TextStyle.H4">@(statistics?.WarningCount ?? 0)</RadzenText>
+                    </RadzenCard>
+                </RadzenColumn>
+                <RadzenColumn Size="6" SizeMD="3">
+                    <RadzenCard class="text-center">
+                        <RadzenText TextStyle="TextStyle.H6">✅ Successi</RadzenText>
+                        <RadzenText TextStyle="TextStyle.H4">@(statistics?.SuccessCount ?? 0)</RadzenText>
+                    </RadzenCard>
+                </RadzenColumn>
+            </RadzenRow>
+            
+            @if (statistics != null)
+            {
+                <RadzenRow Class="mt-3">
+                    <RadzenColumn Size="12" SizeMD="6">
+                        <RadzenText TextStyle="TextStyle.Subtitle2" Text="🎯 Top Sorgenti:" />
+                        <RadzenDataList Data="@statistics.TopSources" TItem="string">
+                            <Template>
+                                <RadzenText TextStyle="TextStyle.Body2">• @context</RadzenText>
+                            </Template>
+                        </RadzenDataList>
+                    </RadzenColumn>
+                    <RadzenColumn Size="12" SizeMD="6">
+                        <RadzenText TextStyle="TextStyle.Subtitle2" Text="⚡ Top Eventi Scatenanti:" />
+                        <RadzenDataList Data="@statistics.TopTriggerEvents" TItem="string">
+                            <Template>
+                                <RadzenText TextStyle="TextStyle.Body2">• @context</RadzenText>
+                            </Template>
+                        </RadzenDataList>
+                    </RadzenColumn>
+                </RadzenRow>
+                
+                <RadzenRow Class="mt-2">
+                    <RadzenColumn Size="12" SizeMD="4">
+                        <RadzenText>⏰ Notifiche/Ora: @(statistics.NotificationsPerHour)</RadzenText>
+                    </RadzenColumn>
+                    <RadzenColumn Size="12" SizeMD="4">
+                        <RadzenText>📅 Prima: @(statistics.FirstNotification?.ToString("HH:mm dd/MM") ?? "N/A")</RadzenText>
+                    </RadzenColumn>
+                    <RadzenColumn Size="12" SizeMD="4">
+                        <RadzenText>🕐 Ultima: @(statistics.LastNotification?.ToString("HH:mm dd/MM") ?? "N/A")</RadzenText>
+                    </RadzenColumn>
+                </RadzenRow>
+            }
+        </RadzenCard>
+    </RadzenColumn>
+</RadzenRow>
+
+<!-- Filtri -->
+<RadzenRow Class="mt-3">
+    <RadzenColumn Size="12">
+        <RadzenCard>
+            <RadzenText TextStyle="TextStyle.H6" Text="🔍 Filtri" />
+            <RadzenStack Orientation="Orientation.Horizontal" Wrap="FlexWrap.Wrap" Gap="1rem" AlignItems="AlignItems.End">
+                <RadzenFormField Text="Periodo" Variant="Variant.Filled">
+                    <RadzenDropDown @bind-Value="selectedPeriod" Data="@periodOptions" TextProperty="Text" ValueProperty="Value" 
+                                    Change="@OnPeriodChanged" Style="width: 150px;" />
+                </RadzenFormField>
+                
+                <RadzenFormField Text="Severità" Variant="Variant.Filled">
+                    <RadzenDropDown @bind-Value="selectedSeverity" Data="@severityOptions" TextProperty="Text" ValueProperty="Value" 
+                                    Change="@OnSeverityChanged" AllowClear="true" Placeholder="Tutte" Style="width: 120px;" />
+                </RadzenFormField>
+                
+                <RadzenFormField Text="Sorgente" Variant="Variant.Filled">
+                    <RadzenDropDown @bind-Value="selectedSource" Data="@sourceOptions" 
+                                    Change="@OnSourceChanged" AllowClear="true" Placeholder="Tutte" Style="width: 200px;" />
+                </RadzenFormField>
+                
+                <RadzenButton Text="⚡ Live" Click="@ToggleLiveMode" ButtonStyle="@(isLiveMode ? ButtonStyle.Success : ButtonStyle.Light)" 
+                              Size="ButtonSize.Small" />
+            </RadzenStack>
+        </RadzenCard>
+    </RadzenColumn>
+</RadzenRow>
+
+<!-- Elenco Notifiche -->
+<RadzenRow Class="mt-3">
+    <RadzenColumn Size="12">
+        <RadzenCard>
+            <RadzenText TextStyle="TextStyle.H6">📋 Elenco Notifiche (@(filteredNotifications?.Count ?? 0))</RadzenText>
+            
+            @if (filteredNotifications == null || !filteredNotifications.Any())
+            {
+                <RadzenAlert Shade="Shade.Light" Variant="Variant.Flat" Size="AlertSize.Small" AlertStyle="AlertStyle.Info">
+                    <RadzenText>Nessuna notificazione trovata per i filtri selezionati.</RadzenText>
+                </RadzenAlert>
+            }
+            else
+            {
+                <RadzenDataGrid Data="@filteredNotifications" TItem="NotificationTrackingEntry" 
+                                AllowSorting="true" AllowFiltering="true" AllowPaging="true" PageSize="20"
+                                Density="Density.Compact" GridLines="DataGridGridLines.Both">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="NotificationTrackingEntry" Property="FormattedTimestamp" Title="🕐 Ora" Width="140px" />
+                        
+                        <RadzenDataGridColumn TItem="NotificationTrackingEntry" Property="SeverityText" Title="⚠️ Severità" Width="100px">
+                            <Template Context="notification">
+                                @{
+                                    var (icon, color) = GetSeverityIconAndColor(notification.Severity);
+                                }
+                                <RadzenBadge Text="@notification.SeverityText" IsPill="true" BadgeStyle="@color" />
+                            </Template>
+                        </RadzenDataGridColumn>
+                        
+                        <RadzenDataGridColumn TItem="NotificationTrackingEntry" Property="Source" Title="📍 Sorgente" Width="180px">
+                            <Template Context="notification">
+                                <RadzenText TextStyle="TextStyle.Body2" class="text-truncate">@notification.Source</RadzenText>
+                            </Template>
+                        </RadzenDataGridColumn>
+                        
+                        <RadzenDataGridColumn TItem="NotificationTrackingEntry" Property="TriggerEvent" Title="⚡ Evento" Width="200px">
+                            <Template Context="notification">
+                                <RadzenText TextStyle="TextStyle.Body2" class="text-truncate">@notification.TriggerEvent</RadzenText>
+                            </Template>
+                        </RadzenDataGridColumn>
+                        
+                        <RadzenDataGridColumn TItem="NotificationTrackingEntry" Property="Message" Title="💬 Messaggio">
+                            <Template Context="notification">
+                                <RadzenText TextStyle="TextStyle.Body2">@notification.Message</RadzenText>
+                                @if (!string.IsNullOrEmpty(notification.AdditionalData))
+                                {
+                                    <RadzenText TextStyle="TextStyle.Caption" class="text-muted mt-1">@notification.AdditionalData</RadzenText>
+                                }
+                            </Template>
+                        </RadzenDataGridColumn>
+                    </Columns>
+                </RadzenDataGrid>
+            }
+        </RadzenCard>
+    </RadzenColumn>
+</RadzenRow>
+
+@code {
+    private List<NotificationTrackingEntry>? allNotifications;
+    private List<NotificationTrackingEntry>? filteredNotifications;
+    private NotificationStatistics? statistics;
+    
+    private string selectedPeriod = "30"; // minuti
+    private NotificationSeverity? selectedSeverity;
+    private string? selectedSource;
+    private bool isLiveMode = false;
+    private Timer? liveTimer;
+
+    private readonly List<DropdownOption> periodOptions = new()
+    {
+        new("Ultimi 5 min", "5"),
+        new("Ultimi 30 min", "30"),
+        new("Ultima ora", "60"),
+        new("Ultime 6 ore", "360"),
+        new("Oggi", "1440"),
+        new("Tutto", "0")
+    };
+
+    private readonly List<SeverityOption> severityOptions = new()
+    {
+        new("Info", NotificationSeverity.Info),
+        new("Successo", NotificationSeverity.Success),
+        new("Avviso", NotificationSeverity.Warning),
+        new("Errore", NotificationSeverity.Error)
+    };
+
+    private List<string> sourceOptions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to new notifications
+        TrackingService.NotificationTracked += OnNotificationTracked;
+        
+        await LoadData();
+        
+        Logger.LogInformation("📊 NotificationReportPage inizializzata");
+    }
+
+    private async void OnNotificationTracked(NotificationTrackingEntry entry)
+    {
+        if (isLiveMode)
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadData();
+                StateHasChanged();
+            });
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            allNotifications = TrackingService.GetAllNotifications();
+            statistics = TrackingService.GetNotificationStatistics();
+            
+            // Aggiorna le opzioni delle sorgenti
+            sourceOptions = allNotifications
+                .Select(x => x.Source)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+            
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Errore durante il caricamento dei dati delle notifiche");
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        if (allNotifications == null)
+        {
+            filteredNotifications = new List<NotificationTrackingEntry>();
+            return;
+        }
+
+        var notifications = allNotifications.AsEnumerable();
+
+        // Filtro per periodo
+        if (int.TryParse(selectedPeriod, out int minutes) && minutes > 0)
+        {
+            notifications = TrackingService.GetRecentNotifications(minutes);
+        }
+
+        // Filtro per severità
+        if (selectedSeverity.HasValue)
+        {
+            notifications = notifications.Where(x => x.Severity == selectedSeverity.Value);
+        }
+
+        // Filtro per sorgente
+        if (!string.IsNullOrEmpty(selectedSource))
+        {
+            notifications = notifications.Where(x => x.Source.Equals(selectedSource, StringComparison.OrdinalIgnoreCase));
+        }
+
+        filteredNotifications = notifications.OrderByDescending(x => x.Timestamp).ToList();
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadData();
+    }
+
+    private async Task CleanOldNotifications()
+    {
+        TrackingService.CleanOldNotifications(24);
+        TrackedNotification.NotifySuccess("Notifiche vecchie pulite", "Rimosse notifiche più vecchie di 24 ore");
+        await LoadData();
+    }
+
+    private async Task ExportToJson()
+    {
+        try
+        {
+            var json = TrackingService.ExportNotificationsAsJson();
+            
+            // Su MAUI, possiamo salvare nel cache directory
+            var fileName = $"notifications_export_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+            var filePath = Path.Combine(FileSystem.Current.CacheDirectory, fileName);
+            
+            await File.WriteAllTextAsync(filePath, json);
+            
+            TrackedNotification.NotifySuccess("Export completato", $"File salvato: {fileName}");
+            Logger.LogInformation("Export notifiche salvato in: {FilePath}", filePath);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Errore durante l'export JSON");
+            TrackedNotification.NotifyError("Errore export", ex.Message);
+        }
+    }
+
+    private void TestNotification()
+    {
+        var severities = new[] { NotificationSeverity.Info, NotificationSeverity.Success, NotificationSeverity.Warning, NotificationSeverity.Error };
+        var randomSeverity = severities[Random.Shared.Next(severities.Length)];
+        
+        TrackedNotification.Notify(new NotificationMessage
+        {
+            Severity = randomSeverity,
+            Summary = $"Test notifica {randomSeverity}",
+            Detail = $"Notifica di test generata alle {DateTime.Now:HH:mm:ss}",
+            Duration = 3000
+        });
+    }
+
+    private void OnPeriodChanged()
+    {
+        ApplyFilters();
+    }
+
+    private void OnSeverityChanged()
+    {
+        ApplyFilters();
+    }
+
+    private void OnSourceChanged()
+    {
+        ApplyFilters();
+    }
+
+    private void ToggleLiveMode()
+    {
+        isLiveMode = !isLiveMode;
+        
+        if (isLiveMode)
+        {
+            liveTimer = new Timer(async _ => await InvokeAsync(async () =>
+            {
+                await LoadData();
+                StateHasChanged();
+            }), null, TimeSpan.Zero, TimeSpan.FromSeconds(5));
+            
+            TrackedNotification.NotifyInfo("Live mode attivo", "La pagina si aggiornerà automaticamente ogni 5 secondi");
+        }
+        else
+        {
+            liveTimer?.Dispose();
+            liveTimer = null;
+            TrackedNotification.NotifyInfo("Live mode disattivo", "Aggiornamento automatico fermato");
+        }
+    }
+
+    private (string icon, BadgeStyle color) GetSeverityIconAndColor(NotificationSeverity severity)
+    {
+        return severity switch
+        {
+            NotificationSeverity.Success => ("✅", BadgeStyle.Success),
+            NotificationSeverity.Info => ("ℹ️", BadgeStyle.Info),
+            NotificationSeverity.Warning => ("⚠️", BadgeStyle.Warning),
+            NotificationSeverity.Error => ("❌", BadgeStyle.Danger),
+            _ => ("📝", BadgeStyle.Secondary)
+        };
+    }
+
+    public void Dispose()
+    {
+        TrackingService.NotificationTracked -= OnNotificationTracked;
+        liveTimer?.Dispose();
+        Logger.LogInformation("📊 NotificationReportPage disposed");
+    }
+
+    public class DropdownOption
+    {
+        public string Text { get; set; }
+        public string Value { get; set; }
+        
+        public DropdownOption(string text, string value)
+        {
+            Text = text;
+            Value = value;
+        }
+    }
+
+    public class SeverityOption
+    {
+        public string Text { get; set; }
+        public NotificationSeverity Value { get; set; }
+        
+        public SeverityOption(string text, NotificationSeverity value)
+        {
+            Text = text;
+            Value = value;
+        }
+    }
+}

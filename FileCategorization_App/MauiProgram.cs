@@ -30,9 +30,30 @@ public static class MauiProgram
         builder.Services.AddScoped<ContextMenuService>();
         builder.Services.AddScoped<IUtilityServices, UtilityServices>();
         
+        // SignalR real-time notifications
+        builder.Services.AddScoped<ISignalRService, SignalRService>();
+        builder.Services.AddScoped<IUnifiedNotificationService, UnifiedNotificationService>();
+        
+        // Notification tracking services
+        builder.Services.AddSingleton<INotificationTrackingService, NotificationTrackingService>();
+        builder.Services.AddScoped<TrackedNotificationService>();
+        
+        // Global console service
+        builder.Services.AddSingleton<IGlobalConsoleService, GlobalConsoleService>();
+        
         // Memory cache infrastructure
         builder.Services.AddMemoryCache();
         builder.Services.AddScoped<ICacheService, MemoryCacheService>();
+        
+        // HTTP Client services
+        builder.Services.AddHttpClient();
+        
+        // Connectivity services
+        builder.Services.AddSingleton<IConnectivity>(Connectivity.Current);
+        builder.Services.AddScoped<IConnectivityService, ConnectivityService>();
+        
+        // App initialization service
+        builder.Services.AddScoped<AppInitializationService>();
         
         // Register base services
         builder.Services.AddScoped<ServiceApi>();
@@ -44,16 +65,18 @@ public static class MauiProgram
         {
             var baseService = provider.GetRequiredService<ServiceApi>();
             var cacheService = provider.GetRequiredService<ICacheService>();
+            var connectivityService = provider.GetRequiredService<IConnectivityService>();
             var logger = provider.GetRequiredService<ILogger<CachedServiceApiWrapper>>();
-            return new CachedServiceApiWrapper(baseService, cacheService, logger);
+            return new CachedServiceApiWrapper(baseService, cacheService, connectivityService, logger);
         });
         
         builder.Services.AddScoped<IDDwebService>(provider =>
         {
             var baseService = provider.GetRequiredService<DDwebService>();
             var cacheService = provider.GetRequiredService<ICacheService>();
+            var connectivityService = provider.GetRequiredService<IConnectivityService>();
             var logger = provider.GetRequiredService<ILogger<CachedDDwebServiceWrapper>>();
-            return new CachedDDwebServiceWrapper(baseService, cacheService, logger);
+            return new CachedDDwebServiceWrapper(baseService, cacheService, connectivityService, logger);
         });
 
         var _cachePath = FileSystem.Current.CacheDirectory;

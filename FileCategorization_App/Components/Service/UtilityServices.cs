@@ -28,14 +28,16 @@ namespace FileCategorization_App.Components.Service
         private readonly IConfiguration _config;
         private readonly IJSRuntime _runtime;
         private ILogger<UtilityServices> _logger;
+        private readonly IServiceProvider _serviceProvider;
 
 
 
-        public UtilityServices(IConfiguration config, IJSRuntime jSRuntime, ILogger<UtilityServices> logger)
+        public UtilityServices(IConfiguration config, IJSRuntime jSRuntime, ILogger<UtilityServices> logger, IServiceProvider serviceProvider)
         {
             _config = config;
             _runtime = jSRuntime;
             _logger = logger;
+            _serviceProvider = serviceProvider;
 
             globalSettingFullPath = Path.Combine(FileSystem.Current.AppDataDirectory, "GlobalSettings.json");
             SetNetworkSettingFullPath();
@@ -176,6 +178,18 @@ namespace FileCategorization_App.Components.Service
             }
 
             _logger.LogInformation($"Api Url: {ApiUrl}");
+            
+            // Update ConnectivityService with new API URL
+            try
+            {
+                var connectivityService = _serviceProvider.GetService<IConnectivityService>();
+                connectivityService?.UpdateApiBaseUrl(ApiUrl);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"Could not update ConnectivityService API URL: {ex.Message}");
+            }
+            
             return ApiUrl;
         }
 
@@ -185,20 +199,29 @@ namespace FileCategorization_App.Components.Service
 
             networks.Add(new NetworkSetting
             {
-                Name = "LocalDev",
-                Address = "10.0.2.2",
+                Name = "LocalDevHost",
+                Address = "localhost",
                 Port = "5089",
                 Schema = "http",
-                IsActive = true
+                IsActive = false
             });
 
             networks.Add(new NetworkSetting
             {
-                Name = "LocalRel",
+                Name = "LocalDevEmulator", 
+                Address = "10.0.2.2",
+                Port = "5089",
+                Schema = "http",
+                IsActive = false
+            });
+
+            networks.Add(new NetworkSetting
+            {
+                Name = "LocalNetwork",
                 Address = "192.168.1.5",
                 Port = "30109",
                 Schema = "http",
-                IsActive = false
+                IsActive = true
             });
 
             networks.Add(new NetworkSetting

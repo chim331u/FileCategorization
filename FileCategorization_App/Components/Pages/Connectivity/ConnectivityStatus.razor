@@ -1,0 +1,390 @@
+@using FileCategorization_App.Components.Interface
+@using FileCategorization_Shared.Common
+@inject IConnectivityService ConnectivityService
+@inject IUnifiedNotificationService NotificationService
+@inject IUtilityServices UtilityServices
+@inject ILogger<ConnectivityStatus> Logger
+@implements IDisposable
+
+<div class="connectivity-status">
+    <div class="status-card">
+        <!-- Server and SignalR Status Row -->
+        <div class="detail-row">
+            <!-- Left: Server API Status -->
+            <span class="detail-value @GetServerApiClass()">
+                <span class="status-indicator @GetServerApiClass()">●</span>
+                @GetServerApiText()
+            </span>
+            
+            <!-- Right: SignalR Status -->
+            <span class="detail-value @GetSignalRClass()">
+                <span class="status-indicator @GetSignalRClass()">●</span>
+                @GetSignalRText()
+            </span>
+        </div>
+        
+        @* <!-- DEBUG INFO - Remove in production --> *@
+        @* <div style="font-size: 0.8rem; color: #999; margin-top: 5px;"> *@
+        @*     DEBUG: ServerAPI=@GetServerApiClass()/@GetServerApiText(),  *@
+        @*     SignalR=@GetSignalRClass()/@GetSignalRText(),  *@
+        @*     ConnInfo=@(connectivityInfo != null ? "OK" : "NULL") *@
+        @* </div> *@
+    </div>
+</div>
+
+<style>
+    .connectivity-status {
+        margin-bottom: 1rem;
+    }
+
+    .status-card {
+        border-radius: 8px;
+        padding: 12px;
+    }
+
+
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        padding: 4px 0;
+    }
+
+    .detail-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .detail-label {
+        font-weight: 500;
+        color: var(--rz-text-secondary-color);
+    }
+
+    .detail-value {
+        font-weight: 500;
+        color: var(--rz-text-color);
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+
+    .status-indicator {
+        font-size: 0.8em;
+        margin-right: 6px;
+    }
+
+    .status-indicator.connected {
+        color: #28a745;
+    }
+
+    .status-indicator.disconnected {
+        color: #dc3545;
+    }
+
+    .status-indicator.connecting {
+        color: #ffc107;
+    }
+</style>
+
+@code {
+    [Parameter] public int RefreshInterval { get; set; } = 30000; // 30 seconds
+
+    private ConnectivityInfo? connectivityInfo;
+    private Timer? refreshTimer;
+    private bool isRefreshing;
+    private bool isServerApiReachable = false;
+    private bool isCheckingServerApi = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to connectivity events
+        ConnectivityService.ConnectivityChanged += OnConnectivityChanged;
+        ConnectivityService.ServerReachabilityChanged += OnServerReachabilityChanged;
+        
+        // Subscribe to SignalR connection changes
+        NotificationService.ConnectionStatusChanged += OnSignalRConnectionChanged;
+        
+        // Start monitoring
+        await ConnectivityService.StartMonitoringAsync();
+        
+        // Initial status load
+        await LoadConnectivityStatus();
+        await CheckServerApiStatus();
+        
+        // Set up refresh timer
+        if (RefreshInterval > 0)
+        {
+            refreshTimer = new Timer(async _ => await RefreshStatusInternal(), null, 
+                TimeSpan.FromMilliseconds(RefreshInterval), 
+                TimeSpan.FromMilliseconds(RefreshInterval));
+        }
+        
+        // Force initial UI update
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void OnConnectivityChanged(object? sender, AppConnectivityChangedEventArgs e)
+    {
+        Logger.LogInformation($"🌐 Connectivity changed: {e.IsConnected}, Type: {e.ConnectionType}");
+        await InvokeAsync(async () =>
+        {
+            await LoadConnectivityStatus();
+            await CheckServerApiStatus(); // Also check server API when connectivity changes
+            StateHasChanged();
+        });
+    }
+
+    private async void OnServerReachabilityChanged(object? sender, ServerReachabilityChangedEventArgs e)
+    {
+        Logger.LogInformation($"📡 Server reachability changed: {e.IsReachable}");
+        await InvokeAsync(async () =>
+        {
+            await LoadConnectivityStatus();
+            await CheckServerApiStatus(); // Also check server API when server reachability changes
+            StateHasChanged();
+        });
+    }
+
+    private async void OnSignalRConnectionChanged(string connectionStatus)
+    {
+        Logger.LogInformation($"SignalR connection status changed: {connectionStatus}");
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadConnectivityStatus()
+    {
+        try
+        {
+            connectivityInfo = await ConnectivityService.GetConnectivityInfoAsync();
+            Logger.LogInformation($"Connectivity status loaded - IsConnected: {connectivityInfo?.IsConnected}, ServerReachable: {connectivityInfo?.IsServerReachable}, SignalR: {NotificationService.IsConnected}");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error loading connectivity status: {ex.Message}");
+        }
+    }
+
+    private async Task RefreshStatusInternal()
+    {
+        if (isRefreshing) return;
+        
+        isRefreshing = true;
+        try
+        {
+            await LoadConnectivityStatus();
+            await CheckServerApiStatus();
+            await InvokeAsync(StateHasChanged);
+        }
+        finally
+        {
+            isRefreshing = false;
+        }
+    }
+
+    private async Task CheckServerApiStatus()
+    {
+        try
+        {
+            isCheckingServerApi = true;
+            var apiUrl = $"{UtilityServices.ApiUrl}api/v2/healthcheck";
+            Logger.LogInformation($"🔍 Checking server API status at: {apiUrl}");
+            
+            // Use HttpClient with proper configuration
+            using var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(10); // Increased timeout
+            
+            // Add headers like a real API call
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "FileCategorization-Mobile-App/1.0");
+            
+            var response = await httpClient.GetAsync(apiUrl);
+            isServerApiReachable = response.IsSuccessStatusCode;
+            
+            Logger.LogInformation($"✅ Server API check - URL: {apiUrl}, StatusCode: {response.StatusCode}, IsSuccess: {response.IsSuccessStatusCode}");
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                Logger.LogWarning($"❌ Server API returned error: {response.StatusCode} - {content}");
+            }
+        }
+        catch (HttpRequestException httpEx)
+        {
+            Logger.LogError($"🌐 Server API HTTP error: {httpEx.Message}");
+            isServerApiReachable = false;
+        }
+        catch (TaskCanceledException tcEx)
+        {
+            Logger.LogError($"⏱️ Server API timeout: {tcEx.Message}");
+            isServerApiReachable = false;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"💥 Server API check failed: {ex.GetType().Name} - {ex.Message}");
+            isServerApiReachable = false;
+        }
+        finally
+        {
+            isCheckingServerApi = false;
+            Logger.LogInformation($"🔧 Server API check completed - IsReachable: {isServerApiReachable}");
+        }
+    }
+
+    private string GetSignalRClass()
+    {
+        try
+        {
+            // Default state while loading
+            if (connectivityInfo == null)
+            {
+                Logger.LogDebug("ConnectivityInfo is null, returning connecting state");
+                return "connecting";
+            }
+
+            // Check both server connectivity and SignalR status
+            if (!connectivityInfo.IsConnected || !connectivityInfo.IsServerReachable)
+            {
+                Logger.LogDebug($"Network or server issue - IsConnected: {connectivityInfo.IsConnected}, ServerReachable: {connectivityInfo.IsServerReachable}");
+                return "disconnected";
+            }
+            
+            if (NotificationService.IsConnected)
+            {
+                Logger.LogDebug("SignalR is connected");
+                return "connected";
+            }
+            
+            // Server is reachable but SignalR is not connected - could be connecting
+            Logger.LogDebug("Server reachable but SignalR not connected");
+            return "connecting";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error in GetSignalRClass: {ex.Message}");
+            return "disconnected";
+        }
+    }
+
+    private string GetSignalRText()
+    {
+        try
+        {
+            // Default state while loading
+            if (connectivityInfo == null)
+            {
+                Logger.LogDebug("ConnectivityInfo is null, showing checking message");
+                return "Checking Connection...";
+            }
+
+            // Check network connectivity first
+            if (!connectivityInfo.IsConnected)
+            {
+                Logger.LogDebug("Network is disconnected");
+                return "Network Disconnected";
+            }
+            
+            // Check server reachability
+            if (!connectivityInfo.IsServerReachable)
+            {
+                Logger.LogDebug("Server is not reachable");
+                return "Server Unavailable";
+            }
+            
+            // Server is reachable, check SignalR status
+            if (NotificationService.IsConnected)
+            {
+                var connectionId = NotificationService.ConnectionId;
+                if (!string.IsNullOrEmpty(connectionId))
+                {
+                    // Show first 8 characters of connection ID
+                    var shortId = connectionId.Length > 8 ? connectionId.Substring(0, 8) : connectionId;
+                    Logger.LogDebug($"SignalR connected with ID: {shortId}");
+                    return $"SignalR {shortId}";
+                }
+                Logger.LogDebug("SignalR connected without ID");
+                return "SignalR Connected";
+            }
+            
+            // Server reachable but SignalR not connected
+            Logger.LogDebug("Server reachable but SignalR connecting");
+            return "SignalR Connecting...";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error in GetSignalRText: {ex.Message}");
+            return "Connection Error";
+        }
+    }
+
+    private string GetServerApiClass()
+    {
+        try
+        {
+            if (isCheckingServerApi)
+            {
+                Logger.LogDebug("🟡 Server API is being checked");
+                return "connecting";
+            }
+
+            if (isServerApiReachable)
+            {
+                Logger.LogDebug("🟢 Server API is reachable");
+                return "connected";
+            }
+            else
+            {
+                Logger.LogDebug("🔴 Server API is not reachable");
+                return "disconnected";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"💥 Error in GetServerApiClass: {ex.Message}");
+            return "disconnected";
+        }
+    }
+
+    private string GetServerApiText()
+    {
+        try
+        {
+            if (isCheckingServerApi)
+            {
+                Logger.LogDebug("🟡 Server API check in progress");
+                return "Server Checking...";
+            }
+
+            if (isServerApiReachable)
+            {
+                Logger.LogDebug("🟢 Server API is available");
+                return "Server Available";
+            }
+            else
+            {
+                Logger.LogDebug($"🔴 Server API is unavailable (URL: {UtilityServices.ApiUrl})");
+                return "Server Unavailable";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"💥 Error in GetServerApiText: {ex.Message}");
+            return "Server Error";
+        }
+    }
+
+    public void Dispose()
+    {
+        // Unsubscribe from events
+        ConnectivityService.ConnectivityChanged -= OnConnectivityChanged;
+        ConnectivityService.ServerReachabilityChanged -= OnServerReachabilityChanged;
+        NotificationService.ConnectionStatusChanged -= OnSignalRConnectionChanged;
+        
+        // Stop monitoring
+        _ = Task.Run(async () => await ConnectivityService.StopMonitoringAsync());
+        
+        // Dispose timer
+        refreshTimer?.Dispose();
+    }
+}

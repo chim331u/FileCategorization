@@ -12,15 +12,18 @@ public class CachedDDwebServiceWrapper : IDDwebService
 {
     private readonly IDDwebService _ddwebService;
     private readonly ICacheService _cacheService;
+    private readonly IConnectivityService _connectivityService;
     private readonly ILogger<CachedDDwebServiceWrapper> _logger;
 
     public CachedDDwebServiceWrapper(
         IDDwebService ddwebService, 
-        ICacheService cacheService, 
+        ICacheService cacheService,
+        IConnectivityService connectivityService,
         ILogger<CachedDDwebServiceWrapper> logger)
     {
         _ddwebService = ddwebService;
         _cacheService = cacheService;
+        _connectivityService = connectivityService;
         _logger = logger;
     }
 
@@ -37,10 +40,12 @@ public class CachedDDwebServiceWrapper : IDDwebService
 
     public async Task<Result<List<ThreadSummaryDto>>> GetActiveThreadsAsync()
     {
-        return await _cacheService.GetOrSetAsync(
-            "dd:threads:active:result",
-            () => _ddwebService.GetActiveThreadsAsync(),
-            TimeSpan.FromMinutes(1));
+        return await _connectivityService.ExecuteWithConnectivityCheckAsync(
+            async () => await _cacheService.GetOrSetAsync(
+                "dd:threads:active:result",
+                () => _ddwebService.GetActiveThreadsAsync(),
+                TimeSpan.FromMinutes(1)),
+            "GetActiveThreads");
     }
 
     /// <summary>
@@ -54,10 +59,12 @@ public class CachedDDwebServiceWrapper : IDDwebService
 
     public async Task<Result<List<LinkDto>>> GetEd2kLinksAsync(int threadId)
     {
-        return await _cacheService.GetOrSetAsync(
-            $"dd:links:thread:{threadId}:result",
-            () => _ddwebService.GetEd2kLinksAsync(threadId),
-            TimeSpan.FromSeconds(30));
+        return await _connectivityService.ExecuteWithConnectivityCheckAsync(
+            async () => await _cacheService.GetOrSetAsync(
+                $"dd:links:thread:{threadId}:result",
+                () => _ddwebService.GetEd2kLinksAsync(threadId),
+                TimeSpan.FromSeconds(30)),
+            "GetEd2kLinks");
     }
 
     #endregion
@@ -75,7 +82,9 @@ public class CachedDDwebServiceWrapper : IDDwebService
 
     public async Task<Result<string>> UseLinkAsync(int linkId)
     {
-        var result = await _ddwebService.UseLinkAsync(linkId);
+        var result = await _connectivityService.ExecuteWithConnectivityCheckAsync(
+            () => _ddwebService.UseLinkAsync(linkId),
+            "UseLink");
         
         if (result.IsSuccess)
         {
@@ -97,7 +106,9 @@ public class CachedDDwebServiceWrapper : IDDwebService
 
     public async Task<Result<bool>> RenewThreadAsync(int threadId)
     {
-        var result = await _ddwebService.RenewThreadAsync(threadId);
+        var result = await _connectivityService.ExecuteWithConnectivityCheckAsync(
+            () => _ddwebService.RenewThreadAsync(threadId),
+            "RenewThread");
         
         if (result.IsSuccess && result.Value)
         {
@@ -121,7 +132,9 @@ public class CachedDDwebServiceWrapper : IDDwebService
     [Obsolete("This method is deprecated in v2 API and will be removed")]
     public async Task<Result<bool>> CheckUrlAsync(string urlToCheck)
     {
-        var result = await _ddwebService.CheckUrlAsync(urlToCheck);
+        var result = await _connectivityService.ExecuteWithConnectivityCheckAsync(
+            () => _ddwebService.CheckUrlAsync(urlToCheck),
+            "CheckUrl");
         
         if (result.IsSuccess && result.Value)
         {

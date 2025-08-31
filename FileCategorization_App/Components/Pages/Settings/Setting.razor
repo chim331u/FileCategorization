@@ -225,25 +225,11 @@
         var isSaved = _utilityController.WriteNetworkSettingJson(settingList);
         if (isSaved)
         {
-            NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Success,
-                    Summary = "Setting saved",
-                    Detail = $"Setting saved in json file",
-                    Duration = 4000
-
-                });
+            TrackedNotification.NotifySuccess("Setting saved", "Setting saved in json file");
         }
         else
         {
-            NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Error,
-                    Summary = "Setting save failed",
-                    Detail = $"Json file not saved - Please check the log",
-                    Duration = 4000
-
-                });
+            TrackedNotification.NotifyError("Setting save failed", "Json file not saved - Please check the log");
         }
         StateHasChanged();
     }

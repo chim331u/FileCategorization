@@ -120,9 +120,9 @@ Created `NetworkTestService.cs` with methods:
 - `RefreshCategoryAsync()` - File service
 - `GetCategoriesAsync()` - File service
 - `TrainModelAsync()` - ML service
+- `SetFileNotShowAgainAsync()` - File service (✅ v2 API)
 
 ### **⚠️ Legacy Methods (Still Using Old Pattern)**
-- `GetFile()`, `MoveFile()`, `UpdateFileDetail()` - ServiceApi
 - `CheckUrl()` - DDwebService (deprecated v1 API)
 
 ---

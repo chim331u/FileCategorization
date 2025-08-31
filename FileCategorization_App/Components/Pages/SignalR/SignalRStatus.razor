@@ -1,0 +1,273 @@
+@page "/signalr-status"
+@using FileCategorization_App.Components.Interface
+@inject ISignalRService SignalRService
+@inject ILogger<SignalRStatus> Logger
+@implements IDisposable
+
+<PageTitle>SignalR Status</PageTitle>
+
+<RadzenCard class="rz-m-4">
+    <RadzenText TextStyle="TextStyle.H4" class="rz-mb-4">
+        <RadzenIcon Icon="radio" class="rz-me-2" />
+        SignalR Real-time Notifications
+    </RadzenText>
+    
+    <!-- Connection Status -->
+    <RadzenCard class="rz-mb-4">
+        <RadzenRow AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+            <RadzenColumn Size="8">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenIcon Icon="@(SignalRService.IsConnected ? "radio_button_checked" : "radio_button_unchecked")" 
+                               Style="@(SignalRService.IsConnected ? "color: green; font-size: 1.5rem;" : "color: red; font-size: 1.5rem;")" />
+                    <RadzenText TextStyle="TextStyle.H6" class="rz-mb-0">
+                        @(SignalRService.IsConnected ? "Connected" : "Disconnected")
+                    </RadzenText>
+                </RadzenStack>
+                @if (SignalRService.IsConnected && !string.IsNullOrEmpty(SignalRService.ConnectionId))
+                {
+                    <RadzenText TextStyle="TextStyle.Caption" class="rz-mt-1">
+                        Connection ID: @SignalRService.ConnectionId
+                    </RadzenText>
+                }
+            </RadzenColumn>
+            <RadzenColumn Size="4" class="rz-text-align-end">
+                @if (SignalRService.IsConnected)
+                {
+                    <RadzenButton Text="Disconnect" Icon="close" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small"
+                                 Click="DisconnectSignalR" class="rz-me-2" />
+                }
+                else
+                {
+                    <RadzenButton Text="Connect" Icon="play_arrow" ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Small"
+                                 Click="ConnectSignalR" class="rz-me-2" />
+                }
+                <RadzenButton Text="Test" Icon="bug_report" ButtonStyle="ButtonStyle.Info" Size="ButtonSize.Small"
+                             Click="TestSignalR" Disabled="@(!SignalRService.IsConnected)" />
+            </RadzenColumn>
+        </RadzenRow>
+    </RadzenCard>
+
+    <!-- Live Messages -->
+    <RadzenCard>
+        <RadzenText TextStyle="TextStyle.H6" class="rz-mb-3">
+            <RadzenIcon Icon="notifications" class="rz-me-2" />
+            Live Messages
+            @if (messages.Count > 0)
+            {
+                <RadzenButton Text="Clear" Icon="clear_all" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                             Click="ClearMessages" class="rz-ms-3" />
+            }
+        </RadzenText>
+        
+        <div class="message-container" style="max-height: 400px; overflow-y: auto;">
+            @if (messages.Count == 0)
+            {
+                <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" AllowClose="false">
+                    No messages received yet. Messages will appear here in real-time when SignalR is connected.
+                </RadzenAlert>
+            }
+            else
+            {
+                @foreach (var message in messages.OrderByDescending(m => m.Timestamp))
+                {
+                    <RadzenCard class="rz-mb-2 message-item">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                            <RadzenStack Gap="0.25rem">
+                                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                    <RadzenBadge BadgeStyle="@GetBadgeStyle(message.Type)" Text="@message.Type" />
+                                    <RadzenText TextStyle="TextStyle.Caption">
+                                        @message.Timestamp.ToString("HH:mm:ss")
+                                    </RadzenText>
+                                </RadzenStack>
+                                <RadzenText TextStyle="TextStyle.Body2" class="rz-mb-0">
+                                    @message.Content
+                                </RadzenText>
+                                @if (!string.IsNullOrEmpty(message.Details))
+                                {
+                                    <RadzenText TextStyle="TextStyle.Caption" class="rz-color-secondary">
+                                        @message.Details
+                                    </RadzenText>
+                                }
+                            </RadzenStack>
+                        </RadzenStack>
+                    </RadzenCard>
+                }
+            }
+        </div>
+    </RadzenCard>
+</RadzenCard>
+
+@code {
+    private readonly List<SignalRMessage> messages = new();
+    
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to SignalR events
+        SignalRService.ConnectionEstablished += OnConnectionEstablished;
+        SignalRService.ConnectionLost += OnConnectionLost;
+        SignalRService.ErrorOccurred += OnErrorOccurred;
+        SignalRService.StockNotificationReceived += OnStockNotification;
+        SignalRService.MoveFileNotificationReceived += OnMoveFileNotification;
+        SignalRService.JobNotificationReceived += OnJobNotification;
+        SignalRService.JobNotificationWithStatsReceived += OnJobNotificationWithStats;
+        SignalRService.RefreshFilesNotificationReceived += OnRefreshFilesNotification;
+        
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    private async Task ConnectSignalR()
+    {
+        try
+        {
+            AddMessage("Connection", "Attempting to connect...", "");
+            await SignalRService.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            AddMessage("Error", $"Connection failed: {ex.Message}", "");
+        }
+    }
+    
+    private async Task DisconnectSignalR()
+    {
+        try
+        {
+            await SignalRService.StopAsync();
+            AddMessage("Connection", "Disconnected", "");
+        }
+        catch (Exception ex)
+        {
+            AddMessage("Error", $"Disconnect failed: {ex.Message}", "");
+        }
+    }
+    
+    private async Task TestSignalR()
+    {
+        try
+        {
+            AddMessage("Test", "Sending test message...", "");
+            await SignalRService.SendMessageAsync("TestMessage", "Hello from MAUI App!");
+        }
+        catch (Exception ex)
+        {
+            AddMessage("Error", $"Test failed: {ex.Message}", "");
+        }
+    }
+    
+    private void ClearMessages()
+    {
+        messages.Clear();
+        StateHasChanged();
+    }
+    
+    // Event Handlers
+    private void OnConnectionEstablished(string connectionId)
+    {
+        AddMessage("Connection", "Connected successfully", $"ID: {connectionId}");
+    }
+    
+    private void OnConnectionLost(string? error)
+    {
+        AddMessage("Connection", "Connection lost", error ?? "");
+    }
+    
+    private void OnErrorOccurred(string error)
+    {
+        AddMessage("Error", "SignalR error occurred", error);
+    }
+    
+    private void OnStockNotification(string stockName, decimal stockPrice)
+    {
+        AddMessage("Stock", $"Stock update: {stockName}", $"Price: {stockPrice:C}");
+    }
+    
+    private void OnMoveFileNotification(int fileId, string fileName, string destinationPath, string resultText, FileCategorization_Shared.Enums.MoveFilesResults result)
+    {
+        AddMessage("Move File", $"File {fileId}: {fileName}", $"{result} - {resultText}");
+    }
+    
+    private void OnJobNotification(string resultText, FileCategorization_Shared.Enums.MoveFilesResults result)
+    {
+        AddMessage("Job", $"Job notification: {result}", resultText);
+    }
+    
+    private void OnJobNotificationWithStats(string resultText, FileCategorization_Shared.Enums.MoveFilesResults result, int totalFiles, int successfulFiles, int failedFiles)
+    {
+        AddMessage("Job Stats", $"Job completed: {result}", $"Total: {totalFiles}, Success: {successfulFiles}, Failed: {failedFiles}");
+    }
+    
+    private void OnRefreshFilesNotification(string message, int progress)
+    {
+        AddMessage("Refresh Files", $"Progress: {progress}%", message);
+    }
+    
+    private void AddMessage(string type, string content, string details)
+    {
+        messages.Add(new SignalRMessage
+        {
+            Type = type,
+            Content = content,
+            Details = details,
+            Timestamp = DateTime.Now
+        });
+        
+        // Keep only last 100 messages
+        if (messages.Count > 100)
+        {
+            messages.RemoveAt(0);
+        }
+        
+        InvokeAsync(StateHasChanged);
+    }
+    
+    private BadgeStyle GetBadgeStyle(string type)
+    {
+        return type switch
+        {
+            "Connection" => BadgeStyle.Success,
+            "Error" => BadgeStyle.Danger,
+            "Job" => BadgeStyle.Info,
+            "Job Stats" => BadgeStyle.Primary,
+            "Move File" => BadgeStyle.Warning,
+            "Refresh Files" => BadgeStyle.Secondary,
+            "Stock" => BadgeStyle.Light,
+            "Test" => BadgeStyle.Dark,
+            _ => BadgeStyle.Light
+        };
+    }
+    
+    public void Dispose()
+    {
+        // Unsubscribe from events
+        SignalRService.ConnectionEstablished -= OnConnectionEstablished;
+        SignalRService.ConnectionLost -= OnConnectionLost;
+        SignalRService.ErrorOccurred -= OnErrorOccurred;
+        SignalRService.StockNotificationReceived -= OnStockNotification;
+        SignalRService.MoveFileNotificationReceived -= OnMoveFileNotification;
+        SignalRService.JobNotificationReceived -= OnJobNotification;
+        SignalRService.JobNotificationWithStatsReceived -= OnJobNotificationWithStats;
+        SignalRService.RefreshFilesNotificationReceived -= OnRefreshFilesNotification;
+    }
+    
+    private class SignalRMessage
+    {
+        public string Type { get; set; } = "";
+        public string Content { get; set; } = "";
+        public string Details { get; set; } = "";
+        public DateTime Timestamp { get; set; }
+    }
+}
+
+<style>
+    .message-container {
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        padding: 1rem;
+        background-color: #f9f9f9;
+    }
+    
+    .message-item {
+        background-color: white;
+        border-left: 3px solid var(--rz-primary);
+    }
+</style>

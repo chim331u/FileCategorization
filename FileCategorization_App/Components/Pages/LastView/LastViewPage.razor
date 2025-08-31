@@ -89,9 +89,18 @@
 
     private async Task RefreshList()
     {
-        filesFromApi = await _service.GetLastFilesList();
-
-        files = filesFromApi;
+        var result = await _service.GetLastFilesListAsync();
+        if (result.IsSuccess)
+        {
+            filesFromApi = result.Value ?? new List<FilesDetailDto>();
+            files = filesFromApi;
+        }
+        else
+        {
+            filesFromApi = new List<FilesDetailDto>();
+            files = new List<FilesDetailDto>();
+            // Could add error notification here
+        }
     }
 
     void RowRender(RowRenderEventArgs<FilesDetailDto> args)
@@ -101,11 +110,19 @@
     async void RowExpand(FilesDetailDto item)
     {
         filesOthers = new List<FilesDetailDto>();
-
-        filesOthers = await _service.GetAllFiles(item.FileCategory);
+        
+        var result = await _service.GetAllFilesAsync(item.FileCategory);
+        if (result.IsSuccess)
+        {
+            filesOthers = result.Value ?? new List<FilesDetailDto>();
+        }
+        else
+        {
+            filesOthers = new List<FilesDetailDto>();
+            // Could add error notification here
+        }
 
         StateHasChanged();
-
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -120,19 +137,20 @@
 
     protected async Task NotShowAgain(FilesDetailDto item)
     {
-        item.IsToCategorize = false;
-        item.IsNew = false;
-        item.IsNotToMove = true;
-
-        if (await _service.UpdateFileDetail(item) != null)
+        var result = await _service.SetFileNotShowAgainAsync(item.Id);
+        if (result.IsSuccess)
         {
+            // Update local item state for UI consistency
+            item.IsToCategorize = false;
+            item.IsNew = false;
+            item.IsNotToMove = true;
+            
             NotificationService.Notify(new NotificationMessage
                 {
                     Severity = NotificationSeverity.Info,
-                    Summary = "File update",
-                    Detail = $"File will not be shown again",
+                    Summary = "File updated",
+                    Detail = $"File '{item.Name}' will not be shown again",
                     Duration = 4000
-
                 });
         }
         else
@@ -140,10 +158,9 @@
             NotificationService.Notify(new NotificationMessage
                 {
                     Severity = NotificationSeverity.Error,
-                    Summary = "File NOT update",
-                    Detail = $"Error in updating file: see log for detail",
+                    Summary = "Update failed",
+                    Detail = $"Error marking file as 'not to show again': {result.Error}",
                     Duration = 4000
-
                 });
         }
         await RefreshList();

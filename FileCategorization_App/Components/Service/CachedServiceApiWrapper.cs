@@ -13,15 +13,18 @@ public class CachedServiceApiWrapper : IServiceApi
 {
     private readonly IServiceApi _serviceApi;
     private readonly ICacheService _cacheService;
+    private readonly IConnectivityService _connectivityService;
     private readonly ILogger<CachedServiceApiWrapper> _logger;
 
     public CachedServiceApiWrapper(
         IServiceApi serviceApi, 
-        ICacheService cacheService, 
+        ICacheService cacheService,
+        IConnectivityService connectivityService,
         ILogger<CachedServiceApiWrapper> logger)
     {
         _serviceApi = serviceApi;
         _cacheService = cacheService;
+        _connectivityService = connectivityService;
         _logger = logger;
     }
 
@@ -38,10 +41,12 @@ public class CachedServiceApiWrapper : IServiceApi
 
     public async Task<Result<List<string>>> GetCategoriesAsync()
     {
-        return await _cacheService.GetOrSetAsync(
-            "categories:all:result",
-            () => _serviceApi.GetCategoriesAsync(),
-            TimeSpan.FromMinutes(10));
+        return await _connectivityService.ExecuteWithConnectivityCheckAsync(
+            async () => await _cacheService.GetOrSetAsync(
+                "categories:all:result",
+                () => _serviceApi.GetCategoriesAsync(),
+                TimeSpan.FromMinutes(10)),
+            "GetCategories");
     }
 
     /// <summary>
@@ -55,10 +60,12 @@ public class CachedServiceApiWrapper : IServiceApi
 
     public async Task<Result<List<FilesDetailDto>>> GetFilesAsync()
     {
-        return await _cacheService.GetOrSetAsync(
-            "files:filtered:3:result",
-            () => _serviceApi.GetFilesAsync(),
-            TimeSpan.FromMinutes(2));
+        return await _connectivityService.ExecuteWithConnectivityCheckAsync(
+            async () => await _cacheService.GetOrSetAsync(
+                "files:filtered:3:result",
+                () => _serviceApi.GetFilesAsync(),
+                TimeSpan.FromMinutes(2)),
+            "GetFiles");
     }
 
     /// <summary>
@@ -72,10 +79,12 @@ public class CachedServiceApiWrapper : IServiceApi
 
     public async Task<Result<List<FilesDetailDto>>> GetLastFilesListAsync()
     {
-        return await _cacheService.GetOrSetAsync(
-            "files:lastview:result",
-            () => _serviceApi.GetLastFilesListAsync(),
-            TimeSpan.FromMinutes(1));
+        return await _connectivityService.ExecuteWithConnectivityCheckAsync(
+            async () => await _cacheService.GetOrSetAsync(
+                "files:lastview:result",
+                () => _serviceApi.GetLastFilesListAsync(),
+                TimeSpan.FromMinutes(1)),
+            "GetLastFilesList");
     }
 
     /// <summary>
@@ -89,10 +98,12 @@ public class CachedServiceApiWrapper : IServiceApi
 
     public async Task<Result<List<FilesDetailDto>>> GetAllFilesAsync(string fileCategory)
     {
-        return await _cacheService.GetOrSetAsync(
-            $"files:category:{fileCategory}:result",
-            () => _serviceApi.GetAllFilesAsync(fileCategory),
-            TimeSpan.FromMinutes(2));
+        return await _connectivityService.ExecuteWithConnectivityCheckAsync(
+            async () => await _cacheService.GetOrSetAsync(
+                $"files:category:{fileCategory}:result",
+                () => _serviceApi.GetAllFilesAsync(fileCategory),
+                TimeSpan.FromMinutes(2)),
+            "GetAllFiles");
     }
 
     #endregion
@@ -110,7 +121,9 @@ public class CachedServiceApiWrapper : IServiceApi
 
     public async Task<Result<string>> RefreshCategoryAsync()
     {
-        var result = await _serviceApi.RefreshCategoryAsync();
+        var result = await _connectivityService.ExecuteWithConnectivityCheckAsync(
+            () => _serviceApi.RefreshCategoryAsync(),
+            "RefreshCategory");
         
         if (result.IsSuccess)
         {
@@ -132,7 +145,9 @@ public class CachedServiceApiWrapper : IServiceApi
 
     public async Task<Result<string>> MoveFileAsync(FilesDetailDto fileDetail)
     {
-        var result = await _serviceApi.MoveFileAsync(fileDetail);
+        var result = await _connectivityService.ExecuteWithConnectivityCheckAsync(
+            () => _serviceApi.MoveFileAsync(fileDetail),
+            "MoveFile");
         
         if (result.IsSuccess)
         {
@@ -154,7 +169,9 @@ public class CachedServiceApiWrapper : IServiceApi
 
     public async Task<Result<string>> MoveFilesAsync(List<FilesDetailDto> filesToMove)
     {
-        var result = await _serviceApi.MoveFilesAsync(filesToMove);
+        var result = await _connectivityService.ExecuteWithConnectivityCheckAsync(
+            () => _serviceApi.MoveFilesAsync(filesToMove),
+            "MoveFiles");
         
         if (result.IsSuccess)
         {
@@ -166,23 +183,19 @@ public class CachedServiceApiWrapper : IServiceApi
     }
 
     /// <summary>
-    /// UpdateFileDetail invalidates specific file and file list caches
+    /// Sets file as "not to show again" and invalidates related caches
     /// </summary>
-    public async Task<FilesDetailDto> UpdateFileDetail(FilesDetailDto item)
+    public async Task<Result<FilesDetailDto>> SetFileNotShowAgainAsync(int fileId)
     {
-        var result = await UpdateFileDetailAsync(item);
-        return result.IsSuccess ? result.Value! : item;
-    }
-
-    public async Task<Result<FilesDetailDto>> UpdateFileDetailAsync(FilesDetailDto item)
-    {
-        var result = await _serviceApi.UpdateFileDetailAsync(item);
+        var result = await _connectivityService.ExecuteWithConnectivityCheckAsync(
+            () => _serviceApi.SetFileNotShowAgainAsync(fileId),
+            "SetFileNotShowAgain");
         
         if (result.IsSuccess)
         {
-            await _cacheService.RemoveAsync($"file:{item.Id}");
+            await _cacheService.RemoveAsync($"file:{fileId}");
             await InvalidateFileCaches();
-            _logger.LogInformation($"Invalidated caches after updating file: {item.Name}");
+            _logger.LogInformation($"Invalidated caches after marking file {fileId} as not to show again");
         }
         
         return result;
@@ -199,7 +212,9 @@ public class CachedServiceApiWrapper : IServiceApi
 
     public async Task<Result<string>> TrainModelAsync()
     {
-        var result = await _serviceApi.TrainModelAsync();
+        var result = await _connectivityService.ExecuteWithConnectivityCheckAsync(
+            () => _serviceApi.TrainModelAsync(),
+            "TrainModel");
         
         if (result.IsSuccess)
         {
@@ -214,22 +229,6 @@ public class CachedServiceApiWrapper : IServiceApi
 
     #region Non-Cached Methods (Single Item or Low Volume)
 
-    /// <summary>
-    /// GetFile with short cache (individual files may change)
-    /// </summary>
-    public async Task<FilesDetailDto> GetFile(int id)
-    {
-        var result = await GetFileAsync(id);
-        return result.IsSuccess ? result.Value! : new FilesDetailDto();
-    }
-
-    public async Task<Result<FilesDetailDto>> GetFileAsync(int id)
-    {
-        return await _cacheService.GetOrSetAsync(
-            $"file:{id}:result",
-            () => _serviceApi.GetFileAsync(id),
-            TimeSpan.FromMinutes(1));
-    }
 
     #endregion
 
